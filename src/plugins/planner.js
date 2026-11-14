@@ -64,7 +64,7 @@
   function show(slot, s, api, res, minDays) {
     const out = slot.querySelector('.out'), f = api.fmt;
     const idx = () => api.scenarios().indexOf(s);
-    const hasTerrain = api.terrain() && api.horizons && api.horizons.sites && api.horizons.sites[s.siteId];
+    const hasTerrain = api.terrainInfo ? !!api.terrainInfo(s) : false;
     const terrainNote = hasTerrain ? 'Uses real NASA LOLA terrain.' : 'Uses flat ground.';
     if (!res.anyEarth) { out.innerHTML = `<p class="note"><b>No window:</b> Earth never rises here in the next year, so direct radio is impossible. A mission here needs a relay satellite.</p>`; return; }
     if (!res.anySun) { out.innerHTML = `<p class="note"><b>No window:</b> the Sun never clears the horizon here in the next year.</p>`; return; }
@@ -97,13 +97,13 @@
           out.innerHTML = '<p>Searching the next 365 days…</p>';
           setTimeout(() => {
             st.result = findWindows(api, s, st.minDays, SEARCH_DAYS);
-            st.key = `${s.lat},${s.lon},${api.terrain()}`;
+            st.key = `${s.lat},${s.lon},${api.terrain()},${api.terrainInfo && api.terrainInfo(s) ? api.terrainInfo(s).resM : 0}`;
             show(slot, s, api, st.result, st.minDays);
           }, 20);
         });
       }
       // Results go stale when the site or the terrain setting changes (not when time moves).
-      const key = `${s.lat},${s.lon},${api.terrain()}`;
+      const key = `${s.lat},${s.lon},${api.terrain()},${api.terrainInfo && api.terrainInfo(s) ? api.terrainInfo(s).resM : 0}`;
       if (st.result && st.key !== key) {
         st.result = null;
         slot.querySelector('.out').innerHTML = '<p>Site or terrain changed. Press "Find dates" again.</p>';

@@ -149,3 +149,22 @@ test('MK-3: visible fraction of the Sun and Earth disks', () => {
   for (let el = 2 - rSun; el <= 2 + rSun; el += rSun / 20) { const v = f(el); assert.ok(v >= prev - 1e-12); prev = v; }
   assert.ok(Math.abs(E.earthVisible({ ...k.earth, el: 0 }, 0) - 0.5) < 1e-9);
 });
+
+// MK-10: terrain computed in the browser from the LOLA grids, for custom coordinates.
+test('MK-10: LOLA terrain grids decode and give skylines that match the precomputed ones on plateaus', () => {
+  require(path.join(ROOT, 'src', 'terrain-grid.js'));
+  const T = require(path.join(ROOT, 'src', 'terrain.js'));
+  const grid = T.loadNode(window.MW_TERRAIN_GRID, require('zlib').inflateSync);
+  const h = grid.heightAt(-80.13, 1.44);
+  assert.ok(Math.abs(h - 2579) < 40, `IM-1 ground ${h} m (LROC: 2579 m)`);
+  assert.ok(grid.covers(-80) && grid.covers(-89.9) && !grid.covers(-70), 'coverage limit is 77S');
+  assert.equal(grid.resAt(-85, 30), 240);
+  assert.equal(grid.resAt(-80, 30), 960);
+  // IM-2 sits on the broad Mons Mouton plateau: the 240 m grid skyline should match the 80 m site skyline closely.
+  const p = grid.profile(site('im2').lat, site('im2').lon);
+  const ref = HZ.sites.im2.values;
+  assert.equal(p.values.length, 720);
+  const mad = p.values.reduce((a, v, i) => a + Math.abs(v - ref[i]), 0) / 720;
+  assert.ok(mad < 0.3, `IM-2 mean skyline difference ${mad.toFixed(3)}°`);
+  assert.ok(p.values.every(v => Number.isFinite(v) && v > -15 && v < 30));
+});

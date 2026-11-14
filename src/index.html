@@ -216,7 +216,7 @@ footer p{margin:4px 0;max-width:100ch}
     <h3>Accuracy and limits</h3>
     <p id="aboutVal">Each scenario links to the same query in NASA JPL Horizons so you can compare the numbers.</p>
     <ul>
-      <li><b>Terrain detail.</b> The 80 m and 240 m grids capture mountains, ridges and crater rims but not boulders or small craters near the lander. At the pole, a few hundred metres matter: on the connecting ridge, two points 200 m apart get 88% and 78% sunlight over a year. Sites outside the south polar map, and custom coordinates, use flat ground.</li>
+      <li><b>Terrain detail.</b> The 80 m and 240 m grids capture mountains, ridges and crater rims but not boulders or small craters near the lander. At the pole, a few hundred metres matter: on the connecting ridge, two points 200 m apart get 88% and 78% sunlight over a year. Listed south polar sites use precomputed 80 m skylines. Any other point south of 77°S, including custom coordinates, gets a skyline computed in your browser from 240 m LOLA terrain (960 m for distant mountains). That is accurate on plains and plateaus and approximate on narrow ridges. Points north of 77°S use flat ground.</li>
       <li><b>Centers, not edges.</b> "Up" means the center of the Sun or Earth is above the horizon. The Sun's disk is about half a degree wide, so near the poles it can be partly visible.</li>
     </ul>
 
@@ -292,6 +292,8 @@ footer p{margin:4px 0;max-width:100ch}
 <script src="horizon-data.js"></script>
 <script src="map-data.js"></script>
 <script src="validation-data.js"></script>
+<script src="terrain-grid.js"></script>
+<script src="terrain.js"></script>
 <!-- Plugins: one file each, listed here. Order does not matter. -->
 <!-- <script src="plugins/map.js"></script> -->
 <!-- <script src="plugins/power.js"></script> -->
