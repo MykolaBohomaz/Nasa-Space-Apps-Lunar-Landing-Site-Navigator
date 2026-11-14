@@ -49,30 +49,43 @@ Across 64 comparisons (8 sites × 4 dates × Sun and Earth), the app matches NAS
 
 ## Real terrain from NASA LOLA
 
-`tools/make_horizons.py` reads the LOLA south polar elevation model **LDEM_60S_240MPP_ADJ** (240 m grid, 60°S to the pole; Barker et al. 2023, *Planetary Science Journal* 4:183; NASA GSFC Planetary Geodesy Data Archive, doi:10.60903/gsfcpgda-lola-spole). For each south polar site and every 0.5° of azimuth, it traces 400 km outward over the curved Moon (radius 1737.4 km) and records the highest terrain angle seen from 2 m above the ground. This is the approach of NASA's LOLA polar illumination maps (Mazarico et al. 2011, *Icarus* 211). The result is `src/horizon-data.js`. The same run makes `src/map-data.js`, a shaded-relief map of 75°S to the pole.
+`tools/make_horizons.py` reads two LOLA south polar elevation models from the NASA GSFC Planetary Geodesy Data Archive (Barker et al. 2023, *Planetary Science Journal* 4:183, doi:10.60903/gsfcpgda-lola-spole):
+- **LDEM_80S_80MPP_ADJ**: 80 m grid, 80°S to the pole, used wherever it covers the ground.
+- **LDEM_60S_240MPP_ADJ**: 240 m grid, 60°S to the pole, used beyond that.
+
+For each south polar site and every 0.5° of azimuth, the tool traces 400 km outward over the curved Moon (radius 1737.4 km). It records the highest terrain angle seen from 2 m above the ground, the approach of NASA's LOLA polar illumination maps (Mazarico et al. 2011, *Icarus* 211). The result is `src/horizon-data.js`. The same run makes `src/map-data.js`, a shaded-relief map of 75°S to the pole.
 
 Checks:
-- **Map reading:** the DEM height at IM-1 Odysseus's landing point is 2,592 m; LROC reports 2,579 m.
-- **Published research:** on the Shackleton–de Gerlache connecting ridge crest, our model gives 89.7% sunlight over one year (52% on flat ground) and a longest night of 6.4 days. Gläser et al. (2014, *Icarus* 243) found up to 92.3% and nights of typically 3–5 days on this ridge with a finer 20 m LOLA model.
+- **Map reading:** both maps give 2,592 m at IM-1 Odysseus's landing point; LROC reports 2,579 m.
+- **Published research:** the best-lit point on the Shackleton–de Gerlache connecting ridge gets **88.3%** sunlight over one year in our model, against 52% on flat ground. Gläser et al. (2014, *Icarus* 243) found up to 92.3% on this ridge with a finer 20 m LOLA model.
 
-| Site (1 year from Nov 2026) | Sunlight, real terrain | Sunlight, flat ground | Earth in view | Both |
-| --- | ---: | ---: | ---: | ---: |
-| Connecting ridge crest | 89.7% | 52.0% | 52.5% | 49.7% |
-| IM-2 Athena, Mons Mouton | 46.4% | 51.6% | 81.5% | 38.6% |
-| IM-1 Odysseus | 39.9% | 51.0% | 100% | 39.9% |
-| Chandrayaan-3 | 49.4% | 51.5% | 100% | 49.4% |
+**Why location matters:** we found the ridge's best-lit point by testing the 40 highest 80 m pixels within 1.5 km. Their yearly sunlight ranges from **57.5% to 88.3%**. The app includes a second ridge site only 200 m from the best one, which gets 77.5%.
 
-To regenerate: download the DEM (210 MB, not stored in git) and run the tool.
+Yearly results (`node tools/terrain_report.js`, also in [docs/terrain-report.md](docs/terrain-report.md)):
+
+| Site (1 year from Nov 2026) | Map at site | Sunlight, real terrain | Sunlight, flat ground | Earth in view | Both | Longest night |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Connecting ridge, best-lit point | 80 m | 88.3% | 52.0% | 52.6% | 49.7% | 10.7 d |
+| Connecting ridge, 200 m away | 80 m | 77.5% | 52.0% | 52.4% | 40.4% | 10.5 d |
+| IM-2 Athena, Mons Mouton | 80 m | 46.3% | 51.6% | 81.3% | 38.4% | 19.1 d |
+| IM-1 Odysseus | 80 m | 39.7% | 51.0% | 100% | 39.7% | 19.0 d |
+| Chandrayaan-3 | 240 m | 49.4% | 51.5% | 100% | 49.4% | 16.0 d |
+
+Our longest ridge night (10.7 days, in the southern winter) is longer than the 3–5 days Gläser et al. report at their best points. The likely reasons are their finer 20 m grid and exact point choice; we note it rather than tune it away.
+
+To regenerate, download the maps (not stored in git) and run the tools:
 
 ```
-mkdir -p data && curl -L -o data/LDEM_60S_240MPP_ADJ.TIF https://pgda.gsfc.nasa.gov/data/LOLA_20mpp/LDEM_60S_240MPP_ADJ.TIF
+mkdir -p data
+curl -L -o data/LDEM_60S_240MPP_ADJ.TIF https://pgda.gsfc.nasa.gov/data/LOLA_20mpp/LDEM_60S_240MPP_ADJ.TIF
+curl -L -o data/LDEM_80S_80MPP_ADJ.TIF https://pgda.gsfc.nasa.gov/data/LOLA_20mpp/LDEM_80S_80MPP_ADJ.TIF
 pip install numpy tifffile imagecodecs pillow
-python3 tools/make_horizons.py && python3 build.py
+python3 tools/make_horizons.py && node tools/terrain_report.js && python3 build.py
 ```
 
 ## Limitations
 
-- **Terrain detail.** The 240 m grid captures mountains and crater rims, not boulders or small craters next to the lander. Sites north of 60°S, and custom coordinates, use flat ground.
+- **Terrain detail.** The 80 m and 240 m grids capture mountains, ridges and crater rims, not boulders or small craters next to the lander. Sites north of 60°S, and custom coordinates, use flat ground.
 - **Centre of the disk.** "Up" means the centre of the Sun or Earth is above the horizon.
 - **Hourly sampling** for the 30-day statistics.
 
@@ -82,7 +95,8 @@ python3 tools/make_horizons.py && python3 build.py
 | --- | --- | --- | --- |
 | IM-2 Athena, Mons Mouton | −84.79 | 29.20 | IM-2 records based on LROC ([LROC landing region](https://www.lroc.asu.edu/images/1401)) |
 | IM-1 Odysseus | −80.13 | 1.44 | [LROC](https://www.lroc.asu.edu/images/1360) |
-| Connecting ridge crest near Shackleton | −89.4458 | 222.706 | Highest LOLA point within 3 km of the high-illumination location at 89.45°S 229.69°E given by [the-moon.us](https://the-moon.us/wiki/South_Pole). That location sat about 500 m below the crest, with a 19° slope next to it. |
+| Connecting ridge near Shackleton, best-lit point | −89.4393 | 222.733 | Best-lit of the 40 highest LOLA 80 m points within 1.5 km of the ridge crest. The crest was first located from the high-illumination point at 89.45°S 229.69°E given by [the-moon.us](https://the-moon.us/wiki/South_Pole), which sat about 500 m below it. |
+| Connecting ridge, 200 m from the best-lit point | −89.4458 | 222.706 | Highest point on the 240 m map, kept to show how much 200 m matters. |
 | Chandrayaan-3, Statio Shiv Shakti | −69.373 | 32.319 | [USGS Gazetteer](https://planetarynames.wr.usgs.gov/Feature/16272) |
 | Chang'e 6 | −41.6385 | 206.0148 | [LROC](https://lroc.im-ldi.com/images/1374) |
 | SLIM | −13.316 | 25.251 | [NASA NSSDC](https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html) |

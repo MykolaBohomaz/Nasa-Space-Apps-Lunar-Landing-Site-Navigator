@@ -231,7 +231,7 @@
     svg.innerHTML = g;
     svg.setAttribute('aria-label', `Sky from ${siteName(s)}: Sun at ${fmtDeg(cur.sun.el)} elevation, azimuth ${Math.round(cur.sun.az)}°; Earth at ${fmtDeg(cur.earth.el)} elevation, azimuth ${Math.round(cur.earth.az)}°.`);
     const stretch = top <= 20 ? ' Heights are stretched so small angles are visible.' : '';
-    const hzText = terr ? `Horizon: real terrain from NASA LOLA (${HZ_DATA.meta.resolutionM} m grid, viewed ${HZ_DATA.meta.mastM} m above the ground).`
+    const hzText = terr ? `Horizon: real terrain from NASA LOLA (${HZ[s.siteId].resM || HZ_DATA.meta.resolutionM} m grid at the site, viewed ${HZ_DATA.meta.mastM} m above the ground).`
       : s.prof ? 'Horizon: flat ground (terrain switched off).'
       : 'Horizon: flat ground (no LOLA terrain for this site).';
     $(el, '.skycap').innerHTML = `<span>Sky from the landing site at ${esc(fmtFull(s.t))}. Dots show the next 30 days.${stretch}</span><span>${hzText} The sky is black even in daylight: the Moon has no air.</span>`;
