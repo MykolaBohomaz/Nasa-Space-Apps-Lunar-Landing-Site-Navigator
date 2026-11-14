@@ -427,14 +427,21 @@
       if (site) { s.lat = site.lat; s.lon = site.lon; s.siteId = site.id; ensureSamples(s, true); rerender(); }
       else { s.siteId = 'custom'; $(el, '.lat').focus(); }
     });
+    // Invalid coordinates: say why (browser bubble), keep the last good values, restore them on leaving the field.
     const coordChange = () => {
-      const lat = parseFloat($(el, '.lat').value), lon = parseFloat($(el, '.lon').value);
-      if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90) return;
+      const latEl = $(el, '.lat'), lonEl = $(el, '.lon');
+      const lat = parseFloat(latEl.value), lon = parseFloat(lonEl.value);
+      latEl.setCustomValidity(''); lonEl.setCustomValidity('');
+      if (isNaN(lat) || lat < -90 || lat > 90) { latEl.setCustomValidity('Latitude must be between -90 (south pole) and 90 (north pole).'); latEl.reportValidity(); return; }
+      if (isNaN(lon) || lon < -360 || lon > 360) { lonEl.setCustomValidity('Longitude must be between -360 and 360 degrees east.'); lonEl.reportValidity(); return; }
       s.lat = lat; s.lon = lon; s.siteId = matchSite(lat, lon);
       ensureSamples(s, true); rerender();
     };
+    const restore = e => { if (!e.target.checkValidity() || e.target.value === '') { e.target.setCustomValidity(''); e.target.value = e.target === $(el, '.lat') ? s.lat : s.lon; } };
     $(el, '.lat').addEventListener('change', coordChange);
     $(el, '.lon').addEventListener('change', coordChange);
+    $(el, '.lat').addEventListener('blur', restore);
+    $(el, '.lon').addEventListener('blur', restore);
     $(el, '.dt').addEventListener('change', e => {
       const t = fromInput(e.target.value);
       if (t !== null) { s.t = t; ensureSamples(s, true); rerender(); }
