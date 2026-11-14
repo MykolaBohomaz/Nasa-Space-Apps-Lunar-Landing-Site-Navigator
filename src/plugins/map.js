@@ -35,6 +35,20 @@
     ];
   }
 
+  function flightTo(camera, target) {
+    const [right, up, forward] = camera;
+    const x = dot(target, right);
+    const y = dot(target, up);
+    const across = Math.hypot(x, y);
+    const angle = Math.atan2(across, dot(target, forward));
+    return {
+      angle,
+      // An antipodal target has no unique shortest arc. Orbit to the right.
+      horizontal: across > 1e-9 ? angle * x / across : angle,
+      vertical: across > 1e-9 ? angle * y / across : 0
+    };
+  }
+
   function makeSurface(gl, grid) {
     const { width, height, elevations } = grid;
     if (!Number.isInteger(width) || !Number.isInteger(height) || width < 2 || height < 2 ||
@@ -422,6 +436,8 @@
     let camera = cameraAt(-62, 20);
     let distance = 3.35;
     let frame = null;
+    let flight = null;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     let surface = null;
     let scenarioPins = [];
     let gl;
@@ -430,7 +446,16 @@
 
     function selectSite(site) {
       api.setSite(0, site.lat, site.lon);
-      camera = cameraAt(site.lat, site.lon);
+      const move = flightTo(camera, direction(site.lat, site.lon));
+      if (reducedMotion.matches || move.angle < 0.001) {
+        camera = orbitCamera(camera, move.horizontal, move.vertical);
+        flight = null;
+      } else {
+        flight = {
+          from: camera, move, start: performance.now(),
+          duration: clamp(350 + move.angle * 250, 350, 950)
+        };
+      }
       schedule();
     }
 
@@ -452,12 +477,20 @@
       return element;
     });
 
-    function draw() {
+    function draw(now) {
       frame = null;
       if (!gl || gl.isContextLost()) return;
       const width = viewport.clientWidth;
       const height = viewport.clientHeight;
       if (!width || !height) return;
+      if (flight) {
+        const { from, move, start, duration } = flight;
+        const t = reducedMotion.matches ? 1 : clamp((now - start) / duration, 0, 1);
+        const eased = t * t * (3 - 2 * t);
+        camera = orbitCamera(from, move.horizontal * eased, move.vertical * eased);
+        if (t === 1) flight = null;
+        else schedule();
+      }
       const dpr = Math.min(devicePixelRatio || 1, 2);
       const pixelWidth = Math.round(width * dpr);
       const pixelHeight = Math.round(height * dpr);
@@ -487,11 +520,13 @@
     }
 
     function zoom(scale) {
+      flight = null;
       distance = clamp(1 + (distance - 1) * scale, 1.11, 8);
       schedule();
     }
 
     function orbit(dx, dy) {
+      flight = null;
       const shortSide = Math.max(1, Math.min(viewport.clientWidth, viewport.clientHeight));
       const radiansPerPixel = 2 * (distance - 1) / (focalLength * shortSide);
       camera = orbitCamera(camera, -dx * radiansPerPixel, dy * radiansPerPixel);
@@ -505,6 +540,7 @@
     };
     canvas.addEventListener('pointerdown', event => {
       if (event.button !== 0 || pointers.size === 2) return;
+      flight = null;
       canvas.setPointerCapture(event.pointerId);
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     });
@@ -525,8 +561,8 @@
       zoom(Math.exp(clamp(event.deltaY * units, -250, 250) * 0.002));
     }, { passive: false });
     const controls = {
-      pole() { camera = cameraAt(-90, 0); distance = 1.45; schedule(); },
-      reset() { camera = cameraAt(-62, 20); distance = 3.35; schedule(); },
+      pole() { flight = null; camera = cameraAt(-90, 0); distance = 1.45; schedule(); },
+      reset() { flight = null; camera = cameraAt(-62, 20); distance = 3.35; schedule(); },
       in() { zoom(0.7); },
       out() { zoom(1 / 0.7); }
     };
