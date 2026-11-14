@@ -218,34 +218,63 @@
     // horizon
     if (terr) {
       g += `<line x1="${L}" x2="${L + pw}" y1="${y0}" y2="${y0}" stroke="#A3A9AE" stroke-width="1" stroke-dasharray="5 5"/>`;
-      g += `<text x="${L + pw - 6}" y="${y0 - 6}" text-anchor="end" font-size="12" fill="#A3A9AE" paint-order="stroke" stroke="#000" stroke-width="3">Flat ground would be here (0°)</text>`;
       g += `<path d="${skyline}" fill="none" stroke="#ECE9E2" stroke-width="1.5"/>`;
-      g += `<text x="${L + 8}" y="${T + ph - 10}" font-size="12" fill="#ECE9E2">Real skyline from NASA LOLA terrain</text>`;
     } else {
       g += `<line x1="${L}" x2="${L + pw}" y1="${y0}" y2="${y0}" stroke="#ECE9E2" stroke-width="1.5"/>`;
-      g += `<text x="${L + 8}" y="${y0 + 16}" font-size="12" fill="#ECE9E2">Horizon (flat ground)</text>`;
     }
+    // Label boxes already used, so later labels can move out of the way instead of overlapping.
+    const boxes = [];
+    const hits = a => boxes.some(b => a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1);
+    const inPlot = a => a.y1 >= T && a.y2 <= T + ph;
     // current bodies
+    const spot = b => [x(b.az), b.el >= bot && b.el <= top ? y(b.el) : (b.el < bot ? T + ph - 10 : T + 10)];
+    // Reserve both markers first so neither label is drawn over the other body.
+    [[cur.earth, 9], [cur.sun, 10]].forEach(([b, r]) => { const [cx, cy] = spot(b); boxes.push({ x1: cx - r, x2: cx + r, y1: cy - r, y2: cy + r }); });
     const body = (b, color, label, r) => {
       const inView = b.el >= bot && b.el <= top;
-      const cx = x(b.az), cy = inView ? y(b.el) : (b.el < bot ? T + ph - 10 : T + 10);
+      const [cx, cy] = spot(b);
       const up = isUp(s, b), blocked = !up && b.el > 0;
       let out = '';
       if (label === 'Sun' && up) out += `<circle cx="${cx}" cy="${cy}" r="${r * 3}" fill="url(#${gid}glow)"/>`;
       out += up
         ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}" stroke="#000" stroke-width="1.5"/>`
         : `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="3 3"/>`;
-      const right = cx < L + pw - 190;
-      const tx = right ? cx + r + 6 : cx - r - 6;
-      const below = cy < T + 40; // too close to the top: put labels under the marker
-      const ly1 = below ? cy + r + 16 : cy - r - 22, ly2 = ly1 + 15;
       const txt = `${label} ${fmtDeg(b.el)}${inView ? '' : ' (below view)'}`;
+      const sub = `${up ? 'above horizon' : blocked ? 'hidden behind terrain' : 'below horizon'}, ${Math.round(b.az)}° ${compass(b.az)}`;
+      const w = Math.max(txt.length * 9, sub.length * 6.8);
+      const box = (rt, yy) => { const xx = rt ? cx + r + 6 : cx - r - 6; return { rt, xx, yy, x1: rt ? xx : xx - w, x2: rt ? xx + w : xx, y1: yy - 15, y2: yy + 19 }; };
+      const fits = a => a.y1 >= T && a.y2 <= T + ph + 6 && a.x1 >= L - 4 && a.x2 <= L + pw + 4;
+      // Try spots in order: beside the marker above or under it, on either side, then stacked past a label already drawn.
+      const pref = cx < L + pw - 190;
+      const ys = [cy < T + 40 ? cy + r + 16 : cy - r - 22, cy < T + 40 ? cy - r - 22 : cy + r + 16];
+      boxes.forEach(o => { ys.push(o.y1 - 21, o.y2 + 15); });
+      const spots = [];
+      for (const rt of [pref, !pref]) for (const yy of ys) spots.push(box(rt, yy));
+      const lb = spots.find(a => fits(a) && !hits(a)) || box(pref, ys[0]);
+      const right = lb.rt, tx = lb.xx, ly1 = lb.yy, ly2 = ly1 + 15;
+      boxes.push(lb);
       out += `<text x="${tx}" y="${ly1}" text-anchor="${right ? 'start' : 'end'}" font-size="15" font-weight="700" fill="${color}" paint-order="stroke" stroke="#000" stroke-width="4">${txt}</text>`;
-      out += `<text x="${tx}" y="${ly2}" text-anchor="${right ? 'start' : 'end'}" font-size="12" fill="#ECE9E2" paint-order="stroke" stroke="#000" stroke-width="4">${up ? 'above horizon' : blocked ? 'hidden behind terrain' : 'below horizon'}, ${Math.round(b.az)}° ${compass(b.az)}</text>`;
+      out += `<text x="${tx}" y="${ly2}" text-anchor="${right ? 'start' : 'end'}" font-size="12" fill="#ECE9E2" paint-order="stroke" stroke="#000" stroke-width="4">${sub}</text>`;
       return out;
     };
-    g += body(cur.earth, '#5DA9E9', 'Earth', 9);
-    g += body(cur.sun, '#F4B942', 'Sun', 10);
+    const bodies = body(cur.earth, '#5DA9E9', 'Earth', 9) + body(cur.sun, '#F4B942', 'Sun', 10);
+    // Horizon notes: the first spot that does not cover the Sun or Earth labels.
+    const note = (text, fill, spots) => {
+      const w = text.length * 6.6;
+      const pick = spots.map(([xx, yy, end]) => ({ xx, yy, end, b: { x1: end ? xx - w : xx, x2: end ? xx : xx + w, y1: yy - 12, y2: yy + 4 } }))
+        .find(o => !hits(o.b)) || null;
+      if (!pick) return '';
+      boxes.push(pick.b);
+      return `<text x="${pick.xx}" y="${pick.yy}"${pick.end ? ' text-anchor="end"' : ''} font-size="12" fill="${fill}" paint-order="stroke" stroke="#000" stroke-width="3">${text}</text>`;
+    };
+    const Rx = L + pw - 6, Lx = L + 8;
+    if (terr) {
+      g += note('Flat ground would be here (0°)', '#A3A9AE', [[Rx, y0 - 6, 1], [Lx, y0 - 6, 0], [Rx, y0 + 16, 1], [Lx, y0 + 16, 0], [x(180), y0 - 6, 0]]);
+      g += note('Real skyline from NASA LOLA terrain', '#ECE9E2', [[Lx, T + ph - 10, 0], [Rx, T + ph - 10, 1], [x(135), T + ph - 10, 0]]);
+    } else {
+      g += note('Horizon (flat ground)', '#ECE9E2', [[Lx, y0 + 16, 0], [Rx, y0 + 16, 1], [x(180), y0 + 16, 0]]);
+    }
+    g += bodies;
     svg.innerHTML = g;
     svg.setAttribute('aria-label', `Sky from ${siteName(s)}: Sun at ${fmtDeg(cur.sun.el)} elevation, azimuth ${Math.round(cur.sun.az)}°; Earth at ${fmtDeg(cur.earth.el)} elevation, azimuth ${Math.round(cur.earth.az)}°.`);
     const stretch = top <= 20 ? ' Heights are stretched so small angles are visible.' : '';
@@ -283,7 +312,7 @@
 
   function monthCard(s) {
     const st = s.stats;
-    const row = (label, v, color) => `<dt>${label}</dt><dd>${pct(v)}</dd><div class="bar"><i style="width:${(v * 100).toFixed(1)}%;background:${color}"></i></div>`;
+    const row = (label, v, color) => `<dt>${label}</dt><dd>${pct(v)}</dd><dd class="bar" aria-hidden="true" style="margin-top:-2px"><i style="width:${(v * 100).toFixed(1)}%;background:${color}"></i></dd>`;
     const bw = bothWindow(s);
     const nowLine = bw === null ? '<p class="muted">Right now you do not have both Sun and Earth.</p>'
       : `<p class="count">Both up for the next ${bw === Infinity ? 'many days' : fmtDur(bw)}</p>`;
@@ -415,6 +444,7 @@
     const box = document.getElementById('compare');
     box.hidden = scenarios.length < 2;
     if (box.hidden) return;
+    box.tabIndex = 0; // the table can scroll sideways on small screens; this lets keyboard users scroll it
     const bw = scenarios.map(s => bothWindow(s));
     const best = Math.max(...bw.map(v => v === null ? -1 : v));
     const now = (b, nc, setW, riseW, s) => `${isUp(s, b) ? 'Up' : b.el > 0 ? 'Behind terrain' : 'Down'}, ${fmtDeg(b.el)}<br><span class="muted">${changeText(s, nc, isUp(s, b), setW, riseW)}</span>`;

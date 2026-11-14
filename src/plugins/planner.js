@@ -102,6 +102,9 @@
           }, 20);
         });
       }
+      // A unique name per scenario, so screen readers can tell the finders apart.
+      const n = api.scenarios().indexOf(s);
+      slot.querySelector('.mw-plan').setAttribute('aria-label', 'Landing date finder, scenario ' + 'ABCDEFGH'.charAt(Math.max(0, n)));
       // Results go stale when the site or the terrain setting changes (not when time moves).
       const key = `${s.lat},${s.lon},${api.terrain()},${api.terrainInfo && api.terrainInfo(s) ? api.terrainInfo(s).resM : 0}`;
       if (st.result && st.key !== key) {

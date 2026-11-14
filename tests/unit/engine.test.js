@@ -168,3 +168,17 @@ test('MK-10: LOLA terrain grids decode and give skylines that match the precompu
   assert.ok(mad < 0.3, `IM-2 mean skyline difference ${mad.toFixed(3)}°`);
   assert.ok(p.values.every(v => Number.isFinite(v) && v > -15 && v < 30));
 });
+
+// 14. Every browser script parses. The other tests never load app.js or the plugins,
+// so a typo there would only show up as a blank page.
+test('every script in src/ parses', () => {
+  const fs = require('fs'), path = require('path');
+  const files = [];
+  const walk = d => fs.readdirSync(d, { withFileTypes: true }).forEach(f => {
+    const p = path.join(d, f.name);
+    if (f.isDirectory()) walk(p); else if (f.name.endsWith('.js')) files.push(p);
+  });
+  walk(path.join(__dirname, '..', '..', 'src'));
+  assert.ok(files.length >= 5);
+  for (const f of files) assert.doesNotThrow(() => new Function(fs.readFileSync(f, 'utf8')), f);
+});
