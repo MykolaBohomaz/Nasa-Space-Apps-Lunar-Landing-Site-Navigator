@@ -14,6 +14,27 @@
     return [Math.cos(phi) * Math.sin(lambda), Math.sin(phi), Math.cos(phi) * Math.cos(lambda)];
   }
 
+  function cameraAt(lat, lon) {
+    return [direction(0, lon + 90), direction(lat + 90, lon), direction(lat, lon)];
+  }
+
+  function orbitCamera([right, up, forward], horizontal, vertical) {
+    const angle = Math.hypot(horizontal, vertical);
+    if (!angle) return [right, up, forward];
+    const x = horizontal / angle;
+    const y = vertical / angle;
+    const cosine = Math.cos(angle);
+    const sine = Math.sin(angle);
+    const tangent = right.map((value, i) => x * value + y * up[i]);
+    // Rotate in the plane formed by the camera direction and the screen-space drag.
+    const shift = tangent.map((value, i) => (cosine - 1) * value - sine * forward[i]);
+    return [
+      right.map((value, i) => value + x * shift[i]),
+      up.map((value, i) => value + y * shift[i]),
+      forward.map((value, i) => cosine * value + sine * tangent[i])
+    ];
+  }
+
   function makeSurface(gl, grid) {
     const { width, height, elevations } = grid;
     if (!Number.isInteger(width) || !Number.isInteger(height) || width < 2 || height < 2 ||
@@ -165,45 +186,105 @@
         if (hasMosaic) surface = texture(mosaic, texCoord).rgb;
         color = vec4(surface * shade, 1.0);
       }`);
-    const program = gl.createProgram();
-    gl.attachShader(program, vertex);
-    gl.attachShader(program, fragment);
-    gl.linkProgram(program);
-    gl.deleteShader(vertex);
-    gl.deleteShader(fragment);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
+    function link(vertexShader, fragmentShader) {
+      const program = gl.createProgram();
+      gl.attachShader(program, vertexShader);
+      gl.attachShader(program, fragmentShader);
+      gl.linkProgram(program);
+      gl.deleteShader(vertexShader);
+      gl.deleteShader(fragmentShader);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
+      return program;
+    }
+
+    const program = link(vertex, fragment);
     const camera = gl.getUniformLocation(program, 'camera');
     const view = gl.getUniformLocation(program, 'view');
     const hasMosaic = gl.getUniformLocation(program, 'hasMosaic');
-    const texture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
-      new Uint8Array([255, 255, 255, 255]));
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    let textureReady = false;
-    const encoded = document.getElementById('moonwindow-albedo')?.textContent.trim();
-    if (encoded) {
+    function loadTexture(id) {
+      const texture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+        new Uint8Array([0, 0, 0, 255]));
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      const asset = { texture, ready: false };
+      const encoded = document.getElementById(id)?.textContent.trim();
+      if (!encoded) return asset;
+
       const image = new Image();
       image.onload = () => {
-        if (gl.isContextLost()) return;
+        if (gl.isContextLost() || !gl.isTexture(texture)) return;
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
         gl.generateMipmap(gl.TEXTURE_2D);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-        textureReady = true;
+        asset.ready = true;
         redraw();
       };
       image.src = 'data:image/jpeg;base64,' + encoded;
+      return asset;
     }
+
+    const mosaic = loadTexture('moonwindow-albedo');
+    const stars = loadTexture('moonwindow-stars');
+    const skyProgram = link(
+      compile(gl.VERTEX_SHADER, `#version 300 es
+        out vec2 screen;
+        void main() {
+          screen = vec2(gl_VertexID == 1 ? 3.0 : -1.0, gl_VertexID == 2 ? 3.0 : -1.0);
+          gl_Position = vec4(screen, 0.0, 1.0);
+        }`),
+      compile(gl.FRAGMENT_SHADER, `#version 300 es
+        precision highp float;
+        in vec2 screen;
+        uniform mat3 axes;
+        uniform vec2 projection;
+        uniform sampler2D sky;
+        out vec4 color;
+
+        vec2 panorama(vec3 ray) {
+          return vec2(atan(ray.x, ray.z) / 6.2831853 + 0.5,
+            0.5 - asin(clamp(ray.y, -1.0, 1.0)) / 3.14159265);
+        }
+
+        void main() {
+          // Use direction only: the sky has no distance or zoom parallax.
+          vec3 ray = normalize(axes * vec3(screen / projection, -1.0));
+          // Frame the Milky Way near the initial orbit as a visual backdrop.
+          ray = vec3(ray.y, -ray.x, ray.z);
+          vec2 uv = panorama(ray);
+          vec2 dx = dFdx(uv);
+          vec2 dy = dFdy(uv);
+          dx.x -= round(dx.x);
+          dy.x -= round(dy.x);
+          vec3 rgb = textureGrad(sky, uv, dx, dy).rgb;
+          color = vec4(vec3(0.012, 0.017, 0.026) + 0.72 * rgb, 1.0);
+        }`)
+    );
+    const skyAxes = gl.getUniformLocation(skyProgram, 'axes');
+    const skyProjection = gl.getUniformLocation(skyProgram, 'projection');
+    const skyVao = gl.createVertexArray();
 
     return (surface, axes, distance, xScale, yScale) => {
       gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      if (stars.ready) {
+        gl.disable(gl.DEPTH_TEST);
+        gl.useProgram(skyProgram);
+        gl.uniformMatrix3fv(skyAxes, false, axes.flat());
+        gl.uniform2f(skyProjection, xScale, yScale);
+        gl.bindTexture(gl.TEXTURE_2D, stars.texture);
+        gl.bindVertexArray(skyVao);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        gl.bindVertexArray(null);
+      }
       if (!surface) return;
       gl.enable(gl.DEPTH_TEST);
       gl.useProgram(program);
-      gl.uniform1i(hasMosaic, textureReady ? 1 : 0);
+      gl.bindTexture(gl.TEXTURE_2D, mosaic.texture);
+      gl.uniform1i(hasMosaic, mosaic.ready ? 1 : 0);
       const [right, up, forward] = axes;
       gl.uniformMatrix3fv(camera, false, [
         right[0], up[0], forward[0], right[1], up[1], forward[1], right[2], up[2], forward[2]
@@ -220,30 +301,6 @@
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, surface.indexBuffer);
       gl.drawElements(gl.TRIANGLES, surface.count, gl.UNSIGNED_INT, 0);
     };
-  }
-
-  function starField() {
-    const stars = document.createElement('canvas');
-    stars.width = 960;
-    stars.height = 560;
-    const ctx = stars.getContext('2d');
-    if (!ctx) return 'none';
-    let seed = 719;
-    function random() {
-      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-      return seed / 4294967296;
-    }
-    for (let i = 0; i < 420; i++) {
-      const x = random() * stars.width;
-      const y = random() * stars.height;
-      const brightness = random();
-      ctx.fillStyle = i % 7 === 0 ? '#a9c7f5' : '#f5f3ed';
-      ctx.globalAlpha = 0.15 + 0.62 * brightness ** 3;
-      ctx.beginPath();
-      ctx.arc(x, y, 0.45 + brightness ** 5, 0, 2 * Math.PI);
-      ctx.fill();
-    }
-    return 'url("' + stars.toDataURL() + '")';
   }
 
   function mount(slot, api) {
@@ -265,13 +322,12 @@
         </div>
         <div class="mw-globe-footer">
           <label>Set scenario A site <select aria-label="Set scenario A site"></select></label>
-          <span class="mw-globe-credit"><a target="_blank" rel="noopener"></a><span></span> · <a href="https://svs.gsfc.nasa.gov/4720/" target="_blank" rel="noopener">NASA SVS / LROC imagery</a></span>
+          <span class="mw-globe-credit"><a target="_blank" rel="noopener"></a><span></span> · <a href="https://svs.gsfc.nasa.gov/4720/" target="_blank" rel="noopener">NASA SVS / LROC imagery</a> · <a href="https://svs.gsfc.nasa.gov/4851/" target="_blank" rel="noopener">NASA SVS star map</a></span>
         </div>
         <div role="status" class="mw-globe-status"></div>
       </section>`;
     const canvas = slot.querySelector('canvas');
     const viewport = canvas.parentElement;
-    viewport.style.backgroundImage = starField();
     const pins = slot.querySelector('.mw-globe-pins');
     const select = slot.querySelector('select');
     const status = slot.querySelector('[role="status"]');
@@ -284,8 +340,7 @@
       if (site) selectSite(site);
     });
 
-    let lat = -62;
-    let lon = 20;
+    let camera = cameraAt(-62, 20);
     let distance = 3.35;
     let frame = null;
     let surface = null;
@@ -296,8 +351,7 @@
 
     function selectSite(site) {
       api.setSite(0, site.lat, site.lon);
-      lat = clamp(site.lat, -89.9, 89.9);
-      lon = site.lon;
+      camera = cameraAt(site.lat, site.lon);
       schedule();
     }
 
@@ -330,12 +384,10 @@
       const pixelHeight = Math.round(height * dpr);
       if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
       if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
-      const right = direction(0, lon + 90);
-      const up = direction(lat + 90, lon);
-      const forward = direction(lat, lon);
+      const [right, up, forward] = camera;
       const xScale = focalLength * Math.min(1, height / width);
       const yScale = focalLength * Math.min(1, width / height);
-      render(surface, [right, up, forward], distance, xScale, yScale);
+      render(surface, camera, distance, xScale, yScale);
 
       for (const pin of [...sitePins, ...scenarioPins]) {
         const normal = direction(pin.lat, pin.lon);
@@ -361,9 +413,9 @@
     }
 
     function orbit(dx, dy) {
-      const degreesPerPixel = 0.45 * Math.min(1, (distance - 1) / 2);
-      lon = (lon - dx * degreesPerPixel) % 360;
-      lat = clamp(lat + dy * degreesPerPixel, -89.9, 89.9);
+      const shortSide = Math.max(1, Math.min(viewport.clientWidth, viewport.clientHeight));
+      const radiansPerPixel = 2 * (distance - 1) / (focalLength * shortSide);
+      camera = orbitCamera(camera, -dx * radiansPerPixel, dy * radiansPerPixel);
       schedule();
     }
 
@@ -394,8 +446,8 @@
       zoom(Math.exp(clamp(event.deltaY * units, -250, 250) * 0.002));
     }, { passive: false });
     const controls = {
-      pole() { lat = -89.9; lon = 0; distance = 1.45; schedule(); },
-      reset() { lat = -62; lon = 20; distance = 3.35; schedule(); },
+      pole() { camera = cameraAt(-90, 0); distance = 1.45; schedule(); },
+      reset() { camera = cameraAt(-62, 20); distance = 3.35; schedule(); },
       in() { zoom(0.7); },
       out() { zoom(1 / 0.7); }
     };
