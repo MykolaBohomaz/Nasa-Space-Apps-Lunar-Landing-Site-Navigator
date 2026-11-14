@@ -253,12 +253,19 @@
         if (polarScale > 0.0) {
           // Match MW_POLAR_MAP.project() using the unit direction directly.
           vec2 offset = polarScale * vec2(radial.x, -radial.z) / max(1.0 - radial.y, 0.0001);
-          float coverage = 1.0 - smoothstep(0.38, 0.49, length(offset));
-          float relief = texture(southRelief, vec2(0.5) + offset).r;
-          float weight = coverage * step(radial.y, 0.0) * smoothstep(0.02, 0.10, relief);
-          // The polar image already contains directional lighting.
-          vec3 polarSurface = vec3(relief * mix(0.68, 0.9, shade));
-          litSurface = mix(litSurface, polarSurface, weight);
+          vec2 uv = vec2(0.5) + offset;
+          vec2 dx = dFdx(uv);
+          vec2 dy = dFdy(uv);
+          float coverage = 1.0 - smoothstep(0.30, 0.49, length(offset));
+          if (radial.y < 0.0 && coverage > 0.0) {
+            float relief = textureGrad(southRelief, uv, dx, dy).r;
+            // Subtract a blurred copy to remove broad tone and baked lighting.
+            // Apply the remaining local contrast to the lit global mosaic.
+            float nearbyTone = textureLod(southRelief, uv, 4.0).r;
+            float detail = clamp((relief - nearbyTone) * 2.0, -0.36, 0.36);
+            float valid = smoothstep(0.02, 0.10, min(relief, nearbyTone));
+            litSurface *= 1.0 + detail * coverage * valid;
+          }
         }
         color = vec4(litSurface, 1.0);
       }`);
