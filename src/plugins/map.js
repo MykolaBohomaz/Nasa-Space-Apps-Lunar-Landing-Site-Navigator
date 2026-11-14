@@ -1,4 +1,4 @@
-// Code generated with an AI assistant (Claude) from our team's requirements.
+// OpenAI Codex assisted with the lunar globe implementation from team requirements.
 (() => {
   const radians = Math.PI / 180;
   const radius = 1737400;
