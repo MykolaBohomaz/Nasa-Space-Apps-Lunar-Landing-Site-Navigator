@@ -1,8 +1,8 @@
 # Validation against NASA JPL Horizons
 
-**Result: across 64 comparisons (8 sites, 4 dates, Sun and Earth), the largest elevation difference is 0.0027° and the largest azimuth difference is 0.0053° (objects below 80° elevation). Up/down status matches in 64 of 64 cases.**
+**Result: across 72 comparisons (9 sites, 4 dates, Sun and Earth), the largest elevation difference is 0.0027° and the largest azimuth difference is 0.0053° (objects below 80° elevation). Up/down status matches in 72 of 72 cases.**
 
-Reference: NASA JPL Horizons API (ssd.jpl.nasa.gov), observer on the Moon (coord@301), quantity 4 (airless apparent az/el), fetched 2026-11-14T20:11:13+00:00. App: `src/engine.js` (Astronomy Engine + IAU/WGCCRE 2009 Moon orientation), same sites and times, flat horizon.
+Reference: NASA JPL Horizons API (ssd.jpl.nasa.gov), observer on the Moon (coord@301), quantity 4 (airless apparent az/el), fetched 2026-11-14T22:02:29+00:00. App: `src/engine.js` (Astronomy Engine + IAU/WGCCRE 2009 Moon orientation), same sites and times, flat horizon.
 
 Differences this small are far below the Sun's disk width (about 0.53°), so they cannot change whether the Sun or Earth is up except within seconds of a crossing.
 
@@ -24,14 +24,22 @@ Differences this small are far below the Sun's disk width (about 0.53°), so the
 | im1 | 2027-02-01 06:00 | earth | 3.289 | 3.287 | -0.0019 | 2.874 | 2.873 | -0.0010 |
 | im1 | 2027-06-01 12:00 | earth | 15.830 | 15.830 | -0.0005 | 351.479 | 351.480 | 0.0008 |
 | im1 | 2027-09-15 18:00 | earth | 13.884 | 13.883 | -0.0016 | 355.087 | 355.086 | -0.0007 |
-| shk | 2026-11-15 00:00 | sun | 1.322 | 1.320 | -0.0011 | 244.729 | 244.727 | -0.0013 |
-| shk | 2027-02-01 06:00 | sun | 0.757 | 0.759 | 0.0020 | 13.438 | 13.436 | -0.0018 |
-| shk | 2027-06-01 12:00 | sun | -0.847 | -0.845 | 0.0013 | 347.601 | 347.601 | -0.0004 |
-| shk | 2027-09-15 18:00 | sun | 0.722 | 0.721 | -0.0017 | 129.413 | 129.412 | -0.0013 |
-| shk | 2026-11-15 00:00 | earth | -3.889 | -3.888 | 0.0005 | 127.664 | 127.663 | -0.0005 |
-| shk | 2027-02-01 06:00 | earth | -6.953 | -6.955 | -0.0019 | 134.591 | 134.590 | -0.0010 |
-| shk | 2027-06-01 12:00 | earth | 5.752 | 5.752 | -0.0005 | 123.564 | 123.565 | 0.0007 |
-| shk | 2027-09-15 18:00 | earth | 3.712 | 3.710 | -0.0015 | 127.004 | 127.003 | -0.0007 |
+| shk | 2026-11-15 00:00 | sun | 1.380 | 1.379 | -0.0011 | 251.685 | 251.683 | -0.0013 |
+| shk | 2027-02-01 06:00 | sun | 0.748 | 0.750 | 0.0020 | 20.396 | 20.394 | -0.0018 |
+| shk | 2027-06-01 12:00 | sun | -0.826 | -0.824 | 0.0013 | 354.557 | 354.557 | -0.0004 |
+| shk | 2027-09-15 18:00 | sun | 0.666 | 0.664 | -0.0017 | 136.369 | 136.368 | -0.0013 |
+| shk | 2026-11-15 00:00 | earth | -3.947 | -3.946 | 0.0005 | 134.623 | 134.622 | -0.0005 |
+| shk | 2027-02-01 06:00 | earth | -7.006 | -7.008 | -0.0019 | 141.553 | 141.552 | -0.0010 |
+| shk | 2027-06-01 12:00 | earth | 5.692 | 5.692 | -0.0005 | 130.517 | 130.518 | 0.0007 |
+| shk | 2027-09-15 18:00 | earth | 3.654 | 3.652 | -0.0015 | 133.958 | 133.957 | -0.0007 |
+| shk2 | 2026-11-15 00:00 | sun | 1.383 | 1.381 | -0.0011 | 251.712 | 251.710 | -0.0013 |
+| shk2 | 2027-02-01 06:00 | sun | 0.742 | 0.744 | 0.0020 | 20.423 | 20.421 | -0.0018 |
+| shk2 | 2027-06-01 12:00 | sun | -0.832 | -0.831 | 0.0013 | 354.584 | 354.583 | -0.0004 |
+| shk2 | 2027-09-15 18:00 | sun | 0.670 | 0.668 | -0.0017 | 136.396 | 136.395 | -0.0013 |
+| shk2 | 2026-11-15 00:00 | earth | -3.942 | -3.942 | 0.0005 | 134.650 | 134.649 | -0.0005 |
+| shk2 | 2027-02-01 06:00 | earth | -7.001 | -7.003 | -0.0019 | 141.581 | 141.580 | -0.0010 |
+| shk2 | 2027-06-01 12:00 | earth | 5.696 | 5.696 | -0.0005 | 130.544 | 130.544 | 0.0007 |
+| shk2 | 2027-09-15 18:00 | earth | 3.658 | 3.656 | -0.0015 | 133.985 | 133.984 | -0.0007 |
 | ch3 | 2026-11-15 00:00 | sun | 4.229 | 4.229 | -0.0006 | 83.158 | 83.156 | -0.0017 |
 | ch3 | 2027-02-01 06:00 | sun | -17.394 | -17.392 | 0.0017 | 212.459 | 212.457 | -0.0023 |
 | ch3 | 2027-06-01 12:00 | sun | -21.929 | -21.928 | 0.0013 | 185.357 | 185.357 | -0.0005 |
