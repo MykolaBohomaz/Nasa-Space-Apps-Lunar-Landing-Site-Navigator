@@ -15,12 +15,14 @@ Usage:  pip install numpy tifffile imagecodecs pillow
         python3 tools/make_horizons.py
 Code generated with an AI assistant (Claude) from our team's requirements.
 """
-import base64, io, json, math, pathlib, re, sys, time
+import base64, io, json, math, pathlib, re, sys, time, zlib
 import numpy as np
 import tifffile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DEM_PATH = ROOT / "data" / "LDEM_60S_240MPP_ADJ.TIF"
+# Optional finer map (MK-7): 80 m/pixel, 80°S to the pole. Used wherever it covers the ground.
+FINE_PATH = ROOT / "data" / "LDEM_80S_80MPP_ADJ.TIF"
 R = 1737400.0          # LOLA reference sphere radius, m
 MAST_M = 2.0           # observer height above ground (lander deck / antenna), m
 AZ_STEP = 0.5          # degrees
@@ -112,10 +114,11 @@ def site_frame(lat, lon):
     return up, east, north
 
 
-def horizon_profile(dem, lat, lon):
+def horizon_profile(dem, lat, lon, fine=None):
     up, east, north = site_frame(lat, lon)
     az = np.radians(np.arange(0, 360, AZ_STEP))
-    d = np.concatenate([np.arange(120.0, 20000.0, 120.0), np.geomspace(20000.0, 400000.0, 500)])
+    near_step = 40.0 if fine is not None else 120.0      # half a pixel of the finest map in use
+    d = np.concatenate([np.arange(near_step, 20000.0, near_step), np.geomspace(20000.0, 400000.0, 500)])
     theta = d / R
     dirs = np.cos(az)[:, None] * north + np.sin(az)[:, None] * east               # (A, 3)
     P = (np.cos(theta)[None, :, None] * up[None, None, :]
@@ -125,13 +128,21 @@ def horizon_profile(dem, lat, lon):
     x, y = dem.xy(plat, plon)
     h = dem.sample(x, y)
     h0 = dem.height(lat, lon)
+    res = dem.sx
+    if fine is not None:
+        xf, yf = fine.xy(plat, plon)
+        hf = fine.sample(xf, yf)
+        h = np.where(np.isfinite(hf), hf, h)             # fine map where it covers, coarse beyond
+        h0f = fine.height(lat, lon)
+        if np.isfinite(h0f):
+            h0, res = h0f, fine.sx
     r0 = R + h0 + MAST_M
     r = R + h
     elev = np.degrees(np.arctan2(r * np.cos(theta)[None, :] - r0, r * np.sin(theta)[None, :]))
     covered = np.isfinite(elev).mean()
     prof = np.nanmax(np.where(np.isfinite(elev), elev, -90.0), axis=1)
     far_idx = np.nanargmax(np.where(np.isfinite(elev), elev, -90.0), axis=1)
-    return prof, h0, covered, d[far_idx]
+    return prof, h0, covered, d[far_idx], res
 
 
 def hillshade_map(dem):
@@ -155,13 +166,74 @@ def hillshade_map(dem):
     return base64.b64encode(buf.getvalue()).decode(), rho_max
 
 
+# Terrain grids for custom coordinates (MK-10), decoded and used by src/terrain.js:
+#   far  : 960 m cells (4 x 4 average of the 240 m map), 75S to the pole - distant mountains
+#   near : 240 m cells (the 240 m map itself), 84S to the pole - nearby ridges and crater rims
+GRID_SITE_LIMIT = -77.0    # custom points must be south of this, so rays have room inside the grids
+GRID_QUANT_M = float(__import__("os").environ.get("GRID_QUANT_M", "2"))  # stored height step (m)
+
+
+def encode_grid(Z):
+    """Heights -> planar-prediction residuals, zig-zag uint16, byte planes, zlib, base64."""
+    Zi = np.round(Z / GRID_QUANT_M).astype(np.int32)
+    pred = np.zeros_like(Zi)
+    pred[1:, 1:] = Zi[1:, :-1] + Zi[:-1, 1:] - Zi[:-1, :-1]
+    pred[0, 1:] = Zi[0, :-1]
+    pred[1:, 0] = Zi[:-1, 0]
+    r = Zi - pred
+    assert r.min() >= -32768 and r.max() <= 32767
+    u = ((r << 1) ^ (r >> 31)).astype(np.uint32).astype(np.uint16).ravel()
+    raw = np.concatenate([(u & 0xFF).astype(np.uint8), (u >> 8).astype(np.uint8)]).tobytes()
+    comp = zlib.compress(raw, 9)
+    return base64.b64encode(comp).decode(), len(comp)
+
+
+def make_grid(dem, lat_limit, cell):
+    rho_max = 2 * R * math.tan(math.pi / 4 + math.radians(lat_limit) / 2)
+    n = int(math.ceil(2 * rho_max / cell))
+    half = n * cell / 2
+    xs = -half + (np.arange(n) + 0.5) * cell
+    X, Y = np.meshgrid(xs, -xs)                       # row 0 = top = +y, same layout as the map image
+    k = max(1, int(round(cell / dem.sx)))
+    acc = np.zeros(X.shape); cnt = np.zeros(X.shape)
+    sub = (np.arange(k) - (k - 1) / 2) * (cell / k)
+    for ox in sub:
+        for oy in sub:
+            h = dem.sample((X + ox).ravel(), (Y + oy).ravel()).reshape(X.shape)
+            ok = np.isfinite(h); acc[ok] += h[ok]; cnt[ok] += 1
+    Z = np.where(cnt > 0, acc / np.maximum(cnt, 1), np.nan)
+    if np.isnan(Z).any():
+        Z = np.where(np.isnan(Z), np.nanmean(Z), Z)
+    data, nbytes = encode_grid(Z)
+    return {"latLimit": lat_limit, "cellM": cell, "size": n, "data": data}, nbytes
+
+
+def terrain_grids(dem):
+    far, nf = make_grid(dem, -75.0, 960.0)
+    near, nn = make_grid(dem, -84.0, dem.sx)
+    sxs, sys_ = dem.convention
+    meta = {"siteLatLimit": GRID_SITE_LIMIT, "quantM": GRID_QUANT_M, "convention": [sxs, sys_], "radiusM": R,
+            "mastM": MAST_M, "azStepDeg": AZ_STEP,
+            "encoding": "planar-prediction zigzag uint16, byte planes, zlib, base64",
+            "source": "NASA LRO LOLA LDEM_60S_240MPP_ADJ (Barker et al. 2023, NASA GSFC PGDA): 240 m cells to 84S, 960 m averages to 75S",
+            "near": near, "far": far}
+    return meta, nf, nn
+
+
 def main():
     if not DEM_PATH.exists():
         sys.exit(f"Missing {DEM_PATH}. Download it first (see README).")
     dem = Dem(DEM_PATH)
     dem.check_projection()
+    fine = None
+    if FINE_PATH.exists():
+        fine = Dem(FINE_PATH)
+        fine.check_projection()
+    else:
+        print(f"  (optional {FINE_PATH.name} not found: using the 240 m map only)")
     out = {"meta": {
         "source": "NASA LRO LOLA south polar DEM LDEM_60S_240MPP_ADJ (Barker et al. 2023, PSJ 4:183; NASA GSFC PGDA, doi:10.60903/gsfcpgda-lola-spole)",
+        "fineSource": ("NASA LRO LOLA LDEM_80S_80MPP_ADJ (80 m, 80S to the pole; Barker et al. 2023)" if fine else None),
         "resolutionM": round(dem.sx), "azStepDeg": AZ_STEP, "mastM": MAST_M, "maxDistanceKm": 400,
         "method": "Highest terrain elevation angle along each azimuth over a 1737.4 km sphere, observer 2 m above ground."},
         "sites": {}}
@@ -169,14 +241,14 @@ def main():
         if s["lat"] > -60.5:
             continue
         t0 = time.time()
-        prof, h0, covered, far = horizon_profile(dem, s["lat"], s["lon"])
+        prof, h0, covered, far, res = horizon_profile(dem, s["lat"], s["lon"], fine)
         if not np.isfinite(h0):
             print(f"  {s['id']}: no DEM height at site, skipped"); continue
-        out["sites"][s["id"]] = {"lat": s["lat"], "lon": s["lon"], "groundM": round(h0, 1),
+        out["sites"][s["id"]] = {"lat": s["lat"], "lon": s["lon"], "groundM": round(h0, 1), "resM": round(res),
                                  "values": [round(float(v), 2) for v in prof]}
         i = int(np.argmax(prof))
         print(f"  {s['id']:>6}: ground {h0:7.0f} m | skyline {prof.min():6.2f}° to {prof.max():5.2f}° "
-              f"(highest at az {i * AZ_STEP:5.1f}°, {far[i] / 1000:5.1f} km away) | coverage {covered:.0%} | {time.time() - t0:.1f} s")
+              f"(highest at az {i * AZ_STEP:5.1f}°, {far[i] / 1000:5.1f} km away) | {res:.0f} m map at site | {time.time() - t0:.1f} s")
     (ROOT / "src" / "horizon-data.js").write_text(
         "// Generated by tools/make_horizons.py from NASA LOLA topography. Do not edit by hand.\n"
         "window.MW_HORIZONS = " + json.dumps(out, separators=(",", ":")) + ";\n")
@@ -197,7 +269,14 @@ def main():
         f"  image: 'data:image/png;base64,{b64}'\n"
         "};\n")
     print(f"Wrote src/horizon-data.js ({len(out['sites'])} sites) and src/map-data.js ({len(b64) // 1024} KB image)")
-
+    t0 = time.time()
+    gmeta, nf, nn = terrain_grids(dem)
+    (ROOT / "src" / "terrain-grid.js").write_text(
+        "// Generated by tools/make_horizons.py: LOLA heights for computing skylines at any point south of 77S.\n"
+        "// Do not edit by hand.\n"
+        "window.MW_TERRAIN_GRID = " + json.dumps(gmeta, separators=(",", ":")) + ";\n")
+    print(f"Wrote src/terrain-grid.js: near {gmeta['near']['size']}^2 x {gmeta['near']['cellM']:.0f} m ({nn // 1024} KB), "
+          f"far {gmeta['far']['size']}^2 x {gmeta['far']['cellM']:.0f} m ({nf // 1024} KB), heights to {GRID_QUANT_M:g} m ({time.time() - t0:.1f} s)")
 
 if __name__ == "__main__":
     main()

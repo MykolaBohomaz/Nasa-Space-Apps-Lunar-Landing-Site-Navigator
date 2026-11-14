@@ -254,12 +254,12 @@ footer p{margin:4px 0;max-width:100ch}
     <p>For each moment, the app gets the positions of the Sun, Earth and Moon from the Astronomy Engine library, turns the Moon to the orientation given by the IAU/WGCCRE 2009 model (the same mean Earth/polar axis frame that LRO, LOLA and LROC coordinates use), and works out the direction to the Sun and Earth from the landing site. Elevation is the angle above the ideal flat horizon, and azimuth is measured from north toward east. Whether the Sun or Earth is actually visible then depends on the skyline in that direction. Timelines use one-hour steps, and countdowns are refined to the minute.</p>
 
     <h3>Real terrain from NASA LOLA</h3>
-    <p>At the poles, mountains and crater rims decide whether the low Sun and Earth are visible. For each south polar site, the app uses a skyline computed from the Lunar Orbiter Laser Altimeter (LOLA) south polar elevation model (LDEM_60S_240MPP_ADJ, 240 m grid; Barker et al. 2023, NASA Goddard Planetary Geodesy Data Archive). For every half degree of compass direction, we trace a line outward over the curved Moon for 400 km and record the highest terrain angle seen from 2 m above the ground. This is the same approach NASA's polar illumination maps used (Mazarico et al. 2011). Use "Terrain" at the top to compare with flat ground.</p>
+    <p>At the poles, mountains and crater rims decide whether the low Sun and Earth are visible. For each south polar site, the app uses a skyline computed from the Lunar Orbiter Laser Altimeter (LOLA) south polar elevation models: an 80 m grid from 80°S to the pole and a 240 m grid beyond it (LDEM_80S_80MPP_ADJ and LDEM_60S_240MPP_ADJ; Barker et al. 2023, NASA Goddard Planetary Geodesy Data Archive). For every half degree of compass direction, we trace a line outward over the curved Moon for 400 km and record the highest terrain angle seen from 2 m above the ground. This is the same approach NASA's polar illumination maps used (Mazarico et al. 2011). Use "Terrain" at the top to compare with flat ground.</p>
 
     <h3>Accuracy and limits</h3>
     <p id="aboutVal">Each scenario links to the same query in NASA JPL Horizons so you can compare the numbers.</p>
     <ul>
-      <li><b>Terrain detail.</b> The 240 m grid captures mountains and crater rims but not boulders or small craters near the lander. Sites outside the south polar map, and custom coordinates, use flat ground.</li>
+      <li><b>Terrain detail.</b> The 80 m and 240 m grids capture mountains, ridges and crater rims but not boulders or small craters near the lander. At the pole, a few hundred metres matter: on the connecting ridge, two points 200 m apart get 88% and 78% sunlight over a year. Listed south polar sites use precomputed 80 m skylines. Any other point south of 77°S, including custom coordinates, gets a skyline computed in your browser from 240 m LOLA terrain (960 m for distant mountains). That is accurate on plains and plateaus and approximate on narrow ridges. Points north of 77°S use flat ground.</li>
       <li><b>Centers, not edges.</b> "Up" means the center of the Sun or Earth is above the horizon. The Sun's disk is about half a degree wide, so near the poles it can be partly visible.</li>
     </ul>
 
@@ -336,6 +336,8 @@ footer p{margin:4px 0;max-width:100ch}
 <script src="horizon-data.js"></script>
 <script src="map-data.js"></script>
 <script src="validation-data.js"></script>
+<script src="terrain-grid.js"></script>
+<script src="terrain.js"></script>
 <!-- Plugins: one file each, listed here. Order does not matter. -->
 <script id="moonwindow-dem" type="application/octet-stream"></script>
 <script id="moonwindow-albedo" type="application/octet-stream"></script>
@@ -345,7 +347,7 @@ footer p{margin:4px 0;max-width:100ch}
 <script src="plugins/power.js"></script>
 <script src="plugins/learn.js"></script>
 <!-- <script src="plugins/export.js"></script> -->
-<!-- <script src="plugins/planner.js"></script> -->
+<script src="plugins/planner.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
