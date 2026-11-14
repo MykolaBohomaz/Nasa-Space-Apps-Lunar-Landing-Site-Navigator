@@ -9,6 +9,9 @@ src = re.sub(r'<!--\s*<script[^>]*></script>\s*-->\n?', '', src)
 def inline(m):
     name = m.group(1)
     path = root / 'node_modules/astronomy-engine/astronomy.browser.min.js' if name == 'astronomy.browser.min.js' else root / 'src' / name
+    if not path.exists():
+        print(f'  note: {name} not found, skipped')
+        return ''
     code = path.read_text()
     code = code.replace('</script', '<\\/script')  # keep inline code from closing the tag early
     return '<script>\n/* ' + name + ' */\n' + code + '\n</script>'

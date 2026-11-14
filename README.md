@@ -6,7 +6,8 @@ NASA Space Apps Challenge 2026 project for the lunar landing site challenge (Sun
 
 ## What it does
 
-- **Landing sites:** 8 real landing sites (IM-2 Athena, IM-1 Odysseus, Shackleton rim, Chandrayaan-3, Chang'e 6, SLIM, Blue Ghost 1, Apollo 11) or any custom latitude/longitude.
+- **Landing sites:** 8 real landing sites (IM-2 Athena, IM-1 Odysseus, the Shackleton connecting ridge, Chandrayaan-3, Chang'e 6, SLIM, Blue Ghost 1, Apollo 11) or any custom latitude/longitude.
+- **Real terrain from NASA LOLA:** at south polar sites, the skyline (mountains and crater rims) decides when the Sun and Earth are visible. A button compares with flat ground.
 - **Any date and time (UTC):** buttons for ±1 hour, ±1 day, "Now" and "Slip 1 week".
 - **Sky view:** a 360° picture of the sky from the site with the horizon, the Sun and Earth, and their tracks over the next 30 days.
 - **Sunlight and Earth cards:** elevation and direction, and a countdown to sunset/sunrise and Earthset/Earthrise (to the minute).
@@ -28,7 +29,8 @@ For each moment, the app:
 
 1. Gets the positions of the Sun, Earth and Moon from [Astronomy Engine](https://github.com/cosinekitty/astronomy) (MIT License).
 2. Turns the Moon to its orientation from the IAU/WGCCRE 2009 rotation model. That's the mean Earth/polar axis frame used by LRO, LOLA and LROC coordinates.
-3. Works out the direction from the landing site to the Sun and to Earth as **elevation** (degrees above a flat horizon) and **azimuth** (degrees from north toward east).
+3. Works out the direction from the landing site to the Sun and to Earth as **elevation** (degrees above the ideal flat horizon) and **azimuth** (degrees from north toward east).
+4. Compares the elevation with the skyline in that direction: real LOLA terrain at the south polar sites, flat ground elsewhere.
 
 Timelines use one-hour steps, and countdowns are refined to one minute by bisection.
 
@@ -40,13 +42,37 @@ Sanity checks we ran:
 | Chandrayaan-3 landing, 2023-08-23 12:33 UTC | Sun low after sunrise | Sun 8.6° |
 | Chang'e 6 (far side) | Earth never visible | Earth −42.7° |
 | Apollo 11, any date | Earth always high | Earth ~59–64° |
-| Shackleton rim, 30 days | Sun within ~2° of horizon | 1.0° to 2.0° |
 
-**Validation against NASA JPL Horizons:** use the "Sun position" / "Earth position" links under any scenario and compare the `Azi_(a-app)` / `Elev_(a-app)` columns with the app. Record a few comparisons here before submitting.
+### Validation against NASA JPL Horizons
+
+Across 64 comparisons (8 sites × 4 dates × Sun and Earth), the app matches NASA JPL Horizons within **0.003° in elevation** and 0.005° in azimuth, with identical up/down status in all 64 cases. Full table: [docs/validation.md](docs/validation.md). Re-run with `python3 tools/fetch_horizons.py` (needs internet) and then `node tools/compare_horizons.js`.
+
+## Real terrain from NASA LOLA
+
+`tools/make_horizons.py` reads the LOLA south polar elevation model **LDEM_60S_240MPP_ADJ** (240 m grid, 60°S to the pole; Barker et al. 2023, *Planetary Science Journal* 4:183; NASA GSFC Planetary Geodesy Data Archive, doi:10.60903/gsfcpgda-lola-spole). For each south polar site and every 0.5° of azimuth, it traces 400 km outward over the curved Moon (radius 1737.4 km) and records the highest terrain angle seen from 2 m above the ground. This is the approach of NASA's LOLA polar illumination maps (Mazarico et al. 2011, *Icarus* 211). The result is `src/horizon-data.js`. The same run makes `src/map-data.js`, a shaded-relief map of 75°S to the pole.
+
+Checks:
+- **Map reading:** the DEM height at IM-1 Odysseus's landing point is 2,592 m; LROC reports 2,579 m.
+- **Published research:** on the Shackleton–de Gerlache connecting ridge crest, our model gives 89.7% sunlight over one year (52% on flat ground) and a longest night of 6.4 days. Gläser et al. (2014, *Icarus* 243) found up to 92.3% and nights of typically 3–5 days on this ridge with a finer 20 m LOLA model.
+
+| Site (1 year from Nov 2026) | Sunlight, real terrain | Sunlight, flat ground | Earth in view | Both |
+| --- | ---: | ---: | ---: | ---: |
+| Connecting ridge crest | 89.7% | 52.0% | 52.5% | 49.7% |
+| IM-2 Athena, Mons Mouton | 46.4% | 51.6% | 81.5% | 38.6% |
+| IM-1 Odysseus | 39.9% | 51.0% | 100% | 39.9% |
+| Chandrayaan-3 | 49.4% | 51.5% | 100% | 49.4% |
+
+To regenerate: download the DEM (210 MB, not stored in git) and run the tool.
+
+```
+mkdir -p data && curl -L -o data/LDEM_60S_240MPP_ADJ.TIF https://pgda.gsfc.nasa.gov/data/LOLA_20mpp/LDEM_60S_240MPP_ADJ.TIF
+pip install numpy tifffile imagecodecs pillow
+python3 tools/make_horizons.py && python3 build.py
+```
 
 ## Limitations
 
-- **Flat horizon.** Real mountains and crater rims, especially at the poles, can block a Sun or Earth that is a few degrees up. Next step: terrain horizon profiles from LOLA elevation data.
+- **Terrain detail.** The 240 m grid captures mountains and crater rims, not boulders or small craters next to the lander. Sites north of 60°S, and custom coordinates, use flat ground.
 - **Centre of the disk.** "Up" means the centre of the Sun or Earth is above the horizon.
 - **Hourly sampling** for the 30-day statistics.
 
@@ -56,7 +82,7 @@ Sanity checks we ran:
 | --- | --- | --- | --- |
 | IM-2 Athena, Mons Mouton | −84.79 | 29.20 | IM-2 records based on LROC ([LROC landing region](https://www.lroc.asu.edu/images/1401)) |
 | IM-1 Odysseus | −80.13 | 1.44 | [LROC](https://www.lroc.asu.edu/images/1360) |
-| Shackleton rim high-light point (approx.) | −89.45 | 229.69 | [the-moon.us](https://the-moon.us/wiki/South_Pole) |
+| Connecting ridge crest near Shackleton | −89.4458 | 222.706 | Highest LOLA point within 3 km of the high-illumination location at 89.45°S 229.69°E given by [the-moon.us](https://the-moon.us/wiki/South_Pole). That location sat about 500 m below the crest, with a 19° slope next to it. |
 | Chandrayaan-3, Statio Shiv Shakti | −69.373 | 32.319 | [USGS Gazetteer](https://planetarynames.wr.usgs.gov/Feature/16272) |
 | Chang'e 6 | −41.6385 | 206.0148 | [LROC](https://lroc.im-ldi.com/images/1374) |
 | SLIM | −13.316 | 25.251 | [NASA NSSDC](https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html) |
@@ -65,10 +91,10 @@ Sanity checks we ran:
 
 ## NASA data and resources
 
-- **JPL Horizons:** validation of Sun and Earth positions.
+- **LRO LOLA topography** (NASA GSFC PGDA): real skylines for the south polar sites, which change sunrise, sunset, Earthrise, Earthset and all statistics, plus the polar map.
+- **JPL Horizons:** reference positions; the app matches them within 0.003°. Each scenario also links to the same Horizons query.
 - **LROC (Lunar Reconnaissance Orbiter Camera) and QuickMap:** landing site coordinates.
 - **NASA NSSDC:** Apollo 11 and SLIM coordinates.
-- **NASA Moon Trek:** site exploration.
 
 ## Files
 
@@ -76,7 +102,10 @@ Sanity checks we ran:
 - `src/index.html` holds the layout and CSS, plus one `<script src>` line per file.
 - `src/app.js` is the core UI. `src/engine.js` computes Sun and Earth positions. `src/sites.js` is the landing site list.
 - `src/plugins/` holds the extra features, one file each; `_template.js` shows the plugin API.
-- `build.py` inlines every `<script src>` into `index.html`. Run `npm install astronomy-engine@2` once, then `python build.py`.
+- `src/horizon-data.js`, `src/map-data.js` and `src/validation-data.js` are generated NASA data. Don't edit them by hand; see the `tools/` scripts.
+- `tools/` holds `fetch_horizons.py` and `compare_horizons.js` (JPL Horizons validation) and `make_horizons.py` (LOLA terrain). `docs/validation.md` is the validation table.
+- `data/` is the local LOLA elevation model download; it's not in git.
+- `build.py` inlines every `<script src>` into `index.html`. Run `npm install` once, then `python3 build.py`.
 
 ## AI use
 

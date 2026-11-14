@@ -165,6 +165,7 @@ footer p{margin:4px 0;max-width:100ch}
     </div>
     <nav class="actions" aria-label="App actions">
       <button class="btn primary" id="addBtn" type="button">Add comparison</button>
+      <button class="btn" id="terrainBtn" type="button" aria-pressed="true">Terrain: real (NASA LOLA)</button>
       <button class="btn" id="playBtn" type="button" aria-pressed="false">Play time</button>
       <button class="btn" id="linkBtn" type="button">Copy link</button>
       <button class="btn" id="aboutBtn" type="button">About and data</button>
@@ -187,7 +188,7 @@ footer p{margin:4px 0;max-width:100ch}
 
 <footer>
   <div class="wrap">
-    <p>Positions are calculated in your browser from the Astronomy Engine library and the IAU model of the Moon's orientation, and can be checked against NASA JPL Horizons with the links under each scenario. Site coordinates come from LROC, the USGS Gazetteer of Planetary Nomenclature and NASA NSSDC.</p>
+    <p>Positions are calculated in your browser from the Astronomy Engine library and the IAU model of the Moon's orientation. <span id="valNote">Each scenario links to the same query in NASA JPL Horizons.</span> Polar horizons come from NASA LRO LOLA laser-altimeter topography. Site coordinates come from LROC, the USGS Gazetteer of Planetary Nomenclature and NASA NSSDC.</p>
     <p>Built for the NASA Space Apps Challenge 2026. Code generated with an AI assistant (Claude) from our team's requirements. Not an official NASA product.</p>
   </div>
 </footer>
@@ -207,13 +208,16 @@ footer p{margin:4px 0;max-width:100ch}
     </ul>
 
     <h3>How it's calculated</h3>
-    <p>For each moment, the app gets the positions of the Sun, Earth and Moon from the Astronomy Engine library, turns the Moon to the orientation given by the IAU/WGCCRE 2009 model (the same mean Earth/polar axis frame that LRO, LOLA and LROC coordinates use), and works out the direction to the Sun and Earth from the landing site. Elevation is the angle above a flat horizon; azimuth is measured from north toward east. Timelines use one-hour steps, and countdowns are refined to the minute.</p>
+    <p>For each moment, the app gets the positions of the Sun, Earth and Moon from the Astronomy Engine library, turns the Moon to the orientation given by the IAU/WGCCRE 2009 model (the same mean Earth/polar axis frame that LRO, LOLA and LROC coordinates use), and works out the direction to the Sun and Earth from the landing site. Elevation is the angle above the ideal flat horizon, and azimuth is measured from north toward east. Whether the Sun or Earth is actually visible then depends on the skyline in that direction. Timelines use one-hour steps, and countdowns are refined to the minute.</p>
+
+    <h3>Real terrain from NASA LOLA</h3>
+    <p>At the poles, mountains and crater rims decide whether the low Sun and Earth are visible. For each south polar site, the app uses a skyline computed from the Lunar Orbiter Laser Altimeter (LOLA) south polar elevation model (LDEM_60S_240MPP_ADJ, 240 m grid; Barker et al. 2023, NASA Goddard Planetary Geodesy Data Archive). For every half degree of compass direction, we trace a line outward over the curved Moon for 400 km and record the highest terrain angle seen from 2 m above the ground. This is the same approach NASA's polar illumination maps used (Mazarico et al. 2011). Use "Terrain" at the top to compare with flat ground.</p>
 
     <h3>Accuracy and limits</h3>
+    <p id="aboutVal">Each scenario links to the same query in NASA JPL Horizons so you can compare the numbers.</p>
     <ul>
-      <li><b>Flat ground.</b> The horizon is treated as flat (0°). Real mountains and crater rims, especially at the poles, can hide a Sun or Earth that is a few degrees up. Adding real terrain from LOLA elevation data is our next step.</li>
+      <li><b>Terrain detail.</b> The 240 m grid captures mountains and crater rims but not boulders or small craters near the lander. Sites outside the south polar map, and custom coordinates, use flat ground.</li>
       <li><b>Centers, not edges.</b> "Up" means the center of the Sun or Earth is above the horizon. The Sun's disk is about half a degree wide, so near the poles it can be partly visible.</li>
-      <li><b>Checked against NASA JPL Horizons.</b> Each scenario has links that open the same query in JPL Horizons, so you can compare the numbers yourself.</li>
     </ul>
 
     <h3>Landing sites</h3>
@@ -230,7 +234,7 @@ footer p{margin:4px 0;max-width:100ch}
     </dl>
 
     <h3>Credits and AI use</h3>
-    <p>NASA data and resources: JPL Horizons (validation), LROC QuickMap and Moon Trek (site locations). Library: Astronomy Engine by Don Cross, MIT License. This app's code was generated with an AI assistant (Claude, by Anthropic) from requirements written by our team; the team selected the sites, checked the results against JPL Horizons and designed the experience. No AI-generated images are used.</p>
+    <p>NASA data and resources: LRO LOLA topography (real horizons and the polar map), JPL Horizons (validation), LROC and QuickMap (site locations). Library: Astronomy Engine by Don Cross, MIT License. This app's code was generated with an AI assistant (Claude, by Anthropic) from requirements written by our team; the team selected the sites, checked the results against JPL Horizons and designed the experience. No AI-generated images are used.</p>
   </div>
 </dialog>
 
@@ -284,6 +288,10 @@ footer p{margin:4px 0;max-width:100ch}
 <script src="astronomy.browser.min.js"></script>
 <script src="sites.js"></script>
 <script src="engine.js"></script>
+<!-- Generated NASA data (rebuild with tools/make_horizons.py and tools/compare_horizons.js) -->
+<script src="horizon-data.js"></script>
+<script src="map-data.js"></script>
+<script src="validation-data.js"></script>
 <!-- Plugins: one file each, listed here. Order does not matter. -->
 <!-- <script src="plugins/map.js"></script> -->
 <!-- <script src="plugins/power.js"></script> -->

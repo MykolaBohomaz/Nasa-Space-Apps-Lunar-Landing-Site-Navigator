@@ -1,1 +1,3 @@
 node_modules/
+# NASA LOLA elevation map (210 MB) - too big for GitHub; download it with the command in README.md
+data/
