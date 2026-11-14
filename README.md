@@ -41,7 +41,7 @@ Sanity checks we ran:
 | Apollo 11 landing, 1969-07-20 20:17 UTC | Sun low in the east (~11°) | Sun 10.7° at az 89° |
 | Chandrayaan-3 landing, 2023-08-23 12:33 UTC | Sun low after sunrise | Sun 8.6° |
 | Chang'e 6 (far side) | Earth never visible | Earth −42.7° |
-| Apollo 11, any date | Earth always high | Earth ~59–64° |
+| Apollo 11, 2020–2039 | Earth always high, swinging with libration | Earth 57.7° to 74.5° |
 
 ### Validation against NASA JPL Horizons
 
