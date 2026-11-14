@@ -3,7 +3,7 @@
   const radians = Math.PI / 180;
   const radius = 1737400;
   const reliefScale = 2.5;
-  const floatsPerVertex = 9;
+  const floatsPerVertex = 7;
   const focalLength = 2.6;
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
   const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -45,6 +45,43 @@
     const rows = Math.min(height, 720);
     const stride = columns + 1;
 
+    // Near the poles, many longitude samples fit inside one north–south mesh step.
+    // Average over that surface distance, wrapping across the longitude seam.
+    const polarRows = new Map();
+    const meshStep = 180 / rows;
+    for (let row = 0; row < height; row++) {
+      const latitude = 90 - (row + 0.5) * 180 / height;
+      const longitudeSamples = meshStep * width / (360 * Math.cos(latitude * radians));
+      const blend = clamp((Math.abs(latitude) - 75) / 10, 0, 1);
+      if (!blend) continue;
+      const half = Math.min(Math.floor((width - 1) / 2), Math.floor(longitudeSamples / 2));
+      if (!half) continue;
+      const rowOffset = row * width;
+      const filtered = new Float32Array(width);
+      let sum = 0;
+      for (let col = -half; col <= half; col++) {
+        sum += elevations[rowOffset + (col + width) % width];
+      }
+      for (let col = 0; col < width; col++) {
+        const original = elevations[rowOffset + col];
+        filtered[col] = original + blend * (sum / (2 * half + 1) - original);
+        sum += elevations[rowOffset + (col + half + 1) % width] -
+          elevations[rowOffset + (col - half + width) % width];
+      }
+      polarRows.set(row, filtered);
+    }
+
+    function rowSample(row, col) {
+      const filtered = polarRows.get(row);
+      return filtered ? filtered[col] : elevations[row * width + col];
+    }
+
+    const poleElevations = [0, height - 1].map(row => {
+      let sum = 0;
+      for (let col = 0; col < width; col++) sum += rowSample(row, col);
+      return sum / width;
+    });
+
     function sample(lat, lon) {
       const x = ((lon % 360 + 360) % 360) * width / 360 - 0.5;
       const y = clamp((90 - lat) * height / 180 - 0.5, 0, height - 1);
@@ -52,18 +89,22 @@
       const y0 = Math.floor(y);
       const left = (x0 + width) % width;
       const right = (left + 1) % width;
-      const top = y0 * width;
-      const bottom = Math.min(y0 + 1, height - 1) * width;
-      const a = elevations[top + left] + (elevations[top + right] - elevations[top + left]) * (x - x0);
-      const b = elevations[bottom + left] + (elevations[bottom + right] - elevations[bottom + left]) * (x - x0);
+      const y1 = Math.min(y0 + 1, height - 1);
+      const top = rowSample(y0, left);
+      const bottom = rowSample(y1, left);
+      const a = top + (rowSample(y0, right) - top) * (x - x0);
+      const b = bottom + (rowSample(y1, right) - bottom) * (x - x0);
       return a + (b - a) * (y - y0);
     }
 
     function elevation(lat, lon) {
-      const dLat = 180 / rows;
+      const poleDistance = 90 - Math.abs(lat);
+      const polarBlend = clamp(1 - poleDistance / meshStep, 0, 1);
+      const dLat = meshStep;
       const dLon = 360 / columns;
-      return (16 * sample(lat, lon) + sample(lat - dLat, lon) + sample(lat + dLat, lon) +
+      const local = (16 * sample(lat, lon) + sample(lat - dLat, lon) + sample(lat + dLat, lon) +
         sample(lat, lon - dLon) + sample(lat, lon + dLon)) / 20;
+      return local + polarBlend * (poleElevations[lat < 0 ? 1 : 0] - local);
     }
 
     function point(lat, lon) {
@@ -85,8 +126,6 @@
         const offset = index * floatsPerVertex;
         vertices.set(position, offset);
         vertices[offset + 3] = (Math.hypot(...position) - 1) * radius / reliefScale;
-        vertices[offset + 7] = col / columns + 0.5;
-        vertices[offset + 8] = row / rows;
         if (row === rows || col === columns) continue;
         indices.set([index, index + 1, index + stride, index + 1, index + stride + 1, index + stride],
           (row * columns + col) * 6);
@@ -155,17 +194,16 @@
     const vertex = compile(gl.VERTEX_SHADER, `#version 300 es
       layout(location = 0) in vec4 vertex;
       layout(location = 1) in vec3 normal;
-      layout(location = 2) in vec2 uv;
       uniform mat3 camera;
       uniform vec3 view;
       out vec3 surfaceNormal;
       out float elevation;
-      out vec2 texCoord;
+      out vec3 surfacePosition;
       void main() {
         vec3 position = camera * vertex.xyz;
         surfaceNormal = camera * normal;
         elevation = vertex.w;
-        texCoord = uv;
+        surfacePosition = vertex.xyz;
         float depth = view.x - position.z;
         gl_Position = vec4(position.x * view.y, position.y * view.z, 1.001 * depth - 0.04, depth);
       }`);
@@ -173,9 +211,11 @@
       precision highp float;
       in vec3 surfaceNormal;
       in float elevation;
-      in vec2 texCoord;
+      in vec3 surfacePosition;
       uniform sampler2D mosaic;
       uniform bool hasMosaic;
+      uniform sampler2D southRelief;
+      uniform float polarScale;
       out vec4 color;
       void main() {
         vec3 normal = normalize(surfaceNormal);
@@ -183,8 +223,30 @@
         float shade = 0.34 + 0.66 * max(dot(normal, light), 0.0);
         float highland = clamp((elevation + 5500.0) / 10000.0, 0.0, 1.0);
         vec3 surface = mix(vec3(0.49, 0.48, 0.46), vec3(0.77, 0.76, 0.72), highland);
-        if (hasMosaic) surface = texture(mosaic, texCoord).rgb;
-        color = vec4(surface * shade, 1.0);
+        vec3 radial = normalize(surfacePosition);
+        if (hasMosaic) {
+          // Derive longitude and latitude per pixel so the pole's shared vertex
+          // does not stretch an arbitrary longitude across a fan of triangles.
+          vec2 uv = vec2(atan(radial.x, radial.z) / 6.2831853 + 0.5,
+            0.5 - asin(clamp(radial.y, -1.0, 1.0)) / 3.14159265);
+          vec2 dx = dFdx(uv);
+          vec2 dy = dFdy(uv);
+          dx.x -= round(dx.x);
+          dy.x -= round(dy.x);
+          surface = textureGrad(mosaic, uv, dx, dy).rgb;
+        }
+        vec3 litSurface = surface * shade;
+        if (polarScale > 0.0) {
+          // Match MW_POLAR_MAP.project() using the unit direction directly.
+          vec2 offset = polarScale * vec2(radial.x, -radial.z) / max(1.0 - radial.y, 0.0001);
+          float coverage = 1.0 - smoothstep(0.38, 0.49, length(offset));
+          float relief = texture(southRelief, vec2(0.5) + offset).r;
+          float weight = coverage * step(radial.y, 0.0) * smoothstep(0.02, 0.10, relief);
+          // The polar image already contains directional lighting.
+          vec3 polarSurface = vec3(relief * mix(0.68, 0.9, shade));
+          litSurface = mix(litSurface, polarSurface, weight);
+        }
+        color = vec4(litSurface, 1.0);
       }`);
     function link(vertexShader, fragmentShader) {
       const program = gl.createProgram();
@@ -201,7 +263,9 @@
     const camera = gl.getUniformLocation(program, 'camera');
     const view = gl.getUniformLocation(program, 'view');
     const hasMosaic = gl.getUniformLocation(program, 'hasMosaic');
-    function loadTexture(id) {
+    const polarSampler = gl.getUniformLocation(program, 'southRelief');
+    const polarScale = gl.getUniformLocation(program, 'polarScale');
+    function loadTexture(source) {
       const texture = gl.createTexture();
       gl.bindTexture(gl.TEXTURE_2D, texture);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
@@ -209,8 +273,7 @@
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
       const asset = { texture, ready: false };
-      const encoded = document.getElementById(id)?.textContent.trim();
-      if (!encoded) return asset;
+      if (!source) return asset;
 
       const image = new Image();
       image.onload = () => {
@@ -222,12 +285,19 @@
         asset.ready = true;
         redraw();
       };
-      image.src = 'data:image/jpeg;base64,' + encoded;
+      image.src = source;
       return asset;
     }
 
-    const mosaic = loadTexture('moonwindow-albedo');
-    const stars = loadTexture('moonwindow-stars');
+    function embeddedJpeg(id) {
+      const encoded = document.getElementById(id)?.textContent.trim();
+      return encoded ? 'data:image/jpeg;base64,' + encoded : null;
+    }
+
+    const mosaic = loadTexture(embeddedJpeg('moonwindow-albedo'));
+    const stars = loadTexture(embeddedJpeg('moonwindow-stars'));
+    const polarMap = window.MW_POLAR_MAP;
+    const polar = loadTexture(polarMap?.image);
     const skyProgram = link(
       compile(gl.VERTEX_SHADER, `#version 300 es
         out vec2 screen;
@@ -285,6 +355,11 @@
       gl.useProgram(program);
       gl.bindTexture(gl.TEXTURE_2D, mosaic.texture);
       gl.uniform1i(hasMosaic, mosaic.ready ? 1 : 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, polar.texture);
+      gl.uniform1i(polarSampler, 1);
+      gl.uniform1f(polarScale, polar.ready ? radius / (polarMap.radiusKm * 1000) : 0);
+      gl.activeTexture(gl.TEXTURE0);
       const [right, up, forward] = axes;
       gl.uniformMatrix3fv(camera, false, [
         right[0], up[0], forward[0], right[1], up[1], forward[1], right[2], up[2], forward[2]
@@ -296,8 +371,6 @@
       gl.vertexAttribPointer(0, 4, gl.FLOAT, false, stride, 0);
       gl.enableVertexAttribArray(1);
       gl.vertexAttribPointer(1, 3, gl.FLOAT, false, stride, 4 * Float32Array.BYTES_PER_ELEMENT);
-      gl.enableVertexAttribArray(2);
-      gl.vertexAttribPointer(2, 2, gl.FLOAT, false, stride, 7 * Float32Array.BYTES_PER_ELEMENT);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, surface.indexBuffer);
       gl.drawElements(gl.TRIANGLES, surface.count, gl.UNSIGNED_INT, 0);
     };
@@ -328,6 +401,12 @@
       </section>`;
     const canvas = slot.querySelector('canvas');
     const viewport = canvas.parentElement;
+    if (window.MW_POLAR_MAP?.credit) {
+      const polarCredit = document.createElement('span');
+      polarCredit.textContent = ' · South pole relief: NASA LOLA';
+      polarCredit.title = window.MW_POLAR_MAP.credit;
+      slot.querySelector('.mw-globe-credit').append(polarCredit);
+    }
     const pins = slot.querySelector('.mw-globe-pins');
     const select = slot.querySelector('select');
     const status = slot.querySelector('[role="status"]');
