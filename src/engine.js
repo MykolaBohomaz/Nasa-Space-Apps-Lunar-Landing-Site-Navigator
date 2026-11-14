@@ -62,7 +62,26 @@
       return { sun: look(sunFromMoon), earth: look(earthFromMoon) };
     }
 
-    return { skyAt, MOON_RADIUS_KM };
+    // MK-3: how much of a body's disk is above the skyline (0..1).
+    // elDeg = elevation of the disk's centre, horizonDeg = skyline height in that direction
+    // (from api.horizonAt; 0 for flat ground), distKm and radiusKm give the disk's angular size.
+    // Treats the skyline as straight across the disk (it is less than 2 deg wide).
+    function visibleFraction(elDeg, horizonDeg, distKm, radiusKm) {
+      const r = Math.asin(Math.min(1, radiusKm / distKm)) * R2D;   // angular radius, deg
+      const d = elDeg - horizonDeg;                                 // centre above skyline, deg
+      if (d >= r) return 1;
+      if (d <= -r) return 0;
+      const cap = c => r * r * Math.acos(c / r) - c * Math.sqrt(r * r - c * c); // area beyond chord at distance c
+      const full = Math.PI * r * r;
+      return d >= 0 ? (full - cap(d)) / full : cap(-d) / full;
+    }
+    const SUN_RADIUS_KM = 695700, EARTH_RADIUS_KM = 6371.0;
+    // body = {el, az, distKm} from skyAt; horizonDeg from api.horizonAt(s, body.az)
+    const sunVisible = (sun, horizonDeg) => visibleFraction(sun.el, horizonDeg || 0, sun.distKm, SUN_RADIUS_KM);
+    const earthVisible = (earth, horizonDeg) => visibleFraction(earth.el, horizonDeg || 0, earth.distKm, EARTH_RADIUS_KM);
+    const angularRadiusDeg = (distKm, radiusKm) => Math.asin(Math.min(1, radiusKm / distKm)) * R2D;
+
+    return { skyAt, visibleFraction, sunVisible, earthVisible, angularRadiusDeg, SUN_RADIUS_KM, EARTH_RADIUS_KM, MOON_RADIUS_KM };
   }
 
   if (typeof module !== 'undefined' && module.exports) module.exports = engine;

@@ -4,7 +4,8 @@
 window.MW_SITES = [
   { id: 'im2', group: 'South pole region', name: 'IM-2 Athena, Mons Mouton (NASA CLPS, 2025)', lat: -84.79, lon: 29.20 },
   { id: 'im1', group: 'South pole region', name: 'IM-1 Odysseus, near Malapert A (NASA CLPS, 2024)', lat: -80.13, lon: 1.44 },
-  { id: 'shk', group: 'South pole region', name: 'Connecting ridge crest near Shackleton (LOLA high point)', lat: -89.4458, lon: 222.706 },
+  { id: 'shk', group: 'South pole region', name: 'Connecting ridge near Shackleton, best-lit point (LOLA)', lat: -89.4393, lon: 222.733 },
+  { id: 'shk2', group: 'South pole region', name: 'Connecting ridge, 200 m from the best-lit point', lat: -89.4458, lon: 222.706 },
   { id: 'ch3', group: 'South pole region', name: 'Chandrayaan-3, Statio Shiv Shakti (ISRO, 2023)', lat: -69.373, lon: 32.319 },
   { id: 'ce6', group: 'Other landings', name: "Chang'e 6, Apollo basin, far side (CNSA, 2024)", lat: -41.6385, lon: 206.0148 },
   { id: 'slim', group: 'Other landings', name: 'SLIM (JAXA, 2024)', lat: -13.316, lon: 25.251 },
