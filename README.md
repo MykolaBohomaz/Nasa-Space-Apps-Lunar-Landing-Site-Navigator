@@ -1,0 +1,86 @@
+# MoonWindow
+
+**Pick a landing site on the Moon and a date. See where the Sun and Earth are in its sky, whether a lander there gets solar power and direct radio contact with Earth, and for how long.**
+
+NASA Space Apps Challenge 2026 project for the lunar landing site challenge (Sun and Earth visibility at the Moon's south pole).
+
+## What it does
+
+- **Landing sites:** 8 real landing sites (IM-2 Athena, IM-1 Odysseus, Shackleton rim, Chandrayaan-3, Chang'e 6, SLIM, Blue Ghost 1, Apollo 11) or any custom latitude/longitude.
+- **Any date and time (UTC):** buttons for ±1 hour, ±1 day, "Now" and "Slip 1 week".
+- **Sky view:** a 360° picture of the sky from the site with the horizon, the Sun and Earth, and their tracks over the next 30 days.
+- **Sunlight and Earth cards:** elevation and direction, and a countdown to sunset/sunrise and Earthset/Earthrise (to the minute).
+- **30-day timeline:** sunlight, Earth in view, and both together. Click to jump to a time.
+- **Next-30-days numbers:** % sunlight, % Earth in view, % both, longest night, longest time without Earth, and how long Sun and Earth stay up together from the chosen moment.
+- **Compare up to 3 scenarios** side by side, for example the same site after a one-week launch slip.
+- **Play time** animation, **shareable links** (the URL stores the scenarios), and an **About** panel with explanations for non-experts.
+- **Check in NASA JPL Horizons:** every scenario links to the same query in JPL Horizons so anyone can verify the numbers.
+
+## How to run it
+
+Open `index.html` in any modern browser. That's it: there's no server, nothing to install, and it works offline.
+
+To publish it on GitHub Pages: repository **Settings → Pages → Build and deployment → Deploy from a branch → `main` / root → Save**. After a minute the site is live at `https://<user>.github.io/<repo>/`.
+
+## How it works
+
+For each moment, the app:
+
+1. Gets the positions of the Sun, Earth and Moon from [Astronomy Engine](https://github.com/cosinekitty/astronomy) (MIT License).
+2. Turns the Moon to its orientation from the IAU/WGCCRE 2009 rotation model. That's the mean Earth/polar axis frame used by LRO, LOLA and LROC coordinates.
+3. Works out the direction from the landing site to the Sun and to Earth as **elevation** (degrees above a flat horizon) and **azimuth** (degrees from north toward east).
+
+Timelines use one-hour steps, and countdowns are refined to one minute by bisection.
+
+Sanity checks we ran:
+
+| Case | Expected | MoonWindow |
+| --- | --- | --- |
+| Apollo 11 landing, 1969-07-20 20:17 UTC | Sun low in the east (~11°) | Sun 10.7° at az 89° |
+| Chandrayaan-3 landing, 2023-08-23 12:33 UTC | Sun low after sunrise | Sun 8.6° |
+| Chang'e 6 (far side) | Earth never visible | Earth −42.7° |
+| Apollo 11, any date | Earth always high | Earth ~59–64° |
+| Shackleton rim, 30 days | Sun within ~2° of horizon | 1.0° to 2.0° |
+
+**Validation against NASA JPL Horizons:** use the "Sun position" / "Earth position" links under any scenario and compare the `Azi_(a-app)` / `Elev_(a-app)` columns with the app. Record a few comparisons here before submitting.
+
+## Limitations
+
+- **Flat horizon.** Real mountains and crater rims, especially at the poles, can block a Sun or Earth that is a few degrees up. Next step: terrain horizon profiles from LOLA elevation data.
+- **Centre of the disk.** "Up" means the centre of the Sun or Earth is above the horizon.
+- **Hourly sampling** for the 30-day statistics.
+
+## Landing site sources
+
+| Site | Lat | E-lon | Source |
+| --- | --- | --- | --- |
+| IM-2 Athena, Mons Mouton | −84.79 | 29.20 | IM-2 records based on LROC ([LROC landing region](https://www.lroc.asu.edu/images/1401)) |
+| IM-1 Odysseus | −80.13 | 1.44 | [LROC](https://www.lroc.asu.edu/images/1360) |
+| Shackleton rim high-light point (approx.) | −89.45 | 229.69 | [the-moon.us](https://the-moon.us/wiki/South_Pole) |
+| Chandrayaan-3, Statio Shiv Shakti | −69.373 | 32.319 | [USGS Gazetteer](https://planetarynames.wr.usgs.gov/Feature/16272) |
+| Chang'e 6 | −41.6385 | 206.0148 | [LROC](https://lroc.im-ldi.com/images/1374) |
+| SLIM | −13.316 | 25.251 | [NASA NSSDC](https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html) |
+| Blue Ghost 1 | 18.56 | 61.81 | [LROC](https://www.lroc.im-ldi.com/images/1400) |
+| Apollo 11 | 0.674 | 23.473 | NASA NSSDC |
+
+## NASA data and resources
+
+- **JPL Horizons:** validation of Sun and Earth positions.
+- **LROC (Lunar Reconnaissance Orbiter Camera) and QuickMap:** landing site coordinates.
+- **NASA NSSDC:** Apollo 11 and SLIM coordinates.
+- **NASA Moon Trek:** site exploration.
+
+## Files
+
+- `index.html` is the complete app in one file (built from `src/`). This is what GitHub Pages serves.
+- `src/index.html`, `src/app.js` and `src/engine.js` are the editable source.
+- `build.py` re-creates `index.html` from `src/` (needs Python 3 and `npm install astronomy-engine@2`).
+
+## AI use
+
+The code in this repository (HTML, CSS, JavaScript and the build script) was generated with an AI assistant (Claude, by Anthropic) from requirements written by our team. The team chose the problem framing, landing sites and features, reviewed and tested the results, and validated them against NASA JPL Horizons. No AI-generated images, video or audio are used.
+
+## Credits and licenses
+
+- Astronomy Engine © 2019–2023 Don Cross, MIT License (notice kept inside `index.html`).
+- Not an official NASA product. No NASA logos or insignia are used.

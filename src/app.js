@@ -1,0 +1,454 @@
+// MoonWindow app logic. Code generated with an AI assistant (Claude) from our team's requirements.
+(function () {
+  'use strict';
+  const E = MoonEngine(Astronomy);
+  const HOUR = 3600e3, DAY = 24 * HOUR;
+  const WINDOW_H = 720;   // 30-day timeline and statistics
+  const SAMPLE_H = 2160;  // 90 days of hourly samples, so countdowns can look 60+ days ahead
+  const MAX_SCENARIOS = 3, LETTERS = 'ABC';
+
+  const SITES = [
+    { id: 'im2', group: 'South pole region', name: 'IM-2 Athena, Mons Mouton (NASA CLPS, 2025)', lat: -84.79, lon: 29.20 },
+    { id: 'im1', group: 'South pole region', name: 'IM-1 Odysseus, near Malapert A (NASA CLPS, 2024)', lat: -80.13, lon: 1.44 },
+    { id: 'shk', group: 'South pole region', name: 'Shackleton rim, high-light point (approximate)', lat: -89.45, lon: 229.69 },
+    { id: 'ch3', group: 'South pole region', name: 'Chandrayaan-3, Statio Shiv Shakti (ISRO, 2023)', lat: -69.373, lon: 32.319 },
+    { id: 'ce6', group: 'Other landings', name: "Chang'e 6, Apollo basin, far side (CNSA, 2024)", lat: -41.6385, lon: 206.0148 },
+    { id: 'slim', group: 'Other landings', name: 'SLIM (JAXA, 2024)', lat: -13.316, lon: 25.251 },
+    { id: 'bg1', group: 'Other landings', name: 'Blue Ghost 1, Mare Crisium (NASA CLPS, 2025)', lat: 18.56, lon: 61.81 },
+    { id: 'a11', group: 'Other landings', name: 'Apollo 11, Tranquility Base (NASA, 1969)', lat: 0.674, lon: 23.473 }
+  ];
+
+  let scenarios = [];
+  let playTimer = null;
+  let uid = 0;
+
+  // ---------- helpers ----------
+  const $ = (root, sel) => root.querySelector(sel);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fmtDeg = v => (Math.abs(v) < 10 ? v.toFixed(2) : v.toFixed(1)).replace('-', '\u2212') + '°';
+  const pct = v => Math.round(v * 100) + '%';
+  const COMPASS = ['north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'];
+  const compass = az => COMPASS[Math.round(az / 45) % 8];
+  const fmtUTC = t => new Date(t).toLocaleString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) + ' UTC';
+  const fmtDate = t => new Date(t).toLocaleString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' });
+  const fmtFull = t => new Date(t).toLocaleString('en-US', { timeZone: 'UTC', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) + ' UTC';
+  function fmtDur(ms) {
+    const m = Math.round(ms / 60000);
+    const d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60;
+    if (d > 0) return `${d} d ${h} h`;
+    if (h > 0) return `${h} h ${mm} min`;
+    return `${mm} min`;
+  }
+  function fmtHours(h) { return h >= 24 ? `${Math.floor(h / 24)} d ${h % 24} h` : `${h} h`; }
+  const toInput = t => new Date(t).toISOString().slice(0, 16);
+  const fromInput = v => { const t = Date.parse(v + ':00Z'); return isNaN(t) ? null : t; };
+  const lonE360 = lon => ((lon % 360) + 360) % 360;
+  const siteById = id => SITES.find(s => s.id === id);
+  function matchSite(lat, lon) {
+    const s = SITES.find(s => Math.abs(s.lat - lat) < 1e-6 && Math.abs(lonE360(s.lon) - lonE360(lon)) < 1e-6);
+    return s ? s.id : 'custom';
+  }
+
+  // ---------- model ----------
+  function newScenario(lat, lon, t) {
+    return { id: ++uid, lat, lon, siteId: matchSite(lat, lon), t, anchor: null, key: '', samples: null };
+  }
+
+  // Hourly samples from the window start (anchor). Recomputed only when the site changes
+  // or the chosen time leaves the 30-day window, so "Play" stays smooth.
+  function ensureSamples(s, reanchor) {
+    const key = s.lat + ',' + s.lon;
+    const inWindow = s.anchor !== null && s.t >= s.anchor && s.t <= s.anchor + WINDOW_H * HOUR;
+    if (!reanchor && s.samples && s.key === key && inWindow) return;
+    s.anchor = Math.floor(s.t / HOUR) * HOUR;
+    s.key = key;
+    const out = new Array(SAMPLE_H + 1);
+    for (let i = 0; i <= SAMPLE_H; i++) out[i] = E.skyAt(new Date(s.anchor + i * HOUR), s.lat, s.lon);
+    s.samples = out;
+    s.stats = windowStats(s);
+  }
+
+  function windowStats(s) {
+    let sun = 0, earth = 0, both = 0, runDark = 0, maxDark = 0, runGap = 0, maxGap = 0;
+    let sunMin = 99, sunMax = -99, earthMin = 99, earthMax = -99;
+    for (let i = 0; i < WINDOW_H; i++) {
+      const p = s.samples[i];
+      const su = p.sun.el > 0, eu = p.earth.el > 0;
+      if (su) sun++; if (eu) earth++; if (su && eu) both++;
+      runDark = su ? 0 : runDark + 1; maxDark = Math.max(maxDark, runDark);
+      runGap = eu ? 0 : runGap + 1; maxGap = Math.max(maxGap, runGap);
+      sunMin = Math.min(sunMin, p.sun.el); sunMax = Math.max(sunMax, p.sun.el);
+      earthMin = Math.min(earthMin, p.earth.el); earthMax = Math.max(earthMax, p.earth.el);
+    }
+    return { sun: sun / WINDOW_H, earth: earth / WINDOW_H, both: both / WINDOW_H, maxDark, maxGap, sunMin, sunMax, earthMin, earthMax };
+  }
+
+  // Next time the body crosses the horizon after s.t, refined to one minute.
+  function nextChange(s, body, upNow) {
+    const i0 = Math.floor((s.t - s.anchor) / HOUR);
+    for (let i = i0 + 1; i <= SAMPLE_H; i++) {
+      if ((s.samples[i][body].el > 0) !== upNow) {
+        let lo = Math.max(s.t, s.anchor + (i - 1) * HOUR), hi = s.anchor + i * HOUR;
+        while (hi - lo > 60e3) {
+          const mid = (lo + hi) / 2;
+          if ((E.skyAt(new Date(mid), s.lat, s.lon)[body].el > 0) === upNow) lo = mid; else hi = mid;
+        }
+        return { at: hi };
+      }
+    }
+    return { at: null, days: Math.floor((SAMPLE_H - i0) / 24) };
+  }
+
+  // ---------- rendering ----------
+  function buildSiteSelect(sel) {
+    const groups = {};
+    SITES.forEach(s => (groups[s.group] = groups[s.group] || []).push(s));
+    let html = '';
+    for (const g in groups) {
+      html += `<optgroup label="${esc(g)}">` + groups[g].map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('') + '</optgroup>';
+    }
+    html += '<option value="custom">Custom coordinates</option>';
+    sel.innerHTML = html;
+  }
+
+  function siteName(s) {
+    const site = siteById(s.siteId);
+    return site ? site.name.replace(/ \(.*\)$/, '') : `Custom (${s.lat.toFixed(2)}°, ${lonE360(s.lon).toFixed(2)}°E)`;
+  }
+
+  function renderSky(s, el, cur) {
+    const svg = $(el, '.skysvg');
+    const W = 1000, H = 300, L = 46, R = 14, T = 14, B = 34, pw = W - L - R, ph = H - T - B;
+    const st = s.stats;
+    const hi = Math.max(st.sunMax, st.earthMax, cur.sun.el, cur.earth.el);
+    const top = clamp(Math.ceil((hi + 3) / 5) * 5, 10, 90);
+    const bot = -clamp(Math.ceil(top * 0.35 / 5) * 5, 8, 30);
+    const x = az => L + az / 360 * pw;
+    const y = e => T + (top - e) / (top - bot) * ph;
+    const y0 = y(0);
+    const gid = 'g' + s.id;
+    const step = top <= 12 ? 2 : top <= 30 ? 5 : 10;
+    let g = `<defs>
+      <linearGradient id="${gid}sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#05080C"/></linearGradient>
+      <linearGradient id="${gid}gnd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4A5058"/><stop offset="1" stop-color="#2A2F34"/></linearGradient>
+      <clipPath id="${gid}clip"><rect x="${L}" y="${T}" width="${pw}" height="${ph}"/></clipPath>
+      <radialGradient id="${gid}glow"><stop offset="0" stop-color="#F4B942" stop-opacity=".55"/><stop offset="1" stop-color="#F4B942" stop-opacity="0"/></radialGradient>
+    </defs>`;
+    g += `<rect x="${L}" y="${T}" width="${pw}" height="${y0 - T}" fill="url(#${gid}sky)"/>`;
+    g += `<rect x="${L}" y="${y0}" width="${pw}" height="${T + ph - y0}" fill="url(#${gid}gnd)"/>`;
+    // grid
+    for (let e = Math.ceil(bot / step) * step; e <= top; e += step) {
+      if (e === 0) continue;
+      g += `<line x1="${L}" x2="${L + pw}" y1="${y(e)}" y2="${y(e)}" stroke="${e > 0 ? '#1C232B' : '#5A616A'}" stroke-width="1"/>`;
+      g += `<text x="${L - 6}" y="${y(e) + 4}" text-anchor="end" font-size="12" fill="#A3A9AE">${e}°</text>`;
+    }
+    const names = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'N'];
+    for (let k = 0; k <= 8; k++) {
+      const xx = x(k * 45);
+      g += `<line x1="${xx}" x2="${xx}" y1="${T}" y2="${T + ph}" stroke="${k % 2 ? '#141A20' : '#222A33'}" stroke-width="1"/>`;
+      g += `<text x="${xx}" y="${H - 12}" text-anchor="middle" font-size="13" font-weight="${k % 2 ? 400 : 600}" fill="${k % 2 ? '#A3A9AE' : '#ECE9E2'}">${names[k]}</text>`;
+    }
+    g += `<text x="${L - 6}" y="${y0 + 4}" text-anchor="end" font-size="12" fill="#ECE9E2">0°</text>`;
+    // 30-day tracks
+    let tracks = '';
+    for (let i = 0; i < WINDOW_H; i += 2) {
+      const p = s.samples[i];
+      tracks += `<circle cx="${x(p.sun.az).toFixed(1)}" cy="${y(p.sun.el).toFixed(1)}" r="1.5" fill="#F4B942" opacity="${p.sun.el > 0 ? .45 : .2}"/>`;
+      tracks += `<circle cx="${x(p.earth.az).toFixed(1)}" cy="${y(p.earth.el).toFixed(1)}" r="1.5" fill="#5DA9E9" opacity="${p.earth.el > 0 ? .5 : .22}"/>`;
+    }
+    g += `<g clip-path="url(#${gid}clip)">${tracks}</g>`;
+    // horizon
+    g += `<line x1="${L}" x2="${L + pw}" y1="${y0}" y2="${y0}" stroke="#ECE9E2" stroke-width="1.5"/>`;
+    g += `<text x="${L + 8}" y="${y0 + 16}" font-size="12" fill="#ECE9E2">Horizon (flat ground)</text>`;
+    // current bodies
+    const body = (b, color, label, r) => {
+      const inView = b.el >= bot && b.el <= top;
+      const cx = x(b.az), cy = inView ? y(b.el) : (b.el < bot ? T + ph - 10 : T + 10);
+      const up = b.el > 0;
+      let out = '';
+      if (label === 'Sun' && up) out += `<circle cx="${cx}" cy="${cy}" r="${r * 3}" fill="url(#${gid}glow)"/>`;
+      out += up
+        ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}" stroke="#000" stroke-width="1.5"/>`
+        : `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="3 3"/>`;
+      const right = cx < L + pw - 190;
+      const tx = right ? cx + r + 6 : cx - r - 6;
+      const below = cy < T + 40; // too close to the top: put labels under the marker
+      const ly1 = below ? cy + r + 16 : cy - r - 22, ly2 = ly1 + 15;
+      const txt = `${label} ${fmtDeg(b.el)}${inView ? '' : ' (below view)'}`;
+      out += `<text x="${tx}" y="${ly1}" text-anchor="${right ? 'start' : 'end'}" font-size="15" font-weight="700" fill="${color}" paint-order="stroke" stroke="#000" stroke-width="4">${txt}</text>`;
+      out += `<text x="${tx}" y="${ly2}" text-anchor="${right ? 'start' : 'end'}" font-size="12" fill="#ECE9E2" paint-order="stroke" stroke="#000" stroke-width="4">${up ? 'above' : 'below'} horizon, ${Math.round(b.az)}° ${compass(b.az)}</text>`;
+      return out;
+    };
+    g += body(cur.earth, '#5DA9E9', 'Earth', 9);
+    g += body(cur.sun, '#F4B942', 'Sun', 10);
+    svg.innerHTML = g;
+    svg.setAttribute('aria-label', `Sky from ${siteName(s)}: Sun at ${fmtDeg(cur.sun.el)} elevation, azimuth ${Math.round(cur.sun.az)}°; Earth at ${fmtDeg(cur.earth.el)} elevation, azimuth ${Math.round(cur.earth.az)}°.`);
+    const stretch = top <= 20 ? ' Heights are stretched so small angles are visible.' : '';
+    $(el, '.skycap').innerHTML = `<span>Sky from the landing site at ${esc(fmtFull(s.t))}. Dots show the next 30 days.${stretch}</span><span>The sky is black even in daylight: the Moon has no air.</span>`;
+  }
+
+  function bodyCard(kind, s, cur) {
+    const isSun = kind === 'sun';
+    const b = cur[kind];
+    const up = b.el > 0;
+    const nc = isSun ? s.nextSun : s.nextEarth;
+    const title = isSun ? 'Sunlight for power' : 'Earth in view for radio';
+    const tip = isSun
+      ? 'Solar panels need the Sun above the horizon. At the poles the Sun stays low, so panels are mounted vertically.'
+      : 'Direct-to-Earth radio needs Earth above the local horizon. Otherwise a relay satellite is needed.';
+    const word = isSun ? (up ? 'Sun up' : 'Sun down') : (up ? 'Earth up' : 'Earth down');
+    const chip = isSun ? (up ? 'Power available' : 'No solar power') : (up ? 'Direct radio possible' : 'No direct radio');
+    const ev = isSun ? (up ? 'Sunset' : 'Sunrise') : (up ? 'Earthset' : 'Earthrise');
+    const count = nc.at
+      ? `<p class="count">${ev} in ${fmtDur(nc.at - s.t)}</p><p class="muted">${esc(fmtUTC(nc.at))}</p>`
+      : `<p class="count">No ${ev.toLowerCase()} in the next ${nc.days} days</p><p class="muted">With a flat horizon</p>`;
+    return `<h3>${title} <button type="button" class="tip" data-tip="${esc(tip)}" aria-label="${esc(tip)}">?</button></h3>
+      <div class="state"><span class="big">${fmtDeg(b.el)}</span><span class="chip ${up ? 'ok' : 'no'}">${chip}</span></div>
+      <p class="muted">${word}, ${up ? 'above' : 'below'} the horizon, toward ${Math.round(b.az)}° (${compass(b.az)})</p>
+      ${count}`;
+  }
+
+  function monthCard(s) {
+    const st = s.stats;
+    const row = (label, v, color) => `<dt>${label}</dt><dd>${pct(v)}</dd><div class="bar"><i style="width:${(v * 100).toFixed(1)}%;background:${color}"></i></div>`;
+    const bw = bothWindow(s);
+    const nowLine = bw === null ? '<p class="muted">Right now you do not have both Sun and Earth.</p>'
+      : `<p class="count">Both up for the next ${bw === Infinity ? 'many days' : fmtDur(bw)}</p>`;
+    return `<h3>Next 30 days <button type="button" class="tip" data-tip="Share of the 30 days from ${esc(fmtDate(s.anchor))} with the Sun up, Earth up, or both. Both is the window when a solar lander can work and talk to Earth directly." aria-label="About these numbers">?</button></h3>
+      <dl class="stats">
+        ${row('Sunlight', st.sun, 'var(--sun)')}
+        ${row('Earth in view', st.earth, 'var(--earth)')}
+        ${row('Both at once', st.both, 'var(--both)')}
+        <dt>Longest night</dt><dd>${st.maxDark ? fmtHours(st.maxDark) : 'none'}</dd>
+        <dt>Longest time without Earth</dt><dd>${st.maxGap ? fmtHours(st.maxGap) : 'none'}</dd>
+      </dl>${nowLine}`;
+  }
+  function bothWindow(s) {
+    if (!(s.cur.sun.el > 0 && s.cur.earth.el > 0)) return null;
+    const ends = [s.nextSun.at, s.nextEarth.at].filter(v => v);
+    return ends.length ? Math.min(...ends) - s.t : Infinity;
+  }
+  function changeText(s, nc, up, setWord, riseWord) {
+    const w = up ? setWord : riseWord;
+    return nc.at ? `${w} in ${fmtDur(nc.at - s.t)}` : `Stays ${up ? 'up' : 'down'} for ${nc.days}+ d`;
+  }
+
+  function insight(s) {
+    const st = s.stats;
+    const parts = [];
+    if (Math.abs(s.lat) >= 75) {
+      if (st.sunMin > 0) parts.push(`<b>Polar site:</b> the Sun never sets here in the next 30 days, but it stays between ${fmtDeg(st.sunMin)} and ${fmtDeg(st.sunMax)} above the horizon. A ridge only ${fmtDeg(Math.max(st.sunMax, 0))} tall in the right direction would block it, so real terrain decides power.`);
+      else parts.push(`<b>Polar site:</b> the Sun never climbs higher than ${fmtDeg(st.sunMax)} in the next 30 days. A ridge that small in the right direction would block it, so real terrain decides power.`);
+    } else if (st.sun > 0.3 && st.sun < 0.7) {
+      parts.push('<b>Normal lunar day:</b> about two weeks of sunlight, then about two weeks of night. Solar landers usually land at sunrise to get the most time.');
+    }
+    if (st.earthMax < 0) parts.push('<b>No Earth:</b> Earth never rises here, like on the far side. A mission needs a relay satellite to talk home.');
+    else if (st.earthMin > 0) parts.push('<b>Earth always up:</b> Earth stays above the horizon the whole time, so direct radio is always possible.');
+    else parts.push(`<b>Earth comes and goes:</b> because of the Moon's wobble (libration), Earth moves between ${fmtDeg(st.earthMin)} and ${fmtDeg(st.earthMax)} here, so radio windows open and close.`);
+    return parts.join(' ');
+  }
+
+  function renderTimeline(s, el) {
+    const svg = $(el, '.tlsvg');
+    const W = 1000, L = 110, R = 14, pw = W - L - R;
+    const rows = [
+      { label: 'Sunlight', y: 8, color: '#F4B942', f: p => p.sun.el > 0 },
+      { label: 'Earth in view', y: 36, color: '#5DA9E9', f: p => p.earth.el > 0 },
+      { label: 'Both', y: 64, color: '#8FD6B0', f: p => p.sun.el > 0 && p.earth.el > 0 }
+    ];
+    const x = i => L + i / WINDOW_H * pw;
+    let g = '';
+    rows.forEach(r => {
+      g += `<text x="${L - 10}" y="${r.y + 15}" text-anchor="end" font-size="13" fill="#ECE9E2">${r.label}</text>`;
+      g += `<rect x="${L}" y="${r.y}" width="${pw}" height="20" rx="3" fill="#1E2226"/>`;
+      let start = -1;
+      for (let i = 0; i <= WINDOW_H; i++) {
+        const on = i < WINDOW_H && r.f(s.samples[i]);
+        if (on && start < 0) start = i;
+        if (!on && start >= 0) { g += `<rect x="${x(start).toFixed(1)}" y="${r.y}" width="${(x(i) - x(start)).toFixed(1)}" height="20" fill="${r.color}"/>`; start = -1; }
+      }
+    });
+    // day ticks
+    const firstMidnight = Math.ceil(s.anchor / DAY) * DAY;
+    for (let t = firstMidnight; t <= s.anchor + WINDOW_H * HOUR; t += DAY) {
+      const i = (t - s.anchor) / HOUR, xx = x(i);
+      const d = new Date(t).getUTCDate();
+      const major = (t - firstMidnight) / DAY % 5 === 0;
+      g += `<line x1="${xx}" x2="${xx}" y1="90" y2="${major ? 100 : 95}" stroke="#A3A9AE"/>`;
+      if (major && xx < W - R - 34 && xx > L + 20) g += `<text x="${xx}" y="116" text-anchor="middle" font-size="12" fill="#A3A9AE">${fmtDate(t)}</text>`;
+      void d;
+    }
+    // cursor
+    const ci = (s.t - s.anchor) / HOUR;
+    if (ci >= 0 && ci <= WINDOW_H) {
+      const xx = x(ci);
+      g += `<line x1="${xx}" x2="${xx}" y1="2" y2="90" stroke="#ECE9E2" stroke-width="2"/>`;
+      g += `<path d="M${xx - 6} 0 L${xx + 6} 0 L${xx} 8Z" fill="#ECE9E2"/>`;
+    }
+    svg.innerHTML = g;
+    svg.setAttribute('aria-label', `Timeline of the next 30 days: sunlight ${pct(s.stats.sun)}, Earth in view ${pct(s.stats.earth)}, both ${pct(s.stats.both)}. Click to choose a time.`);
+    $(el, '.tlcap').textContent = `30 days from ${fmtFull(s.anchor)}. Click anywhere on the bars to jump to that time.`;
+  }
+
+  function horizonsUrl(s, target) {
+    const t0 = new Date(Math.floor(s.t / 60000) * 60000);
+    const t1 = new Date(t0.getTime() + HOUR);
+    const f = d => d.toISOString().slice(0, 16).replace('T', ' ');
+    const q = {
+      format: 'text', COMMAND: `'${target}'`, OBJ_DATA: "'NO'", MAKE_EPHEM: "'YES'", EPHEM_TYPE: "'OBSERVER'",
+      CENTER: "'coord@301'", COORD_TYPE: "'GEODETIC'", SITE_COORD: `'${lonE360(s.lon).toFixed(4)},${s.lat.toFixed(4)},0'`,
+      START_TIME: `'${f(t0)}'`, STOP_TIME: `'${f(t1)}'`, STEP_SIZE: "'1 h'", QUANTITIES: "'4'"
+    };
+    return 'https://ssd.jpl.nasa.gov/api/horizons.api?' + Object.entries(q).map(([k, v]) => k + '=' + encodeURIComponent(v)).join('&');
+  }
+
+  function renderScenario(s, index) {
+    const el = s.el;
+    ensureSamples(s, false);
+    const cur = E.skyAt(new Date(s.t), s.lat, s.lon);
+    s.cur = cur;
+    $(el, '.sc-tag').textContent = LETTERS[index];
+    el.setAttribute('aria-label', 'Scenario ' + LETTERS[index]);
+    $(el, '.site').value = s.siteId;
+    if (document.activeElement !== $(el, '.lat')) $(el, '.lat').value = s.lat;
+    if (document.activeElement !== $(el, '.lon')) $(el, '.lon').value = s.lon;
+    if (document.activeElement !== $(el, '.dt')) $(el, '.dt').value = toInput(s.t);
+    $(el, '.remove').hidden = scenarios.length < 2;
+    $(el, '.insight').innerHTML = insight(s);
+    renderSky(s, el, cur);
+    s.nextSun = nextChange(s, 'sun', cur.sun.el > 0);
+    s.nextEarth = nextChange(s, 'earth', cur.earth.el > 0);
+    $(el, '.power').innerHTML = bodyCard('sun', s, cur);
+    $(el, '.comms').innerHTML = bodyCard('earth', s, cur);
+    $(el, '.month').innerHTML = monthCard(s);
+    renderTimeline(s, el);
+    $(el, '.hz-sun').href = horizonsUrl(s, '10');
+    $(el, '.hz-earth').href = horizonsUrl(s, '399');
+  }
+
+  function renderCompare() {
+    const box = document.getElementById('compare');
+    box.hidden = scenarios.length < 2;
+    if (box.hidden) return;
+    const bw = scenarios.map(s => bothWindow(s));
+    const best = Math.max(...bw.map(v => v === null ? -1 : v));
+    const now = (b, nc, setW, riseW, s) => `${b.el > 0 ? 'Up' : 'Down'}, ${fmtDeg(b.el)}<br><span class="muted">${changeText(s, nc, b.el > 0, setW, riseW)}</span>`;
+    box.querySelector('tbody').innerHTML = scenarios.map((s, i) => {
+      const isBest = bw[i] !== null && bw[i] === best && scenarios.length > 1;
+      const bwText = bw[i] === null ? 'Not now' : bw[i] === Infinity ? 'Many days' : fmtDur(bw[i]);
+      return `<tr>
+      <td><b>${LETTERS[i]}</b></td><td>${esc(siteName(s))}</td><td>${esc(fmtUTC(s.t))}</td>
+      <td>${now(s.cur.sun, s.nextSun, 'Sets', 'Rises', s)}</td><td>${now(s.cur.earth, s.nextEarth, 'Sets', 'Rises', s)}</td>
+      <td class="num ${isBest ? 'best' : ''}">${bwText}${isBest ? ' (longest)' : ''}</td>
+      <td class="num">${pct(s.stats.sun)}</td><td class="num">${pct(s.stats.earth)}</td><td class="num">${pct(s.stats.both)}</td>
+      <td class="num">${s.stats.maxDark ? fmtHours(s.stats.maxDark) : 'none'}</td></tr>`;
+    }).join('');
+  }
+
+  function renderAll() {
+    scenarios.forEach((s, i) => renderScenario(s, i));
+    renderCompare();
+    document.getElementById('addBtn').disabled = scenarios.length >= MAX_SCENARIOS;
+    saveHash();
+  }
+
+  // ---------- wiring ----------
+  function mountScenario(s) {
+    const el = document.getElementById('tplScenario').content.firstElementChild.cloneNode(true);
+    s.el = el;
+    buildSiteSelect($(el, '.site'));
+    const rerender = () => { renderScenario(s, scenarios.indexOf(s)); renderCompare(); saveHash(); };
+    $(el, '.site').addEventListener('change', e => {
+      const site = siteById(e.target.value);
+      if (site) { s.lat = site.lat; s.lon = site.lon; s.siteId = site.id; ensureSamples(s, true); rerender(); }
+      else { s.siteId = 'custom'; $(el, '.lat').focus(); }
+    });
+    const coordChange = () => {
+      const lat = parseFloat($(el, '.lat').value), lon = parseFloat($(el, '.lon').value);
+      if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90) return;
+      s.lat = lat; s.lon = lon; s.siteId = matchSite(lat, lon);
+      ensureSamples(s, true); rerender();
+    };
+    $(el, '.lat').addEventListener('change', coordChange);
+    $(el, '.lon').addEventListener('change', coordChange);
+    $(el, '.dt').addEventListener('change', e => {
+      const t = fromInput(e.target.value);
+      if (t !== null) { s.t = t; ensureSamples(s, true); rerender(); }
+    });
+    $(el, '.steps').addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.now) { s.t = Math.floor(Date.now() / 60000) * 60000; ensureSamples(s, true); }
+      else s.t += Number(b.dataset.step) * HOUR;
+      rerender();
+    });
+    $(el, '.remove').addEventListener('click', () => {
+      scenarios = scenarios.filter(x => x !== s); el.remove(); renderAll();
+    });
+    $(el, '.tlsvg').addEventListener('click', e => {
+      const svg = e.currentTarget, r = svg.getBoundingClientRect();
+      const vx = (e.clientX - r.left) / r.width * 1000;
+      const L = 110, pw = 1000 - L - 14;
+      const i = clamp(Math.round((vx - L) / pw * WINDOW_H), 0, WINDOW_H);
+      s.t = s.anchor + i * HOUR; rerender();
+    });
+    document.getElementById('scenarios').appendChild(el);
+  }
+
+  function addScenario(lat, lon, t) {
+    if (scenarios.length >= MAX_SCENARIOS) return;
+    const s = newScenario(lat, lon, t);
+    scenarios.push(s); mountScenario(s);
+    return s;
+  }
+
+  // URL: #s=lat,lon,YYYYMMDDTHHMM;...
+  function saveHash() {
+    const enc = scenarios.map(s => `${+s.lat.toFixed(4)},${+s.lon.toFixed(4)},${new Date(s.t).toISOString().slice(0, 16).replace(/[-:]/g, '')}`).join(';');
+    try { history.replaceState(null, '', '#s=' + enc); } catch (e) { /* sandboxed preview */ }
+  }
+  function loadHash() {
+    const m = /#s=([^&]+)/.exec(location.hash);
+    if (!m) return false;
+    const parts = decodeURIComponent(m[1]).split(';').slice(0, MAX_SCENARIOS);
+    let ok = false;
+    parts.forEach(p => {
+      const [lat, lon, ts] = p.split(',');
+      const mm = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})$/.exec(ts || '');
+      const la = parseFloat(lat), lo = parseFloat(lon);
+      if (!mm || isNaN(la) || isNaN(lo) || la < -90 || la > 90) return;
+      addScenario(la, lo, Date.UTC(+mm[1], +mm[2] - 1, +mm[3], +mm[4], +mm[5])); ok = true;
+    });
+    return ok;
+  }
+
+  document.getElementById('addBtn').addEventListener('click', () => {
+    const last = scenarios[scenarios.length - 1];
+    const s = addScenario(last.lat, last.lon, last.t + 7 * DAY);
+    renderAll();
+    if (s) s.el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  });
+  document.getElementById('playBtn').addEventListener('click', e => {
+    const btn = e.currentTarget;
+    if (playTimer) { clearInterval(playTimer); playTimer = null; btn.textContent = 'Play time'; btn.setAttribute('aria-pressed', 'false'); return; }
+    btn.textContent = 'Pause'; btn.setAttribute('aria-pressed', 'true');
+    playTimer = setInterval(() => { scenarios.forEach(s => (s.t += HOUR)); renderAll(); }, 120);
+  });
+  document.getElementById('linkBtn').addEventListener('click', async e => {
+    saveHash();
+    const btn = e.currentTarget;
+    try { await navigator.clipboard.writeText(location.href); btn.textContent = 'Link copied'; }
+    catch (err) { btn.textContent = 'Copy from address bar'; }
+    setTimeout(() => (btn.textContent = 'Copy link'), 2000);
+  });
+  const about = document.getElementById('about');
+  document.getElementById('aboutBtn').addEventListener('click', () => about.showModal());
+  document.getElementById('aboutClose').addEventListener('click', () => about.close());
+  about.addEventListener('click', e => { if (e.target === about) about.close(); });
+
+  if (!loadHash()) {
+    const site = siteById('im2');
+    addScenario(site.lat, site.lon, Math.floor(Date.now() / HOUR) * HOUR);
+  }
+  renderAll();
+})();

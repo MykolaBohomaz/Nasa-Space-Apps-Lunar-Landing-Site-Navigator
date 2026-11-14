@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MoonWindow: Sun and Earth from any lunar landing site</title>
+<meta name="description" content="Pick a landing site on the Moon and a date. See where the Sun and Earth are in its sky, how long until sunset and Earthset, and compare scenarios.">
+<!--
+  MoonWindow, NASA Space Apps Challenge 2026 project.
+  AI use: this page's code (HTML, CSS, JavaScript) was generated with an AI assistant (Claude, by Anthropic)
+  from requirements written by our team. The team chose the sites, checked the results and designed the app.
+  Bundled library: Astronomy Engine by Don Cross, MIT License (notice kept with the library below).
+-->
+<style>
+:root{
+  --bg:#1E2226; --panel:#262B30; --panel2:#2D3338; --line:#3C434A; --text:#ECE9E2; --muted:#A3A9AE;
+  --sun:#F4B942; --earth:#5DA9E9; --both:#8FD6B0; --bad:#E9806E;
+  --radius:10px;
+  --font:"Avenir Next","Avenir","Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box}
+html{background:var(--bg);color:var(--text);font-family:var(--font);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
+body{margin:0}
+button,input,select{font:inherit;color:inherit}
+a{color:var(--earth)}
+:focus-visible{outline:2px solid var(--sun);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+
+/* Header */
+.top{border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;padding-top:22px;padding-bottom:18px}
+.brand{display:flex;gap:14px;align-items:center;min-width:0}
+.brand svg{flex:none}
+.brand h1{margin:0;font-size:1.9rem;line-height:1.1;font-weight:700;letter-spacing:-.01em}
+.brand p{margin:2px 0 0;color:var(--muted);max-width:60ch}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 14px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--sun);border-color:var(--sun);color:#1E2226;font-weight:600}
+.btn.primary:hover{filter:brightness(1.05)}
+.btn[aria-pressed="true"]{background:var(--text);color:var(--bg);border-color:var(--text)}
+.btn.small{padding:5px 10px;font-size:.88rem}
+
+main.wrap{padding-top:20px;padding-bottom:40px}
+
+/* Compare table */
+#compare{margin-bottom:22px;overflow-x:auto}
+#compare h2{font-size:1.15rem;margin:0 0 8px}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:.95rem}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--muted);font-weight:500;white-space:normal;vertical-align:bottom;min-width:70px}
+td.num,th.num{text-align:right}
+td .muted{color:var(--muted);font-size:.85rem}
+#compare p{margin:0 0 10px;color:var(--muted);max-width:90ch}
+.best{color:var(--both);font-weight:600}
+
+/* Scenario */
+.scenario{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:24px;overflow:hidden}
+.sc-head{display:grid;grid-template-columns:auto 1fr 1.2fr auto;gap:14px 18px;align-items:end;padding:16px 18px 12px}
+.sc-tag{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:1.1rem;background:var(--text);color:var(--bg);align-self:center}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field>span{font-size:.82rem;color:var(--muted)}
+select,input[type=number],input[type=datetime-local]{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0;width:100%}
+input[type=datetime-local]{color-scheme:dark}
+.coords{display:flex;gap:8px;margin-top:8px}
+.coords .field{flex:1}
+.steps{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.remove{align-self:start}
+.insight{margin:0;padding:0 18px 12px;max-width:95ch;color:var(--text)}
+.insight b{font-weight:600}
+
+/* Sky strip: the black lunar sky */
+.sky{margin:0;background:#000;position:relative}
+.sky svg{display:block;width:100%;height:auto}
+.skycap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 16px;padding:8px 18px;font-size:.85rem;color:var(--muted);background:var(--panel2);border-top:1px solid var(--line)}
+
+/* Status cards */
+.cards{display:grid;grid-template-columns:1fr 1fr 1.25fr;gap:14px;padding:16px 18px}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;border-top:4px solid var(--line)}
+.card.power{border-top-color:var(--sun)}
+.card.comms{border-top-color:var(--earth)}
+.card.month{border-top-color:var(--both)}
+.card h3{margin:0 0 6px;font-size:1rem;font-weight:600;display:flex;align-items:center;gap:6px}
+.state{display:flex;align-items:baseline;gap:10px;margin:2px 0 4px}
+.state .big{font-size:2.2rem;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.chip{font-size:.85rem;font-weight:600;padding:2px 9px;border-radius:99px}
+.chip.ok{background:rgba(143,214,176,.16);color:var(--both)}
+.chip.no{background:rgba(233,128,110,.16);color:var(--bad)}
+.card p{margin:4px 0;font-variant-numeric:tabular-nums}
+.card .muted{color:var(--muted);font-size:.9rem}
+.count{font-size:1.05rem;font-weight:600}
+.stats{display:grid;grid-template-columns:1fr auto;gap:5px 12px;margin:6px 0 0;font-variant-numeric:tabular-nums}
+.stats dt{color:var(--muted)}
+.stats dd{margin:0;text-align:right;font-weight:600}
+.bar{grid-column:1/-1;height:5px;border-radius:3px;background:var(--line);margin-top:-2px;overflow:hidden}
+.bar i{display:block;height:100%}
+
+/* Timeline */
+.tl{margin:0;padding:4px 18px 10px}
+.tl figcaption{font-size:.9rem;color:var(--muted);margin-bottom:4px}
+.tl svg{display:block;width:100%;height:auto;cursor:crosshair}
+.sc-foot{display:flex;flex-wrap:wrap;gap:8px 18px;padding:10px 18px 16px;border-top:1px solid var(--line);font-size:.9rem;color:var(--muted)}
+
+/* Help tips */
+.tip{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:50%;width:20px;height:20px;font-size:.75rem;line-height:1;padding:0;cursor:help;position:relative;flex:none}
+.tip:hover,.tip:focus-visible{color:var(--text);border-color:var(--muted)}
+.tip:hover::after,.tip:focus-visible::after{content:attr(data-tip);position:absolute;left:50%;top:26px;transform:translateX(-50%);width:min(280px,70vw);background:var(--text);color:var(--bg);font-size:.85rem;font-weight:400;line-height:1.4;padding:8px 10px;border-radius:8px;z-index:5;text-align:left;white-space:normal}
+
+/* About dialog */
+dialog{max-width:760px;width:calc(100% - 32px);background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:14px;padding:0}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+.dlg{padding:22px 26px 26px;max-height:85vh;overflow:auto}
+.dlg h2{margin:0 0 4px;font-size:1.5rem}
+.dlg h3{margin:22px 0 6px;font-size:1.08rem}
+.dlg p,.dlg li{max-width:72ch}
+.dlg dl{margin:0}
+.dlg dt{font-weight:600;margin-top:8px}
+.dlg dd{margin:2px 0 0;color:var(--muted)}
+.dlg-close{float:right}
+
+footer{border-top:1px solid var(--line);color:var(--muted);font-size:.88rem}
+footer .wrap{padding-top:16px;padding-bottom:28px}
+footer p{margin:4px 0;max-width:100ch}
+
+@media (max-width:900px){
+  .sc-head{grid-template-columns:auto 1fr;}
+  .sc-time{grid-column:1/-1}
+  .remove{grid-column:2;grid-row:1;justify-self:end}
+  .cards{grid-template-columns:1fr}
+}
+@media (max-width:700px){
+  .sky,.tl{overflow-x:auto}
+  .sky svg{min-width:760px}
+  .tl svg{min-width:680px}
+  .skycap{min-width:0}
+}
+@media (max-width:520px){
+  .brand h1{font-size:1.5rem}
+  .state .big{font-size:1.8rem}
+  .wrap{padding:0 12px}
+  .sc-head,.cards{padding-left:12px;padding-right:12px}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <svg width="46" height="46" viewBox="0 0 46 46" aria-hidden="true">
+        <rect width="46" height="46" rx="10" fill="#000"/>
+        <circle cx="16" cy="29" r="7" fill="#F4B942"/>
+        <circle cx="33" cy="17" r="4.5" fill="#5DA9E9"/>
+        <path d="M0 30 L9 27 L15 31 L24 26 L33 30 L40 28 L46 30 V46 H0Z" fill="#3C434A"/>
+      </svg>
+      <div>
+        <h1>MoonWindow</h1>
+        <p>Pick a spot on the Moon and a date. See whether it has sunlight for power and a line of sight to Earth for radio, and for how long.</p>
+      </div>
+    </div>
+    <nav class="actions" aria-label="App actions">
+      <button class="btn primary" id="addBtn" type="button">Add comparison</button>
+      <button class="btn" id="playBtn" type="button" aria-pressed="false">Play time</button>
+      <button class="btn" id="linkBtn" type="button">Copy link</button>
+      <button class="btn" id="aboutBtn" type="button">About and data</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="compare" hidden aria-labelledby="cmpTitle">
+    <h2 id="cmpTitle">Side-by-side summary</h2>
+    <p>"Both up for" is how long a solar lander that lands at that moment keeps sunlight and direct radio together. It is the number that changes most when a landing date slips.</p>
+    <table><thead><tr>
+      <th>Scenario</th><th>Site</th><th>Time (UTC)</th><th>Sun now</th><th>Earth now</th>
+      <th class="num">Sun and Earth both up for</th><th class="num">Sunlight, 30 d</th><th class="num">Earth in view, 30 d</th><th class="num">Both, 30 d</th><th class="num">Longest night</th>
+    </tr></thead><tbody></tbody></table>
+  </section>
+  <div id="scenarios"></div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Positions are calculated in your browser from the Astronomy Engine library and the IAU model of the Moon's orientation, and can be checked against NASA JPL Horizons with the links under each scenario. Site coordinates come from LROC, the USGS Gazetteer of Planetary Nomenclature and NASA NSSDC.</p>
+    <p>Built for the NASA Space Apps Challenge 2026. Code generated with an AI assistant (Claude) from our team's requirements. Not an official NASA product.</p>
+  </div>
+</footer>
+
+<dialog id="about" aria-labelledby="aboutTitle">
+  <div class="dlg">
+    <button class="btn small dlg-close" type="button" id="aboutClose">Close</button>
+    <h2 id="aboutTitle">About MoonWindow</h2>
+    <p>Landers near the Moon's south pole live on a knife edge. The Sun and Earth both hang near the horizon there, so a small change of landing spot or date can switch solar power or direct radio contact on or off. MoonWindow shows that at a glance for any site and date.</p>
+
+    <h3>What you see</h3>
+    <ul>
+      <li><b>Sky view:</b> a 360° picture of the sky from the landing site. Left to right is compass direction, up and down is height above the horizon. The sky is black because the Moon has no air, even in daylight. Dotted tracks show where the Sun and Earth move over the next 30 days.</li>
+      <li><b>Sunlight and Earth cards:</b> whether each is above the horizon now, how high, and how long until it sets or rises.</li>
+      <li><b>30-day timeline:</b> when there is sunlight, when Earth is in view, and when you have both. Click it to jump to that moment.</li>
+      <li><b>Comparison:</b> add up to three scenarios, for example the same site a week later after a launch slip.</li>
+    </ul>
+
+    <h3>How it's calculated</h3>
+    <p>For each moment, the app gets the positions of the Sun, Earth and Moon from the Astronomy Engine library, turns the Moon to the orientation given by the IAU/WGCCRE 2009 model (the same mean Earth/polar axis frame that LRO, LOLA and LROC coordinates use), and works out the direction to the Sun and Earth from the landing site. Elevation is the angle above a flat horizon; azimuth is measured from north toward east. Timelines use one-hour steps, and countdowns are refined to the minute.</p>
+
+    <h3>Accuracy and limits</h3>
+    <ul>
+      <li><b>Flat ground.</b> The horizon is treated as flat (0°). Real mountains and crater rims, especially at the poles, can hide a Sun or Earth that is a few degrees up. Adding real terrain from LOLA elevation data is our next step.</li>
+      <li><b>Centers, not edges.</b> "Up" means the center of the Sun or Earth is above the horizon. The Sun's disk is about half a degree wide, so near the poles it can be partly visible.</li>
+      <li><b>Checked against NASA JPL Horizons.</b> Each scenario has links that open the same query in JPL Horizons, so you can compare the numbers yourself.</li>
+    </ul>
+
+    <h3>Landing sites</h3>
+    <p>Coordinates (latitude, east longitude) from: LROC featured images for IM-1, IM-2, Chang'e 6 and Blue Ghost 1; the USGS Gazetteer of Planetary Nomenclature for Chandrayaan-3 (Statio Shiv Shakti); NASA NSSDC for Apollo 11 and SLIM. The Shackleton rim point is an approximate high-illumination location and should be checked in LROC QuickMap.</p>
+
+    <h3>Words to know</h3>
+    <dl>
+      <dt>Elevation</dt><dd>Height above the horizon in degrees. 0° is on the horizon, 90° is straight overhead, negative is below.</dd>
+      <dt>Azimuth</dt><dd>Compass direction: 0° north, 90° east, 180° south, 270° west.</dd>
+      <dt>Lunar day</dt><dd>One full day and night on the Moon lasts about 29.5 Earth days.</dd>
+      <dt>Libration</dt><dd>The Moon's slow wobble as seen from Earth. From the Moon, it makes Earth trace a small loop in the sky about once a month.</dd>
+      <dt>Direct-to-Earth (DTE)</dt><dd>Radio contact with Earth without a relay satellite. Possible only when Earth is above the local horizon.</dd>
+      <dt>Permanently shadowed region</dt><dd>Crater floors near the poles that never get sunlight, where water ice can survive.</dd>
+    </dl>
+
+    <h3>Credits and AI use</h3>
+    <p>NASA data and resources: JPL Horizons (validation), LROC QuickMap and Moon Trek (site locations). Library: Astronomy Engine by Don Cross, MIT License. This app's code was generated with an AI assistant (Claude, by Anthropic) from requirements written by our team; the team selected the sites, checked the results against JPL Horizons and designed the experience. No AI-generated images are used.</p>
+  </div>
+</dialog>
+
+<template id="tplScenario">
+  <section class="scenario">
+    <div class="sc-head">
+      <div class="sc-tag" aria-hidden="true"></div>
+      <div class="sc-place">
+        <label class="field"><span>Landing site</span><select class="site"></select></label>
+        <div class="coords">
+          <label class="field"><span>Latitude (°, south is negative)</span><input class="lat" type="number" step="0.001" min="-90" max="90" inputmode="decimal"></label>
+          <label class="field"><span>Longitude (° east)</span><input class="lon" type="number" step="0.001" min="-360" max="360" inputmode="decimal"></label>
+        </div>
+      </div>
+      <div class="sc-time">
+        <label class="field"><span>Date and time (UTC)</span><input class="dt" type="datetime-local" step="60"></label>
+        <div class="steps" role="group" aria-label="Move time">
+          <button class="btn small" type="button" data-step="-24">−1 day</button>
+          <button class="btn small" type="button" data-step="-1">−1 hour</button>
+          <button class="btn small" type="button" data-now="1">Now</button>
+          <button class="btn small" type="button" data-step="1">+1 hour</button>
+          <button class="btn small" type="button" data-step="24">+1 day</button>
+          <button class="btn small" type="button" data-step="168">Slip 1 week</button>
+        </div>
+      </div>
+      <button class="btn small remove" type="button">Remove</button>
+    </div>
+    <p class="insight"></p>
+    <figure class="sky">
+      <svg class="skysvg" viewBox="0 0 1000 300" role="img"></svg>
+      <figcaption class="skycap"></figcaption>
+    </figure>
+    <div class="cards">
+      <article class="card power"></article>
+      <article class="card comms"></article>
+      <article class="card month"></article>
+    </div>
+    <figure class="tl">
+      <figcaption class="tlcap"></figcaption>
+      <svg class="tlsvg" viewBox="0 0 1000 132" role="img"></svg>
+    </figure>
+    <div class="sc-foot">
+      <span>Check this moment in NASA JPL Horizons:</span>
+      <a class="hz-sun" target="_blank" rel="noopener">Sun position</a>
+      <a class="hz-earth" target="_blank" rel="noopener">Earth position</a>
+    </div>
+  </section>
+</template>
+
+<script src="astronomy.browser.min.js"></script>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
