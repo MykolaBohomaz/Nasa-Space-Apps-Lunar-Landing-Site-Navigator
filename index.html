@@ -99,6 +99,11 @@ input[type=datetime-local]{color-scheme:dark}
 .tl{margin:0;padding:4px 18px 10px}
 .tl figcaption{font-size:.9rem;color:var(--muted);margin-bottom:4px}
 .tl svg{display:block;width:100%;height:auto;cursor:crosshair}
+.ext{display:grid;gap:14px;padding:0 18px}
+.ext:empty{display:none}
+.ext-slot:empty{display:none}
+#extTop{display:grid;gap:16px;margin-bottom:16px}
+#extTop:empty{display:none}
 .sc-foot{display:flex;flex-wrap:wrap;gap:8px 18px;padding:10px 18px 16px;border-top:1px solid var(--line);font-size:.9rem;color:var(--muted)}
 
 /* Help tips */
@@ -168,6 +173,7 @@ footer p{margin:4px 0;max-width:100ch}
 </header>
 
 <main class="wrap">
+  <section id="extTop"></section>
   <section id="compare" hidden aria-labelledby="cmpTitle">
     <h2 id="cmpTitle">Side-by-side summary</h2>
     <p>"Both up for" is how long a solar lander that lands at that moment keeps sunlight and direct radio together. It is the number that changes most when a landing date slips.</p>
@@ -262,6 +268,7 @@ footer p{margin:4px 0;max-width:100ch}
       <article class="card comms"></article>
       <article class="card month"></article>
     </div>
+    <div class="ext"></div>
     <figure class="tl">
       <figcaption class="tlcap"></figcaption>
       <svg class="tlsvg" viewBox="0 0 1000 132" role="img"></svg>
@@ -275,6 +282,7 @@ footer p{margin:4px 0;max-width:100ch}
 </template>
 
 <script>
+/* astronomy.browser.min.js */
 /*
  MIT
 
@@ -536,6 +544,24 @@ return new kd(this.curr.time,a,b)};$jscomp.global.Object.defineProperties(H.prot
 
 </script>
 <script>
+/* sites.js */
+// Landing sites shown in the site picker. Latitude in degrees (south negative), longitude in degrees EAST.
+// Add a site: copy a line, give it a unique id, fill in name/lat/lon, and add the source in README.md.
+// Code generated with an AI assistant (Claude) from our team's requirements.
+window.MW_SITES = [
+  { id: 'im2', group: 'South pole region', name: 'IM-2 Athena, Mons Mouton (NASA CLPS, 2025)', lat: -84.79, lon: 29.20 },
+  { id: 'im1', group: 'South pole region', name: 'IM-1 Odysseus, near Malapert A (NASA CLPS, 2024)', lat: -80.13, lon: 1.44 },
+  { id: 'shk', group: 'South pole region', name: 'Shackleton rim, high-light point (approximate)', lat: -89.45, lon: 229.69 },
+  { id: 'ch3', group: 'South pole region', name: 'Chandrayaan-3, Statio Shiv Shakti (ISRO, 2023)', lat: -69.373, lon: 32.319 },
+  { id: 'ce6', group: 'Other landings', name: "Chang'e 6, Apollo basin, far side (CNSA, 2024)", lat: -41.6385, lon: 206.0148 },
+  { id: 'slim', group: 'Other landings', name: 'SLIM (JAXA, 2024)', lat: -13.316, lon: 25.251 },
+  { id: 'bg1', group: 'Other landings', name: 'Blue Ghost 1, Mare Crisium (NASA CLPS, 2025)', lat: 18.56, lon: 61.81 },
+  { id: 'a11', group: 'Other landings', name: 'Apollo 11, Tranquility Base (NASA, 1969)', lat: 0.674, lon: 23.473 }
+];
+
+</script>
+<script>
+/* engine.js */
 // MoonWindow position engine.
 // Computes where the Sun and Earth appear in the sky of a site on the Moon.
 // Uses Astronomy Engine (MIT, by Don Cross) for the Sun/Moon/Earth positions and the
@@ -608,7 +634,9 @@ return new kd(this.curr.time,a,b)};$jscomp.global.Object.defineProperties(H.prot
 })(this);
 
 </script>
+<!-- Plugins: one file each, listed here. Order does not matter. -->
 <script>
+/* app.js */
 // MoonWindow app logic. Code generated with an AI assistant (Claude) from our team's requirements.
 (function () {
   'use strict';
@@ -618,16 +646,7 @@ return new kd(this.curr.time,a,b)};$jscomp.global.Object.defineProperties(H.prot
   const SAMPLE_H = 2160;  // 90 days of hourly samples, so countdowns can look 60+ days ahead
   const MAX_SCENARIOS = 3, LETTERS = 'ABC';
 
-  const SITES = [
-    { id: 'im2', group: 'South pole region', name: 'IM-2 Athena, Mons Mouton (NASA CLPS, 2025)', lat: -84.79, lon: 29.20 },
-    { id: 'im1', group: 'South pole region', name: 'IM-1 Odysseus, near Malapert A (NASA CLPS, 2024)', lat: -80.13, lon: 1.44 },
-    { id: 'shk', group: 'South pole region', name: 'Shackleton rim, high-light point (approximate)', lat: -89.45, lon: 229.69 },
-    { id: 'ch3', group: 'South pole region', name: 'Chandrayaan-3, Statio Shiv Shakti (ISRO, 2023)', lat: -69.373, lon: 32.319 },
-    { id: 'ce6', group: 'Other landings', name: "Chang'e 6, Apollo basin, far side (CNSA, 2024)", lat: -41.6385, lon: 206.0148 },
-    { id: 'slim', group: 'Other landings', name: 'SLIM (JAXA, 2024)', lat: -13.316, lon: 25.251 },
-    { id: 'bg1', group: 'Other landings', name: 'Blue Ghost 1, Mare Crisium (NASA CLPS, 2025)', lat: 18.56, lon: 61.81 },
-    { id: 'a11', group: 'Other landings', name: 'Apollo 11, Tranquility Base (NASA, 1969)', lat: 0.674, lon: 23.473 }
-  ];
+  const SITES = window.MW_SITES || [];
 
   let scenarios = [];
   let playTimer = null;
@@ -709,6 +728,30 @@ return new kd(this.curr.time,a,b)};$jscomp.global.Object.defineProperties(H.prot
       }
     }
     return { at: null, days: Math.floor((SAMPLE_H - i0) / 24) };
+  }
+
+  // ---------- plugins ----------
+  // Extra features live in their own files (src/plugins/*.js). Each file does:
+  //   (window.MoonWindowPlugins = window.MoonWindowPlugins || []).push({ name, init(api), renderScenario(s, slot, api), renderTop(slot, api) })
+  // A plugin that throws is logged and skipped, so it can't break the rest of the app.
+  const PLUGINS = window.MoonWindowPlugins || [];
+  function runPlugins(hook, args) {
+    PLUGINS.forEach(p => {
+      if (typeof p[hook] !== 'function') return;
+      try { p[hook](...args(p)); } catch (err) { console.error('[plugin ' + p.name + '] ' + hook + ' failed:', err); }
+    });
+  }
+  function slotFor(el, p) {
+    const box = $(el, '.ext');
+    let slot = box.querySelector(`[data-plugin="${p.name}"]`);
+    if (!slot) { slot = document.createElement('div'); slot.dataset.plugin = p.name; slot.className = 'ext-slot'; box.appendChild(slot); }
+    return slot;
+  }
+  function topSlotFor(p) {
+    const box = document.getElementById('extTop');
+    let slot = box.querySelector(`[data-plugin="${p.name}"]`);
+    if (!slot) { slot = document.createElement('div'); slot.dataset.plugin = p.name; slot.className = 'ext-slot'; box.appendChild(slot); }
+    return slot;
   }
 
   // ---------- rendering ----------
@@ -936,6 +979,7 @@ return new kd(this.curr.time,a,b)};$jscomp.global.Object.defineProperties(H.prot
     renderTimeline(s, el);
     $(el, '.hz-sun').href = horizonsUrl(s, '10');
     $(el, '.hz-earth').href = horizonsUrl(s, '399');
+    runPlugins('renderScenario', p => [s, slotFor(el, p), API]);
   }
 
   function renderCompare() {
@@ -960,6 +1004,7 @@ return new kd(this.curr.time,a,b)};$jscomp.global.Object.defineProperties(H.prot
   function renderAll() {
     scenarios.forEach((s, i) => renderScenario(s, i));
     renderCompare();
+    runPlugins('renderTop', p => [topSlotFor(p), API]);
     document.getElementById('addBtn').disabled = scenarios.length >= MAX_SCENARIOS;
     saveHash();
   }
@@ -1056,6 +1101,20 @@ return new kd(this.curr.time,a,b)};$jscomp.global.Object.defineProperties(H.prot
   document.getElementById('aboutBtn').addEventListener('click', () => about.showModal());
   document.getElementById('aboutClose').addEventListener('click', () => about.close());
   about.addEventListener('click', e => { if (e.target === about) about.close(); });
+
+  // Public API for plugins and tests: window.MoonWindow
+  const API = {
+    engine: E, HOUR, DAY, WINDOW_H, SAMPLE_H, SITES,
+    scenarios: () => scenarios.slice(),          // each: {lat, lon, t, siteId, anchor, samples[], stats, cur, nextSun, nextEarth, el}
+    setSite(i, lat, lon) { const s = scenarios[i]; if (!s) return; s.lat = lat; s.lon = lon; s.siteId = matchSite(lat, lon); ensureSamples(s, true); renderAll(); },
+    setTime(i, t) { const s = scenarios[i]; if (!s) return; s.t = t; ensureSamples(s, false); renderAll(); },
+    addScenario(lat, lon, t) { const s = addScenario(lat, lon, t); renderAll(); return s; },
+    render: () => renderAll(),
+    fmt: { deg: fmtDeg, dur: fmtDur, utc: fmtUTC, full: fmtFull, date: fmtDate, pct, hours: fmtHours, esc },
+    nextChange
+  };
+  window.MoonWindow = API;
+  runPlugins('init', () => [API]);
 
   if (!loadHash()) {
     const site = siteById('im2');

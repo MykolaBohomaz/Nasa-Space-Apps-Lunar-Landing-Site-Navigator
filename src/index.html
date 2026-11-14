@@ -99,6 +99,11 @@ input[type=datetime-local]{color-scheme:dark}
 .tl{margin:0;padding:4px 18px 10px}
 .tl figcaption{font-size:.9rem;color:var(--muted);margin-bottom:4px}
 .tl svg{display:block;width:100%;height:auto;cursor:crosshair}
+.ext{display:grid;gap:14px;padding:0 18px}
+.ext:empty{display:none}
+.ext-slot:empty{display:none}
+#extTop{display:grid;gap:16px;margin-bottom:16px}
+#extTop:empty{display:none}
 .sc-foot{display:flex;flex-wrap:wrap;gap:8px 18px;padding:10px 18px 16px;border-top:1px solid var(--line);font-size:.9rem;color:var(--muted)}
 
 /* Help tips */
@@ -168,6 +173,7 @@ footer p{margin:4px 0;max-width:100ch}
 </header>
 
 <main class="wrap">
+  <section id="extTop"></section>
   <section id="compare" hidden aria-labelledby="cmpTitle">
     <h2 id="cmpTitle">Side-by-side summary</h2>
     <p>"Both up for" is how long a solar lander that lands at that moment keeps sunlight and direct radio together. It is the number that changes most when a landing date slips.</p>
@@ -262,6 +268,7 @@ footer p{margin:4px 0;max-width:100ch}
       <article class="card comms"></article>
       <article class="card month"></article>
     </div>
+    <div class="ext"></div>
     <figure class="tl">
       <figcaption class="tlcap"></figcaption>
       <svg class="tlsvg" viewBox="0 0 1000 132" role="img"></svg>
@@ -275,7 +282,13 @@ footer p{margin:4px 0;max-width:100ch}
 </template>
 
 <script src="astronomy.browser.min.js"></script>
+<script src="sites.js"></script>
 <script src="engine.js"></script>
+<!-- Plugins: one file each, listed here. Order does not matter. -->
+<!-- <script src="plugins/map.js"></script> -->
+<!-- <script src="plugins/power.js"></script> -->
+<!-- <script src="plugins/export.js"></script> -->
+<!-- <script src="plugins/planner.js"></script> -->
 <script src="app.js"></script>
 </body>
 </html>

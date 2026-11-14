@@ -7,16 +7,7 @@
   const SAMPLE_H = 2160;  // 90 days of hourly samples, so countdowns can look 60+ days ahead
   const MAX_SCENARIOS = 3, LETTERS = 'ABC';
 
-  const SITES = [
-    { id: 'im2', group: 'South pole region', name: 'IM-2 Athena, Mons Mouton (NASA CLPS, 2025)', lat: -84.79, lon: 29.20 },
-    { id: 'im1', group: 'South pole region', name: 'IM-1 Odysseus, near Malapert A (NASA CLPS, 2024)', lat: -80.13, lon: 1.44 },
-    { id: 'shk', group: 'South pole region', name: 'Shackleton rim, high-light point (approximate)', lat: -89.45, lon: 229.69 },
-    { id: 'ch3', group: 'South pole region', name: 'Chandrayaan-3, Statio Shiv Shakti (ISRO, 2023)', lat: -69.373, lon: 32.319 },
-    { id: 'ce6', group: 'Other landings', name: "Chang'e 6, Apollo basin, far side (CNSA, 2024)", lat: -41.6385, lon: 206.0148 },
-    { id: 'slim', group: 'Other landings', name: 'SLIM (JAXA, 2024)', lat: -13.316, lon: 25.251 },
-    { id: 'bg1', group: 'Other landings', name: 'Blue Ghost 1, Mare Crisium (NASA CLPS, 2025)', lat: 18.56, lon: 61.81 },
-    { id: 'a11', group: 'Other landings', name: 'Apollo 11, Tranquility Base (NASA, 1969)', lat: 0.674, lon: 23.473 }
-  ];
+  const SITES = window.MW_SITES || [];
 
   let scenarios = [];
   let playTimer = null;
@@ -98,6 +89,30 @@
       }
     }
     return { at: null, days: Math.floor((SAMPLE_H - i0) / 24) };
+  }
+
+  // ---------- plugins ----------
+  // Extra features live in their own files (src/plugins/*.js). Each file does:
+  //   (window.MoonWindowPlugins = window.MoonWindowPlugins || []).push({ name, init(api), renderScenario(s, slot, api), renderTop(slot, api) })
+  // A plugin that throws is logged and skipped, so it can't break the rest of the app.
+  const PLUGINS = window.MoonWindowPlugins || [];
+  function runPlugins(hook, args) {
+    PLUGINS.forEach(p => {
+      if (typeof p[hook] !== 'function') return;
+      try { p[hook](...args(p)); } catch (err) { console.error('[plugin ' + p.name + '] ' + hook + ' failed:', err); }
+    });
+  }
+  function slotFor(el, p) {
+    const box = $(el, '.ext');
+    let slot = box.querySelector(`[data-plugin="${p.name}"]`);
+    if (!slot) { slot = document.createElement('div'); slot.dataset.plugin = p.name; slot.className = 'ext-slot'; box.appendChild(slot); }
+    return slot;
+  }
+  function topSlotFor(p) {
+    const box = document.getElementById('extTop');
+    let slot = box.querySelector(`[data-plugin="${p.name}"]`);
+    if (!slot) { slot = document.createElement('div'); slot.dataset.plugin = p.name; slot.className = 'ext-slot'; box.appendChild(slot); }
+    return slot;
   }
 
   // ---------- rendering ----------
@@ -325,6 +340,7 @@
     renderTimeline(s, el);
     $(el, '.hz-sun').href = horizonsUrl(s, '10');
     $(el, '.hz-earth').href = horizonsUrl(s, '399');
+    runPlugins('renderScenario', p => [s, slotFor(el, p), API]);
   }
 
   function renderCompare() {
@@ -349,6 +365,7 @@
   function renderAll() {
     scenarios.forEach((s, i) => renderScenario(s, i));
     renderCompare();
+    runPlugins('renderTop', p => [topSlotFor(p), API]);
     document.getElementById('addBtn').disabled = scenarios.length >= MAX_SCENARIOS;
     saveHash();
   }
@@ -445,6 +462,20 @@
   document.getElementById('aboutBtn').addEventListener('click', () => about.showModal());
   document.getElementById('aboutClose').addEventListener('click', () => about.close());
   about.addEventListener('click', e => { if (e.target === about) about.close(); });
+
+  // Public API for plugins and tests: window.MoonWindow
+  const API = {
+    engine: E, HOUR, DAY, WINDOW_H, SAMPLE_H, SITES,
+    scenarios: () => scenarios.slice(),          // each: {lat, lon, t, siteId, anchor, samples[], stats, cur, nextSun, nextEarth, el}
+    setSite(i, lat, lon) { const s = scenarios[i]; if (!s) return; s.lat = lat; s.lon = lon; s.siteId = matchSite(lat, lon); ensureSamples(s, true); renderAll(); },
+    setTime(i, t) { const s = scenarios[i]; if (!s) return; s.t = t; ensureSamples(s, false); renderAll(); },
+    addScenario(lat, lon, t) { const s = addScenario(lat, lon, t); renderAll(); return s; },
+    render: () => renderAll(),
+    fmt: { deg: fmtDeg, dur: fmtDur, utc: fmtUTC, full: fmtFull, date: fmtDate, pct, hours: fmtHours, esc },
+    nextChange
+  };
+  window.MoonWindow = API;
+  runPlugins('init', () => [API]);
 
   if (!loadHash()) {
     const site = siteById('im2');
