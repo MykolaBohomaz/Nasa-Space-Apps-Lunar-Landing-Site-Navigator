@@ -132,3 +132,20 @@ test('JPL Horizons validation result is present and within 0.05°', () => {
   assert.ok(VAL.maxElDiffDeg < 0.05, `max elevation difference ${VAL.maxElDiffDeg}°`);
   assert.equal(VAL.upDownMatches, VAL.comparisons);
 });
+
+test('MK-3: visible fraction of the Sun and Earth disks', () => {
+  const k = E.skyAt(TIMES[0], -84.79, 29.2);
+  const rSun = E.angularRadiusDeg(k.sun.distKm, E.SUN_RADIUS_KM);
+  const rEarth = E.angularRadiusDeg(k.earth.distKm, E.EARTH_RADIUS_KM);
+  assert.ok(rSun > 0.26 && rSun < 0.275, `Sun radius ${rSun}°`);       // Sun is ~0.53° wide
+  assert.ok(rEarth > 0.89 && rEarth < 1.03, `Earth radius ${rEarth}°`); // Earth is ~1.9° wide seen from the Moon
+  const f = el => E.sunVisible({ ...k.sun, el }, 2);                     // skyline at 2°
+  assert.ok(Math.abs(f(2) - 0.5) < 1e-9, 'centre on the skyline = half visible');
+  assert.ok(f(2 + rSun) > 1 - 1e-6 && f(2 + rSun + 0.01) === 1, 'top edge on the skyline = fully visible');
+  assert.ok(f(2 - rSun) < 1e-6 && f(2 - rSun - 0.01) === 0, 'bottom edge on the skyline = hidden');
+  assert.ok(f(2.1) > 0.5 && f(2.1) < 1 && f(1.9) > 0 && f(1.9) < 0.5);
+  assert.ok(Math.abs(f(2 + 0.1) + f(2 - 0.1) - 1) < 1e-9, 'symmetric around the skyline');
+  let prev = -1;                                                         // grows steadily as the Sun rises
+  for (let el = 2 - rSun; el <= 2 + rSun; el += rSun / 20) { const v = f(el); assert.ok(v >= prev - 1e-12); prev = v; }
+  assert.ok(Math.abs(E.earthVisible({ ...k.earth, el: 0 }, 0) - 0.5) < 1e-9);
+});
