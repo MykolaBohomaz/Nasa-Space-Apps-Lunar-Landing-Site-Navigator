@@ -109,7 +109,7 @@ python3 tools/make_horizons.py && python3 build.py
 
 ## AI use
 
-The code in this repository (HTML, CSS, JavaScript and the build script) was generated with an AI assistant (Claude, by Anthropic) from requirements written by our team. The team chose the problem framing, landing sites and features, reviewed and tested the results, and validated them against NASA JPL Horizons. No AI-generated images, video or audio are used.
+The code in this repository (HTML, CSS, JavaScript and the build script) was generated with an AI assistant (Claude by Anthropic and Codex by OpenAI) from requirements written by our team. The team chose the problem framing, landing sites and features, reviewed and tested the results, and validated them against NASA JPL Horizons. No AI-generated images, video or audio are used.
 
 ## Credits and licenses
 
