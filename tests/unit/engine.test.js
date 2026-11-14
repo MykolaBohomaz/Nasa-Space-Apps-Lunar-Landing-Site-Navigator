@@ -98,12 +98,23 @@ test('Site list: unique ids, valid coordinates', () => {
 
 test('LOLA terrain data: every south polar site has a sane 0.5° skyline', () => {
   assert.match(HZ.meta.source, /LOLA/);
+  require(path.join(ROOT, 'src', 'terrain-grid.js'));
+  const { loadNode } = require(path.join(ROOT, 'src', 'terrain.js'));
+  const grid = loadNode(window.MW_TERRAIN_GRID, require('node:zlib').inflateSync);
   for (const s of SITES.filter(s => s.lat <= -60.5)) {
-    const h = HZ.sites[s.id];
-    assert.ok(h, `${s.id} has no terrain profile: re-run tools/make_horizons.py (MK-6)`);
-    assert.equal(h.values.length, 720, `${s.id} profile length`);
-    assert.ok(h.values.every(v => Number.isFinite(v) && v > -15 && v < 30), `${s.id} has out-of-range skyline values`);
-    assert.ok(Math.abs(h.lat - s.lat) < 1e-6 && Math.abs(h.lon - s.lon) < 1e-6, `${s.id} moved: re-run tools/make_horizons.py`);
+    const stored = HZ.sites[s.id];
+    if (stored) {
+      assert.ok(Math.abs(stored.lat - s.lat) < 1e-6 && Math.abs(stored.lon - s.lon) < 1e-6,
+        `${s.id} moved: re-run tools/make_horizons.py`);
+    }
+    // The Artemis region centers use the same grid fallback as the browser.
+    let profile = stored;
+    if (!profile && s.group === 'Artemis III candidate regions' && grid.covers(s.lat)) {
+      profile = grid.profile(s.lat, s.lon);
+    }
+    assert.ok(profile, `${s.id} has no terrain profile: re-run tools/make_horizons.py (MK-6)`);
+    assert.equal(profile.values.length, 720, `${s.id} profile length`);
+    assert.ok(profile.values.every(v => Number.isFinite(v) && v > -15 && v < 30), `${s.id} has out-of-range skyline values`);
   }
 });
 

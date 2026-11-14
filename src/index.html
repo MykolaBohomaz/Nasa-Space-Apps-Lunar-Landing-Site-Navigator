@@ -5,10 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MoonWindow: Sun and Earth from any lunar landing site</title>
 <meta name="description" content="Pick a landing site on the Moon and a date. See where the Sun and Earth are in its sky, how long until sunset and Earthset, and compare scenarios.">
+<meta name="ai-use" content="Anthropic Claude and OpenAI Codex assisted with code and documentation.">
 <!--
   MoonWindow, NASA Space Apps Challenge 2026 project.
-  AI use: this page's code (HTML, CSS, JavaScript) was generated with an AI assistant (Claude, by Anthropic)
-  from requirements written by our team. The team chose the sites, checked the results and designed the app.
+  AI use: Anthropic Claude and OpenAI Codex assisted with code and documentation from team requirements.
+  The team directed the design and validation. See docs/sources.md for source credits and AI use.
   Bundled library: Astronomy Engine by Don Cross, MIT License (notice kept with the library below).
 -->
 <style>
@@ -44,6 +45,24 @@ button,input,select{font:inherit;color:inherit}
 .mw-globe-credit,.mw-globe-status{color:#c2cbd8;font-size:.8rem}
 .mw-globe-credit a{color:#a9d1ff}
 .mw-globe-status:empty{display:none}
+.mw-power,.mw-learn{padding:14px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)}
+.mw-power h3{margin:0 0 8px;font-size:1rem}
+.mw-plugin-fields,.mw-power-results{display:flex;flex-wrap:wrap;gap:10px 16px}
+.mw-plugin-fields label{flex:1 1 135px;min-width:0}
+.mw-plugin-fields input,.mw-plugin-fields select{display:block;margin-top:4px}
+.mw-power-results{margin:12px 0}
+.mw-power-results dt{color:var(--muted);font-size:.85rem}
+.mw-power-results dd{margin:0;color:var(--sun);font-weight:600}
+.mw-power p{margin:6px 0 0}
+.mw-plugin-error{color:var(--bad)}
+.mw-learn{margin:12px 0}
+.mw-learn summary{cursor:pointer;font-weight:600;align-content:center}
+.mw-learn li p{margin:8px 0}
+.mw-learn-feedback:empty{margin:0}
+.mw-learn-result{display:inline-block;margin-inline-end:.5em;padding:.12em .55em;border:1px solid currentColor;border-radius:.5em;transform-origin:left center}
+.mw-learn-result.best{background:#193a31}
+.mw-learn-result.mw-plugin-error{background:#3a2528}
+.mw-learn-icon{display:inline-block;margin-inline-end:.35em}
 a{color:var(--earth)}
 :focus-visible{outline:2px solid var(--sun);outline-offset:2px}
 .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
@@ -160,6 +179,8 @@ footer p{margin:4px 0;max-width:100ch}
   .sky svg{min-width:760px}
   .tl svg{min-width:680px}
   .skycap{min-width:0}
+  .btn,select,input,.mw-learn summary{min-height:44px}
+  .mw-globe-pin{width:44px;height:44px}
 }
 @media (max-width:520px){
   .brand h1{font-size:1.5rem}
@@ -211,7 +232,7 @@ footer p{margin:4px 0;max-width:100ch}
 <footer>
   <div class="wrap">
     <p>Positions are calculated in your browser from the Astronomy Engine library and the IAU model of the Moon's orientation. <span id="valNote">Each scenario links to the same query in NASA JPL Horizons.</span> Polar horizons come from NASA LRO LOLA laser-altimeter topography. Site coordinates come from LROC, the USGS Gazetteer of Planetary Nomenclature and NASA NSSDC.</p>
-    <p>Built for the NASA Space Apps Challenge 2026. Code generated with an AI assistant (Claude) from our team's requirements. Not an official NASA product.</p>
+    <p>Built for the NASA Space Apps Challenge 2026. Development assisted by Anthropic Claude and OpenAI Codex. Independent project.</p>
   </div>
 </footer>
 
@@ -256,7 +277,8 @@ footer p{margin:4px 0;max-width:100ch}
     </dl>
 
     <h3>Credits and AI use</h3>
-    <p>NASA data and resources: LRO LOLA topography (real horizons and the polar map), JPL Horizons (validation), LROC and QuickMap (site locations). Library: Astronomy Engine by Don Cross, MIT License. This app's code was generated with an AI assistant (Claude, by Anthropic) from requirements written by our team; the team selected the sites, checked the results against JPL Horizons and designed the experience. No AI-generated images are used.</p>
+    <p>NASA LRO LOLA supplies the horizon and terrain data. NASA JPL Horizons provides validation. Globe imagery comes from NASA Goddard Scientific Visualization Studio's <a href="https://svs.gsfc.nasa.gov/4720/">CGI Moon Kit</a> and <a href="https://svs.gsfc.nasa.gov/4851/">Deep Star Maps 2020</a> with ESA/Gaia/DPAC (Gaia DR2). Astronomy Engine by Don Cross is bundled under the MIT License.</p>
+    <p>Anthropic Claude and OpenAI Codex assisted with code and documentation. See <a href="docs/sources.md">sources, licenses, and AI disclosure</a> for the full inventory.</p>
   </div>
 </dialog>
 
@@ -322,7 +344,8 @@ footer p{margin:4px 0;max-width:100ch}
 <script id="moonwindow-stars" type="application/octet-stream"></script>
 <script src="plugins/terrain-source.js"></script>
 <script src="plugins/map.js"></script>
-<!-- <script src="plugins/power.js"></script> -->
+<script src="plugins/power.js"></script>
+<script src="plugins/learn.js"></script>
 <!-- <script src="plugins/export.js"></script> -->
 <script src="plugins/planner.js"></script>
 <script src="app.js"></script>
