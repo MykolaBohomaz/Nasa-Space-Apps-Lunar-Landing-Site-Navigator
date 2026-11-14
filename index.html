@@ -44,6 +44,16 @@ button,input,select{font:inherit;color:inherit}
 .mw-globe-credit,.mw-globe-status{color:#c2cbd8;font-size:.8rem}
 .mw-globe-credit a{color:#a9d1ff}
 .mw-globe-status:empty{display:none}
+.mw-power{padding:14px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)}
+.mw-power h3{margin:0 0 8px;font-size:1rem}
+.mw-plugin-fields,.mw-power-results{display:flex;flex-wrap:wrap;gap:10px 16px}
+.mw-plugin-fields label{flex:1 1 135px;min-width:0}
+.mw-plugin-fields input,.mw-plugin-fields select{display:block;margin-top:4px}
+.mw-power-results{margin:12px 0}
+.mw-power-results dt{color:var(--muted);font-size:.85rem}
+.mw-power-results dd{margin:0;color:var(--sun);font-weight:600}
+.mw-power p{margin:6px 0 0}
+.mw-plugin-error{color:var(--bad)}
 a{color:var(--earth)}
 :focus-visible{outline:2px solid var(--sun);outline-offset:2px}
 .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
@@ -160,6 +170,7 @@ footer p{margin:4px 0;max-width:100ch}
   .sky svg{min-width:760px}
   .tl svg{min-width:680px}
   .skycap{min-width:0}
+  .mw-power input,.mw-power select{min-height:44px}
 }
 @media (max-width:520px){
   .brand h1{font-size:1.5rem}
@@ -1394,6 +1405,95 @@ window.MW_VALIDATION = {"comparisons":64,"maxElDiffDeg":0.0027,"maxAzDiffDeg":0.
     renderTop(slot, api) {
       if (!views.has(slot)) views.set(slot, mount(slot, api));
       views.get(slot)();
+    }
+  });
+})();
+
+</script>
+<script>
+/* plugins/power.js */
+// OpenAI Codex assisted with the solar power estimates implementation from team requirements.
+(() => {
+  const radians = Math.PI / 180;
+  const format = new Intl.NumberFormat('en', { maximumFractionDigits: 1 });
+  const values = new WeakMap();
+
+  function watts(scenario, sun, api, peakWatts, azimuth) {
+    if (!api.isUp(scenario, sun)) return 0;
+    const facing = azimuth === null ? 1 : Math.cos((sun.az - azimuth) * radians);
+    return peakWatts * Math.max(0, Math.cos(sun.el * radians) * facing);
+  }
+
+  function mount(slot, api) {
+    slot.innerHTML = `
+      <section class="mw-power" aria-label="Solar power estimate">
+        <h3>Solar power estimate</h3>
+        <div class="mw-plugin-fields">
+          <label>Panel area (m²) <input name="area" type="number" min="0" step="any" value="1" required></label>
+          <label>Efficiency (%) <input name="efficiency" type="number" min="0" max="100" step="any" value="30" required></label>
+          <label>Mounting <select name="mounting">
+            <option value="tracking">Vertical, Sun-tracking</option>
+            <option value="fixed">Vertical, fixed</option>
+          </select></label>
+          <label hidden>Panel azimuth (°) <input name="azimuth" type="number" min="0" max="360" step="any" value="0" required></label>
+        </div>
+        <dl class="mw-power-results">
+          <div><dt>Power now</dt><dd></dd></div>
+          <div><dt>30-day average</dt><dd></dd></div>
+          <div><dt>30-day energy</dt><dd></dd></div>
+        </dl>
+        <p class="muted">Rough estimate, no dust, temperature or shadow losses.</p>
+        <p class="mw-plugin-error" role="status" hidden>Enter a valid area, efficiency, and panel azimuth.</p>
+      </section>`;
+    const area = slot.querySelector('[name="area"]');
+    const efficiency = slot.querySelector('[name="efficiency"]');
+    const mounting = slot.querySelector('[name="mounting"]');
+    const azimuth = slot.querySelector('[name="azimuth"]');
+    const results = slot.querySelectorAll('dd');
+    const error = slot.querySelector('[role="status"]');
+    let scenario;
+
+    function update() {
+      const fixed = mounting.value === 'fixed';
+      azimuth.parentElement.hidden = !fixed;
+      const inputs = fixed ? [area, efficiency, azimuth] : [area, efficiency];
+      const valid = inputs.every(input => input.validity.valid && Number.isFinite(input.valueAsNumber));
+      error.hidden = valid;
+      if (!valid) {
+        results.forEach(result => { result.textContent = '—'; });
+        return;
+      }
+      const peakWatts = 1361 * area.valueAsNumber * (efficiency.valueAsNumber / 100);
+      const facing = fixed ? azimuth.valueAsNumber : null;
+      const power = sun => watts(scenario, sun, api, peakWatts, facing);
+      const now = power(scenario.cur.sun);
+      const start = (scenario.t - scenario.anchor) / api.HOUR;
+      const end = start + api.WINDOW_H;
+      let wattHours = 0;
+      for (let hour = Math.floor(start); hour < end; hour++) {
+        const duration = Math.min(hour + 1, end) - Math.max(hour, start);
+        const sampleWatts = hour < start ? now : power(scenario.samples[hour].sun);
+        wattHours += sampleWatts * duration;
+      }
+      const readings = [now, wattHours / api.WINDOW_H, wattHours / 1000];
+      readings.forEach((value, index) => {
+        results[index].textContent = format.format(value) + (index === 2 ? ' kWh' : ' W');
+      });
+    }
+
+    slot.addEventListener('input', update);
+    slot.addEventListener('change', update);
+    return next => {
+      scenario = next;
+      update();
+    };
+  }
+
+  (window.MoonWindowPlugins = window.MoonWindowPlugins || []).push({
+    name: 'power',
+    renderScenario(s, slot, api) {
+      if (!values.has(slot)) values.set(slot, mount(slot, api));
+      values.get(slot)(s);
     }
   });
 })();

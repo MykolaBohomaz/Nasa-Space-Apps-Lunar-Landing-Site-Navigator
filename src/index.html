@@ -44,6 +44,16 @@ button,input,select{font:inherit;color:inherit}
 .mw-globe-credit,.mw-globe-status{color:#c2cbd8;font-size:.8rem}
 .mw-globe-credit a{color:#a9d1ff}
 .mw-globe-status:empty{display:none}
+.mw-power{padding:14px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)}
+.mw-power h3{margin:0 0 8px;font-size:1rem}
+.mw-plugin-fields,.mw-power-results{display:flex;flex-wrap:wrap;gap:10px 16px}
+.mw-plugin-fields label{flex:1 1 135px;min-width:0}
+.mw-plugin-fields input,.mw-plugin-fields select{display:block;margin-top:4px}
+.mw-power-results{margin:12px 0}
+.mw-power-results dt{color:var(--muted);font-size:.85rem}
+.mw-power-results dd{margin:0;color:var(--sun);font-weight:600}
+.mw-power p{margin:6px 0 0}
+.mw-plugin-error{color:var(--bad)}
 a{color:var(--earth)}
 :focus-visible{outline:2px solid var(--sun);outline-offset:2px}
 .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
@@ -160,6 +170,7 @@ footer p{margin:4px 0;max-width:100ch}
   .sky svg{min-width:760px}
   .tl svg{min-width:680px}
   .skycap{min-width:0}
+  .mw-power input,.mw-power select{min-height:44px}
 }
 @media (max-width:520px){
   .brand h1{font-size:1.5rem}
@@ -320,7 +331,7 @@ footer p{margin:4px 0;max-width:100ch}
 <script id="moonwindow-stars" type="application/octet-stream"></script>
 <script src="plugins/terrain-source.js"></script>
 <script src="plugins/map.js"></script>
-<!-- <script src="plugins/power.js"></script> -->
+<script src="plugins/power.js"></script>
 <!-- <script src="plugins/export.js"></script> -->
 <!-- <script src="plugins/planner.js"></script> -->
 <script src="app.js"></script>
