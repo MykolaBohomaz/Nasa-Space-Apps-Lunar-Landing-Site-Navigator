@@ -77,7 +77,7 @@
 
   (window.MoonWindowPlugins = window.MoonWindowPlugins || []).push({
     name: 'power',
-    renderScenario(s, slot, api) {
+    renderTime(s, slot, api) {
       if (!values.has(slot)) values.set(slot, mount(slot, api));
       values.get(slot)(s);
     }

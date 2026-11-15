@@ -93,8 +93,21 @@ a{color:var(--earth)}
 .btn.small{padding:5px 10px;font-size:.88rem}
 
 #panelToggle{position:fixed;z-index:3;top:var(--edge);right:var(--edge);min-height:44px;background:#152233;border-color:#667991}
-#sitePanel{position:fixed;z-index:2;top:70px;right:var(--edge);bottom:var(--edge);width:var(--panel-width);display:flex;flex-direction:column;border:1px solid #48566b;border-radius:16px;background:#101925;box-shadow:0 16px 52px #000a;container:site-panel / inline-size}
+#sitePanel{position:fixed;z-index:2;top:70px;right:var(--edge);bottom:var(--edge);width:var(--panel-width);display:flex;flex-direction:column;gap:8px;container:site-panel / inline-size;pointer-events:none}
 #sitePanel[hidden]{display:none}
+.panel-shell,.time-controls{border:1px solid #48566b;border-radius:16px;background:#101925;box-shadow:0 16px 52px #000a;pointer-events:auto}
+.panel-shell{display:flex;flex:1 1 auto;flex-direction:column;min-height:0}
+.time-controls{flex:none;padding:8px 10px}
+.time-row{display:flex;align-items:flex-end;gap:8px}
+.time-date{flex:1;min-width:0;max-width:320px}
+.time-row .btn,.time-date input{min-height:40px}
+.time-date input{display:block}
+.time-steps{position:relative}
+.time-steps summary{display:grid;align-items:center;min-width:44px;text-align:center}
+.time-steps .steps{position:absolute;z-index:2;top:100%;right:0;width:min(265px,calc(100vw - 30px));padding:10px;background:#101925;border:1px solid #48566b;border-radius:8px;box-shadow:0 12px 28px #000a}
+.time-controls input[type=range]{display:block;width:100%;height:24px;min-height:24px;margin:3px 0 0;accent-color:var(--earth);cursor:ew-resize;touch-action:pan-y}
+#closedTime{position:fixed;z-index:1;top:70px;right:var(--edge);padding:4px 8px;border-radius:6px;background:#101925e6;color:#dbe4ee;font-size:.8rem;font-variant-numeric:tabular-nums;pointer-events:none}
+body.panel-open #closedTime{display:none}
 body.panel-open:not([data-panel-view="site"]){--panel-width:min(920px,72vw)}
 body.panel-open .mw-globe-dock{right:calc(var(--panel-width) + var(--edge) + 12px)}
 .panel-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:10px;border-bottom:1px solid #344459}
@@ -122,7 +135,6 @@ body.panel-open .mw-globe-dock{right:calc(var(--panel-width) + var(--edge) + 12p
 #sitePanel:not([data-view="planning"]) .view-planning,
 #sitePanel:not([data-view="learn"]) .view-learn,
 #sitePanel:is([data-view="site"],[data-view="learn"]) .science-actions,
-#sitePanel:not([data-view="sky"],[data-view="planning"],[data-view="learn"]) .steps,
 #sitePanel:not([data-view="site"],[data-view="learn"]) .site-summary,
 #sitePanel[data-view="learn"] .panel-scenario,
 #sitePanel[data-view="compare"] #scenarioView,
@@ -133,18 +145,27 @@ body.panel-open .mw-globe-dock{right:calc(var(--panel-width) + var(--edge) + 12p
   #sitePanel[data-view="site"]{bottom:auto;max-height:calc(100dvh - 86px)}
 }
 @media (max-width:900px){
-  :root{--sheet-height:min(54dvh,max(46dvh,350px));--section-gap:12px;--edge:12px}
+  :root{--sheet-height:min(62dvh,max(52dvh,390px));--section-gap:12px;--edge:12px}
   #sitePanel{top:auto;left:8px;right:8px;bottom:8px;width:auto;height:var(--sheet-height)}
   #sitePanel:not([data-view="site"]){height:calc(100dvh - 120px)}
   body.panel-open .mw-globe-dock{right:var(--edge);bottom:calc(var(--sheet-height) + 16px)}
   body.panel-open .mw-globe-credit{display:none}
   body.panel-open:not([data-panel-view="site"]) .mw-globe-dock{display:none}
+  #closedTime{top:auto;bottom:var(--edge)}
 }
 @media (max-width:520px){
   .mw-globe-header h1{min-height:44px;display:flex;align-items:center;margin-bottom:6px}
   .mw-globe-header p{font-size:.75rem}
   .mw-globe-controls button{font-size:.82rem;padding-inline:8px}
   .mw-plugin-fields label:has(select){grid-column:1/-1}
+}
+@media (max-width:370px){
+  .time-controls{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:6px 8px}
+  .time-row{display:contents}
+  .time-date{grid-column:1/-1;max-width:none}
+  .time-controls input[type=range]{grid-row:2;grid-column:1;margin:0}
+  .time-row > button{grid-row:2;grid-column:2}
+  .time-steps{grid-row:2;grid-column:3}
 }
 @media (max-width:360px){
   .mw-pole-prefix{display:none}
@@ -172,14 +193,14 @@ body.panel-open .mw-globe-dock{right:calc(var(--panel-width) + var(--edge) + 12p
 .scenario{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
 .sc-head{display:grid;gap:12px;padding:var(--section-gap)}
 #sitePanel:is([data-view="site"],[data-view="learn"]) .sc-head{padding-top:0}
-.sc-time .field{max-width:290px}
 .field{display:flex;flex-direction:column;gap:4px;min-width:0}
 .field>span{font-size:.82rem;color:var(--muted)}
 select,input[type=number],input[type=datetime-local]{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0;width:100%}
 input[type=datetime-local]{color-scheme:dark}
 .coords{display:flex;gap:8px;margin-top:8px}
 .coords .field{flex:1}
-.steps{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.steps{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+#sitePanel:not([data-view="site"]) .sc-head{display:none}
 .remove{justify-self:start}
 .insight{margin:0;padding:0 var(--section-gap) var(--section-gap);max-width:95ch;color:var(--text)}
 .insight b{font-weight:600}
@@ -257,7 +278,27 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 <main>
   <div id="globeStage"></div>
   <button class="btn" id="panelToggle" type="button" aria-controls="sitePanel" aria-expanded="false">Site details</button>
+  <time id="closedTime"></time>
   <aside id="sitePanel" data-view="site" aria-label="Landing site details" hidden>
+    <section class="time-controls" aria-label="Scenario time">
+      <div class="time-row">
+        <label class="field time-date"><span id="timeLabel">Date and time (UTC)</span><input id="scenarioTime" type="datetime-local" step="60" required></label>
+        <button class="btn small" id="playBtn" type="button" aria-pressed="false">Play</button>
+        <details class="time-steps">
+          <summary class="btn small" aria-label="Time step controls">Step</summary>
+          <div class="steps" role="group" aria-label="Move time">
+            <button class="btn small" type="button" data-step="-24">−1 day</button>
+            <button class="btn small" type="button" data-step="-1">−1 hour</button>
+            <button class="btn small" type="button" data-now="1">Now</button>
+            <button class="btn small" type="button" data-step="1">+1 hour</button>
+            <button class="btn small" type="button" data-step="24">+1 day</button>
+            <button class="btn small" type="button" data-step="168">+1 week</button>
+          </div>
+        </details>
+      </div>
+      <input id="timeScrub" type="range" min="0" max="720" step="1" aria-label="Scrub the 30-day timeline">
+    </section>
+    <div class="panel-shell">
     <nav class="panel-nav" aria-label="Site views">
       <button class="btn small" type="button" data-panel-view="site" aria-pressed="true" aria-controls="scenarioView">Site</button>
       <button class="btn small" type="button" data-panel-view="sky" aria-pressed="false" aria-controls="scenarioView">Sky</button>
@@ -272,7 +313,6 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
           <label class="panel-scenario">Scenario <select id="scenarioPicker"></select></label>
           <div class="actions science-actions">
             <button class="btn small" id="terrainBtn" type="button" aria-pressed="true" title="Toggle NASA LOLA terrain">LOLA terrain</button>
-            <button class="btn small" id="playBtn" type="button" aria-pressed="false">Play time</button>
           </div>
         </div>
         <div id="scenarios"></div>
@@ -293,6 +333,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
           </div>
         </section>
       </div>
+    </div>
     </div>
   </aside>
 </main>
@@ -351,17 +392,6 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
   <section class="scenario">
     <div class="site-summary"><h2 class="summary-name"></h2><div class="summary-status"></div></div>
     <div class="sc-head">
-      <div class="sc-time">
-        <label class="field"><span>Date and time (UTC)</span><input class="dt" type="datetime-local" step="60"></label>
-        <div class="steps" role="group" aria-label="Move time">
-          <button class="btn small" type="button" data-step="-24">−1 day</button>
-          <button class="btn small" type="button" data-step="-1">−1 hour</button>
-          <button class="btn small" type="button" data-now="1">Now</button>
-          <button class="btn small" type="button" data-step="1">+1 hour</button>
-          <button class="btn small" type="button" data-step="24">+1 day</button>
-          <button class="btn small" type="button" data-step="168">Slip 1 week</button>
-        </div>
-      </div>
       <div class="sc-place view-site">
         <label class="field"><span>Landing site</span><select class="site"></select></label>
         <div class="coords">

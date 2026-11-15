@@ -431,6 +431,18 @@
     svg.setAttribute('aria-valuetext', fmtFull(s.t));
   }
 
+  function previewScenarioHour(s, hour) {
+    const time = s.anchor + hour * HOUR;
+    if (s.t === time) return;
+    s.t = time;
+    updatePlayhead(s, $(s.el, '.tlsvg'));
+    const view = sitePanel.dataset.view;
+    renderScenarioTime(s, view);
+    if (view === 'compare') renderCompare();
+    renderTimeControls();
+    renderTopPlugins();
+  }
+
   function mountTimeline(s, svg, commit) {
     let pointerId = null;
     let frame = null;
@@ -440,15 +452,6 @@
       if (svg.clientWidth && s.stats && svg.clientWidth !== svg.viewBox.baseVal.width) renderTimeline(s, s.el);
     });
     resize.observe(svg);
-
-    function preview(hour) {
-      const time = s.anchor + hour * HOUR;
-      if (s.t === time) return;
-      s.t = time;
-      updatePlayhead(s, svg);
-      $(s.el, '.dt').value = toInput(time);
-      renderTopPlugins();
-    }
 
     function pointerHour(event) {
       const rect = svg.getBoundingClientRect();
@@ -464,15 +467,15 @@
       svg.setPointerCapture(pointerId);
       svg.focus({ preventScroll: true });
       pendingHour = pointerHour(event);
-      preview(pendingHour);
+      previewScenarioHour(s, pendingHour);
     });
     svg.addEventListener('pointermove', event => {
       if (event.pointerId !== pointerId) return;
       pendingHour = pointerHour(event);
-      // Refresh the playhead and globe while dragging. Recalculate the full analysis on release.
+      // Coalesce pointer updates so the active view renders at most once per frame.
       if (frame === null) frame = requestAnimationFrame(() => {
         frame = null;
-        preview(pendingHour);
+        previewScenarioHour(s, pendingHour);
       });
     });
     function finish(event) {
@@ -480,7 +483,7 @@
       pointerId = null;
       if (frame !== null) cancelAnimationFrame(frame);
       frame = null;
-      preview(event.type === 'pointerup' && svg.clientWidth ? pointerHour(event) : pendingHour);
+      previewScenarioHour(s, event.type === 'pointerup' && svg.clientWidth ? pointerHour(event) : pendingHour);
       commit();
     }
     for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) svg.addEventListener(type, finish);
@@ -495,7 +498,7 @@
       if (!Object.hasOwn(targets, event.key)) return;
       event.preventDefault();
       stopPlayback();
-      preview(clamp(targets[event.key], 0, WINDOW_H));
+      previewScenarioHour(s, clamp(targets[event.key], 0, WINDOW_H));
       commit();
     });
     return () => resize.disconnect();
@@ -516,8 +519,6 @@
   function renderScenario(s, index) {
     const el = s.el;
     ensureSamples(s, false);
-    const cur = E.skyAt(new Date(s.t), s.lat, s.lon);
-    s.cur = cur;
     s.profInfo = profileFor(s);
     s.prof = s.profInfo ? s.profInfo.values : null;
     s.stats = windowStats(s, false);
@@ -526,20 +527,29 @@
     $(el, '.site').value = s.siteId;
     if (document.activeElement !== $(el, '.lat')) $(el, '.lat').value = s.lat;
     if (document.activeElement !== $(el, '.lon')) $(el, '.lon').value = s.lon;
-    if (document.activeElement !== $(el, '.dt')) $(el, '.dt').value = toInput(s.t);
     $(el, '.remove').hidden = scenarios.length < 2;
     $(el, '.insight').innerHTML = insight(s);
-    renderSky(s, el, cur);
+    renderScenarioTime(s);
+    renderTimeline(s, el);
+    runPlugins('renderScenario', p => [s, slotFor(el, p), API]);
+  }
+
+  function renderScenarioTime(s, view) {
+    const el = s.el;
+    const cur = E.skyAt(new Date(s.t), s.lat, s.lon);
+    s.cur = cur;
     s.nextSun = nextChange(s, 'sun', isUp(s, cur.sun));
     s.nextEarth = nextChange(s, 'earth', isUp(s, cur.earth));
-    renderSiteSummary(s, el);
-    $(el, '.power').innerHTML = bodyCard('sun', s, cur);
-    $(el, '.comms').innerHTML = bodyCard('earth', s, cur);
-    $(el, '.month').innerHTML = monthCard(s);
-    renderTimeline(s, el);
-    $(el, '.hz-sun').href = horizonsUrl(s, '10');
-    $(el, '.hz-earth').href = horizonsUrl(s, '399');
-    runPlugins('renderScenario', p => [s, slotFor(el, p), API]);
+    if (!view || view === 'site' || view === 'learn') renderSiteSummary(s, el);
+    if (!view || view === 'sky') {
+      renderSky(s, el, cur);
+      $(el, '.power').innerHTML = bodyCard('sun', s, cur);
+      $(el, '.comms').innerHTML = bodyCard('earth', s, cur);
+      $(el, '.hz-sun').href = horizonsUrl(s, '10');
+      $(el, '.hz-earth').href = horizonsUrl(s, '399');
+    }
+    if (!view || view === 'planning') $(el, '.month').innerHTML = monthCard(s);
+    if (!view || view === 'power') runPlugins('renderTime', p => [s, slotFor(el, p), API]);
   }
 
   function renderCompare() {
@@ -580,9 +590,18 @@
   function renderAll() {
     scenarios.forEach((s, i) => renderScenario(s, i));
     updateScenarioPicker();
+    renderTimeControls();
     renderCompare();
     renderTopPlugins();
     document.getElementById('addBtn').disabled = scenarios.length >= MAX_SCENARIOS;
+    saveHash();
+  }
+
+  function renderScenarioChange(s) {
+    renderScenario(s, scenarios.indexOf(s));
+    renderCompare();
+    renderTimeControls();
+    renderTopPlugins();
     saveHash();
   }
 
@@ -591,12 +610,7 @@
     const el = document.getElementById('tplScenario').content.firstElementChild.cloneNode(true);
     s.el = el;
     buildSiteSelect($(el, '.site'));
-    const rerender = () => {
-      renderScenario(s, scenarios.indexOf(s));
-      renderCompare();
-      renderTopPlugins();
-      saveHash();
-    };
+    const rerender = () => renderScenarioChange(s);
     $(el, '.site').addEventListener('change', e => {
       const site = siteById(e.target.value);
       if (site) { s.lat = site.lat; s.lon = site.lon; s.siteId = site.id; ensureSamples(s, true); rerender(); }
@@ -617,16 +631,6 @@
     $(el, '.lon').addEventListener('change', coordChange);
     $(el, '.lat').addEventListener('blur', restore);
     $(el, '.lon').addEventListener('blur', restore);
-    $(el, '.dt').addEventListener('change', e => {
-      const t = fromInput(e.target.value);
-      if (t !== null) { s.t = t; ensureSamples(s, true); rerender(); }
-    });
-    $(el, '.steps').addEventListener('click', e => {
-      const b = e.target.closest('button'); if (!b) return;
-      if (b.dataset.now) { s.t = Math.floor(Date.now() / 60000) * 60000; ensureSamples(s, true); }
-      else s.t += Number(b.dataset.step) * HOUR;
-      rerender();
-    });
     const stopObservingTimeline = mountTimeline(s, $(el, '.tlsvg'), rerender);
     $(el, '.remove').addEventListener('click', () => {
       stopObservingTimeline();
@@ -667,7 +671,25 @@
   const panelContent = sitePanel.querySelector('.panel-content');
   const panelButtons = sitePanel.querySelectorAll('[data-panel-view]');
   const scenarioPicker = document.getElementById('scenarioPicker');
+  const timeLabel = document.getElementById('timeLabel');
+  const timeInput = document.getElementById('scenarioTime');
+  const timeScrub = document.getElementById('timeScrub');
+  const closedTime = document.getElementById('closedTime');
+  const timeSteps = $(sitePanel, '.time-steps');
   let inspectedScenario;
+
+  function renderTimeControls() {
+    const s = inspectedScenario;
+    if (!s) return;
+    const label = scenarios.length > 1 ? 'Scenario ' + LETTERS[scenarios.indexOf(s)] : '';
+    const isoTime = new Date(s.t).toISOString();
+    timeLabel.textContent = label ? label + ' time (UTC)' : 'Date and time (UTC)';
+    if (document.activeElement !== timeInput || closedTime.dateTime !== isoTime) timeInput.value = isoTime.slice(0, 16);
+    timeScrub.value = Math.round((s.t - s.anchor) / HOUR);
+    timeScrub.setAttribute('aria-valuetext', fmtFull(s.t));
+    closedTime.dateTime = isoTime;
+    closedTime.textContent = label ? label + ' · ' + fmtUTC(s.t) : fmtUTC(s.t);
+  }
 
   function updateScenarioPicker() {
     if (!scenarios.includes(inspectedScenario)) inspectedScenario = scenarios[0];
@@ -685,11 +707,13 @@
     panelToggle.textContent = view ? 'Hide details' : 'Site details';
     document.body.classList.toggle('panel-open', !!view);
     document.body.dataset.panelView = view || '';
+    timeSteps.open = false;
     if (!view) return;
     sitePanel.dataset.view = view;
     if (view === 'learn' && inspectedScenario !== scenarios[0]) {
       inspectedScenario = scenarios[0];
       updateScenarioPicker();
+      renderTimeControls();
       renderTopPlugins();
     }
     for (const button of panelButtons) {
@@ -724,14 +748,53 @@
     inspectedScenario = s;
     renderAll();
     setPanel('site');
-    $(s.el, '.dt').focus();
+    timeInput.focus();
   });
+
+  timeInput.addEventListener('focus', stopPlayback);
+  timeInput.addEventListener('change', () => {
+    const time = fromInput(timeInput.value);
+    if (time === null || !timeInput.validity.valid) return;
+    inspectedScenario.t = time;
+    renderScenarioChange(inspectedScenario);
+  });
+  timeInput.addEventListener('blur', () => { timeInput.value = toInput(inspectedScenario.t); });
+  let timeScrubFrame = null;
+  function previewSharedTime() {
+    timeScrubFrame = null;
+    previewScenarioHour(inspectedScenario, timeScrub.valueAsNumber);
+  }
+  timeScrub.addEventListener('input', () => {
+    stopPlayback();
+    if (timeScrubFrame === null) timeScrubFrame = requestAnimationFrame(previewSharedTime);
+  });
+  timeScrub.addEventListener('change', () => {
+    if (timeScrubFrame !== null) cancelAnimationFrame(timeScrubFrame);
+    previewSharedTime();
+    renderScenarioChange(inspectedScenario);
+  });
+  timeSteps.addEventListener('click', event => {
+    const button = event.target.closest('button');
+    if (!button) return;
+    stopPlayback();
+    const s = inspectedScenario;
+    if (button.dataset.now) {
+      s.t = Math.floor(Date.now() / 60000) * 60000;
+      ensureSamples(s, true);
+    } else {
+      s.t += Number(button.dataset.step) * HOUR;
+    }
+    timeSteps.open = false;
+    $(timeSteps, 'summary').focus();
+    renderScenarioChange(s);
+  });
+
   const playButton = document.getElementById('playBtn');
   function stopPlayback() {
     if (playTimer === null) return;
     clearInterval(playTimer);
     playTimer = null;
-    playButton.textContent = 'Play time';
+    playButton.textContent = 'Play';
     playButton.setAttribute('aria-pressed', 'false');
   }
   playButton.addEventListener('click', () => {
