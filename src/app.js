@@ -4,6 +4,7 @@
   const E = MoonEngine(Astronomy);
   const HOUR = 3600e3, DAY = 24 * HOUR;
   const WINDOW_H = 720;   // 30-day timeline and statistics
+  const TIMELINE_LEFT = 110, TIMELINE_RIGHT = 14;
   const SAMPLE_H = 2160;  // 90 days of hourly samples, so countdowns can look 60+ days ahead
   const MAX_SCENARIOS = 3, LETTERS = 'ABC';
 
@@ -137,7 +138,7 @@
     });
   }
   function slotFor(el, p) {
-    const box = $(el, '.ext');
+    const box = $(el, `.ext[data-plugin-group="${p.name}"]`) || $(el, '.ext:not([data-plugin-group])');
     let slot = box.querySelector(`[data-plugin="${p.name}"]`);
     if (!slot) { slot = document.createElement('div'); slot.dataset.plugin = p.name; slot.className = 'ext-slot'; box.appendChild(slot); }
     return slot;
@@ -147,6 +148,9 @@
     let slot = box.querySelector(`[data-plugin="${p.name}"]`);
     if (!slot) { slot = document.createElement('div'); slot.dataset.plugin = p.name; slot.className = 'ext-slot'; box.appendChild(slot); }
     return slot;
+  }
+  function renderTopPlugins() {
+    runPlugins('renderTop', p => [topSlotFor(p), API]);
   }
 
   // ---------- rendering ----------
@@ -382,7 +386,9 @@
 
   function renderTimeline(s, el) {
     const svg = $(el, '.tlsvg');
-    const W = 1000, L = 110, R = 14, pw = W - L - R;
+    const width = svg.clientWidth || svg.viewBox.baseVal.width;
+    svg.setAttribute('viewBox', `0 0 ${width} 132`);
+    const L = TIMELINE_LEFT, pw = width - L - TIMELINE_RIGHT;
     const rows = [
       { label: 'Sunlight', y: 8, color: '#F4B942', f: p => isUp(s, p.sun) },
       { label: 'Earth in view', y: 36, color: '#5DA9E9', f: p => isUp(s, p.earth) },
@@ -404,22 +410,95 @@
     const firstMidnight = Math.ceil(s.anchor / DAY) * DAY;
     for (let t = firstMidnight; t <= s.anchor + WINDOW_H * HOUR; t += DAY) {
       const i = (t - s.anchor) / HOUR, xx = x(i);
-      const d = new Date(t).getUTCDate();
-      const major = (t - firstMidnight) / DAY % 5 === 0;
+      const major = (t - firstMidnight) / DAY % (pw < 380 ? 10 : 5) === 0;
       g += `<line x1="${xx}" x2="${xx}" y1="90" y2="${major ? 100 : 95}" stroke="#A3A9AE"/>`;
-      if (major && xx < W - R - 34 && xx > L + 20) g += `<text x="${xx}" y="116" text-anchor="middle" font-size="12" fill="#A3A9AE">${fmtDate(t)}</text>`;
-      void d;
+      if (major && xx < width - TIMELINE_RIGHT - 34 && xx > L + 20) g += `<text x="${xx}" y="116" text-anchor="middle" font-size="12" fill="#A3A9AE">${fmtDate(t)}</text>`;
     }
-    // cursor
-    const ci = (s.t - s.anchor) / HOUR;
-    if (ci >= 0 && ci <= WINDOW_H) {
-      const xx = x(ci);
-      g += `<line x1="${xx}" x2="${xx}" y1="2" y2="90" stroke="#ECE9E2" stroke-width="2"/>`;
-      g += `<path d="M${xx - 6} 0 L${xx + 6} 0 L${xx} 8Z" fill="#ECE9E2"/>`;
+    svg.innerHTML = g + `<g class="tl-playhead" aria-hidden="true">
+      <line y1="2" y2="90" stroke="#ECE9E2" stroke-width="2"/>
+      <path d="M-6 0 L6 0 L0 8Z" fill="#ECE9E2"/>
+    </g>`;
+    updatePlayhead(s, svg);
+    $(el, '.tlcap').textContent = `30 days from ${fmtFull(s.anchor)}. Drag or tap the timeline to choose a time.`;
+  }
+
+  function updatePlayhead(s, svg) {
+    const hour = (s.t - s.anchor) / HOUR;
+    const width = svg.viewBox.baseVal.width - TIMELINE_LEFT - TIMELINE_RIGHT;
+    const x = TIMELINE_LEFT + hour / WINDOW_H * width;
+    $(svg, '.tl-playhead').setAttribute('transform', `translate(${x} 0)`);
+    svg.setAttribute('aria-valuenow', String(Math.round(hour)));
+    svg.setAttribute('aria-valuetext', fmtFull(s.t));
+  }
+
+  function mountTimeline(s, svg, commit) {
+    let pointerId = null;
+    let frame = null;
+    let pendingHour;
+
+    const resize = new ResizeObserver(() => {
+      if (svg.clientWidth && s.stats && svg.clientWidth !== svg.viewBox.baseVal.width) renderTimeline(s, s.el);
+    });
+    resize.observe(svg);
+
+    function preview(hour) {
+      const time = s.anchor + hour * HOUR;
+      if (s.t === time) return;
+      s.t = time;
+      updatePlayhead(s, svg);
+      $(s.el, '.dt').value = toInput(time);
+      renderTopPlugins();
     }
-    svg.innerHTML = g;
-    svg.setAttribute('aria-label', `Timeline of the next 30 days: sunlight ${pct(s.stats.sun)}, Earth in view ${pct(s.stats.earth)}, both ${pct(s.stats.both)}. Click to choose a time.`);
-    $(el, '.tlcap').textContent = `30 days from ${fmtFull(s.anchor)}. Click anywhere on the bars to jump to that time.`;
+
+    function pointerHour(event) {
+      const rect = svg.getBoundingClientRect();
+      const width = svg.viewBox.baseVal.width;
+      const x = (event.clientX - rect.left) * width / rect.width;
+      return clamp(Math.round((x - TIMELINE_LEFT) * WINDOW_H / (width - TIMELINE_LEFT - TIMELINE_RIGHT)), 0, WINDOW_H);
+    }
+
+    svg.addEventListener('pointerdown', event => {
+      if (event.button !== 0 || pointerId !== null) return;
+      stopPlayback();
+      pointerId = event.pointerId;
+      svg.setPointerCapture(pointerId);
+      svg.focus({ preventScroll: true });
+      pendingHour = pointerHour(event);
+      preview(pendingHour);
+    });
+    svg.addEventListener('pointermove', event => {
+      if (event.pointerId !== pointerId) return;
+      pendingHour = pointerHour(event);
+      // Refresh the playhead and globe while dragging. Recalculate the full analysis on release.
+      if (frame === null) frame = requestAnimationFrame(() => {
+        frame = null;
+        preview(pendingHour);
+      });
+    });
+    function finish(event) {
+      if (event.pointerId !== pointerId) return;
+      pointerId = null;
+      if (frame !== null) cancelAnimationFrame(frame);
+      frame = null;
+      preview(event.type === 'pointerup' && svg.clientWidth ? pointerHour(event) : pendingHour);
+      commit();
+    }
+    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) svg.addEventListener(type, finish);
+
+    svg.addEventListener('keydown', event => {
+      if (pointerId !== null) return;
+      const hour = Math.round((s.t - s.anchor) / HOUR);
+      const targets = {
+        ArrowLeft: hour - 1, ArrowDown: hour - 1, ArrowRight: hour + 1, ArrowUp: hour + 1,
+        PageUp: hour + 24, PageDown: hour - 24, Home: 0, End: WINDOW_H
+      };
+      if (!Object.hasOwn(targets, event.key)) return;
+      event.preventDefault();
+      stopPlayback();
+      preview(clamp(targets[event.key], 0, WINDOW_H));
+      commit();
+    });
+    return () => resize.disconnect();
   }
 
   function horizonsUrl(s, target) {
@@ -443,7 +522,6 @@
     s.prof = s.profInfo ? s.profInfo.values : null;
     s.stats = windowStats(s, false);
     s.statsFlat = terrainOn(s) ? windowStats(s, true) : s.stats;
-    $(el, '.sc-tag').textContent = LETTERS[index];
     el.setAttribute('aria-label', 'Scenario ' + LETTERS[index]);
     $(el, '.site').value = s.siteId;
     if (document.activeElement !== $(el, '.lat')) $(el, '.lat').value = s.lat;
@@ -489,7 +567,7 @@
     scenarios.forEach((s, i) => renderScenario(s, i));
     updateScenarioPicker();
     renderCompare();
-    runPlugins('renderTop', p => [topSlotFor(p), API]);
+    renderTopPlugins();
     document.getElementById('addBtn').disabled = scenarios.length >= MAX_SCENARIOS;
     saveHash();
   }
@@ -499,7 +577,12 @@
     const el = document.getElementById('tplScenario').content.firstElementChild.cloneNode(true);
     s.el = el;
     buildSiteSelect($(el, '.site'));
-    const rerender = () => { renderScenario(s, scenarios.indexOf(s)); renderCompare(); saveHash(); };
+    const rerender = () => {
+      renderScenario(s, scenarios.indexOf(s));
+      renderCompare();
+      renderTopPlugins();
+      saveHash();
+    };
     $(el, '.site').addEventListener('change', e => {
       const site = siteById(e.target.value);
       if (site) { s.lat = site.lat; s.lon = site.lon; s.siteId = site.id; ensureSamples(s, true); rerender(); }
@@ -530,15 +613,10 @@
       else s.t += Number(b.dataset.step) * HOUR;
       rerender();
     });
+    const stopObservingTimeline = mountTimeline(s, $(el, '.tlsvg'), rerender);
     $(el, '.remove').addEventListener('click', () => {
+      stopObservingTimeline();
       scenarios = scenarios.filter(x => x !== s); el.remove(); renderAll();
-    });
-    $(el, '.tlsvg').addEventListener('click', e => {
-      const svg = e.currentTarget, r = svg.getBoundingClientRect();
-      const vx = (e.clientX - r.left) / r.width * 1000;
-      const L = 110, pw = 1000 - L - 14;
-      const i = clamp(Math.round((vx - L) / pw * WINDOW_H), 0, WINDOW_H);
-      s.t = s.anchor + i * HOUR; rerender();
     });
     document.getElementById('scenarios').appendChild(el);
   }
@@ -595,6 +673,11 @@
     document.body.dataset.panelView = view || '';
     if (!view) return;
     sitePanel.dataset.view = view;
+    if (view === 'learn' && inspectedScenario !== scenarios[0]) {
+      inspectedScenario = scenarios[0];
+      updateScenarioPicker();
+      renderTopPlugins();
+    }
     for (const button of panelButtons) {
       button.setAttribute('aria-pressed', String(button.dataset.panelView === view));
     }
@@ -604,7 +687,7 @@
   function openSitePanel() {
     inspectedScenario = scenarios[0];
     updateScenarioPicker();
-    setPanel('site');
+    if (sitePanel.hidden) setPanel(sitePanel.dataset.view);
   }
 
   panelToggle.addEventListener('click', () => setPanel(sitePanel.hidden ? sitePanel.dataset.view : null));
@@ -628,13 +711,21 @@
     if (!s) return;
     inspectedScenario = s;
     renderAll();
-    setPanel('analysis');
+    setPanel('site');
     $(s.el, '.dt').focus();
   });
-  document.getElementById('playBtn').addEventListener('click', e => {
-    const btn = e.currentTarget;
-    if (playTimer) { clearInterval(playTimer); playTimer = null; btn.textContent = 'Play time'; btn.setAttribute('aria-pressed', 'false'); return; }
-    btn.textContent = 'Pause'; btn.setAttribute('aria-pressed', 'true');
+  const playButton = document.getElementById('playBtn');
+  function stopPlayback() {
+    if (playTimer === null) return;
+    clearInterval(playTimer);
+    playTimer = null;
+    playButton.textContent = 'Play time';
+    playButton.setAttribute('aria-pressed', 'false');
+  }
+  playButton.addEventListener('click', () => {
+    if (playTimer !== null) { stopPlayback(); return; }
+    playButton.textContent = 'Pause';
+    playButton.setAttribute('aria-pressed', 'true');
     playTimer = setInterval(() => { scenarios.forEach(s => (s.t += HOUR)); renderAll(); }, 120);
   });
   document.getElementById('linkBtn').addEventListener('click', async e => {
@@ -679,7 +770,6 @@
   });
   if (VAL) {
     const t = `Checked against NASA JPL Horizons: ${VAL.comparisons} comparisons, largest difference ${VAL.maxElDiffDeg.toFixed(3)}° in elevation.`;
-    document.getElementById('valNote').textContent = t;
     document.getElementById('aboutVal').textContent = t + ' Full table in docs/validation.md.';
   }
 

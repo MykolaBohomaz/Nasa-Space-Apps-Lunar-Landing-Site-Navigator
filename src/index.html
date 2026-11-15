@@ -62,7 +62,7 @@ button,input,select{font:inherit;color:inherit}
 .mw-power p{margin:6px 0 0}
 .mw-plugin-error{color:var(--bad)}
 .mw-learn{margin:12px 0}
-.mw-learn summary{cursor:pointer;font-weight:600;align-content:center}
+.mw-learn h2{font-size:1.1rem;margin:0}
 .mw-learn li p{margin:8px 0}
 .mw-learn-feedback:empty{margin:0}
 .mw-learn-result{display:inline-block;margin-inline-end:.5em;padding:.12em .55em;border:1px solid currentColor;border-radius:.5em;transform-origin:left center}
@@ -71,7 +71,6 @@ button,input,select{font:inherit;color:inherit}
 .mw-learn-icon{display:inline-block;margin-inline-end:.35em}
 a{color:var(--earth)}
 :focus-visible{outline:2px solid var(--sun);outline-offset:2px}
-.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
 
 .actions{display:flex;flex-wrap:wrap;gap:8px}
 .btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 14px;cursor:pointer;white-space:nowrap}
@@ -85,10 +84,15 @@ a{color:var(--earth)}
 #sitePanel{position:fixed;z-index:2;top:70px;right:16px;bottom:16px;width:min(410px,calc(100% - 32px));display:flex;flex-direction:column;border:1px solid #48566b;border-radius:16px;background:#101925;box-shadow:0 16px 52px #000a}
 #sitePanel[hidden]{display:none}
 #sitePanel:not([data-view="site"]){width:min(920px,72vw)}
-.panel-nav{display:flex;gap:6px;padding:10px;border-bottom:1px solid #344459}
-.panel-nav button{flex:1;min-height:40px}
+#sitePanel{container:site-panel / inline-size}
+.panel-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:10px;border-bottom:1px solid #344459}
+.panel-nav button{min-height:40px}
+@container site-panel (min-width:540px){
+  .panel-nav{grid-template-columns:repeat(6,minmax(0,1fr))}
+}
 .panel-content{min-height:0;overflow:auto;overscroll-behavior:contain;padding:12px;scrollbar-gutter:stable}
-.panel-content > .actions{margin-bottom:12px}
+.panel-content .actions{margin-bottom:12px}
+.panel-content .actions.view-site{margin-top:12px}
 .panel-scenario{display:flex;align-items:center;gap:8px;margin-bottom:12px}
 .panel-scenario[hidden]{display:none}
 .panel-scenario select{width:auto}
@@ -96,17 +100,20 @@ a{color:var(--earth)}
 .site-summary h2{margin:0 0 8px;font-size:1.1rem}
 .site-summary p{margin:5px 0 0;font-size:.9rem}
 .visibility{display:flex;gap:8px;flex-wrap:wrap}
-.analysis-details{display:grid;gap:14px}
-.analysis-details .sky,.analysis-details .tl{overflow-x:auto}
-.analysis-details .sky svg{min-width:700px}
-.analysis-details .tl svg{min-width:640px}
-#sitePanel[data-view="site"] .analysis-only,
+.sky{overflow-x:auto}
+.sky svg{min-width:700px}
+#sitePanel:not([data-view="site"]) .view-site,
+#sitePanel:not([data-view="sky"]) .view-sky,
+#sitePanel:not([data-view="power"]) .view-power,
+#sitePanel:not([data-view="planning"]) .view-planning,
+#sitePanel:not([data-view="learn"]) .view-learn,
+#sitePanel:is([data-view="site"],[data-view="learn"]) .science-actions,
+#sitePanel:not([data-view="sky"],[data-view="planning"],[data-view="learn"]) .steps,
+#sitePanel:not([data-view="site"],[data-view="learn"]) .site-summary,
+#sitePanel[data-view="learn"] .panel-scenario,
 #sitePanel[data-view="compare"] #scenarioView,
 #sitePanel:not([data-view="compare"]) #compareView{display:none}
-#sitePanel[data-view="site"] .sc-head{display:block;padding:0 16px 14px}
-#sitePanel[data-view="site"] .sc-head .analysis-only{display:none}
-#sitePanel[data-view="site"] .scenario{margin-bottom:0}
-#sitePanel[data-view="site"] .sc-time input{max-width:100%}
+.view-power,.view-planning{padding-bottom:16px}
 .compare-empty{color:var(--muted)}
 @media (max-width:900px){
   #sitePanel{top:auto;left:8px;right:8px;bottom:8px;width:auto;height:46dvh}
@@ -135,9 +142,10 @@ td .muted{color:var(--muted);font-size:.85rem}
 .best{color:var(--both);font-weight:600}
 
 /* Scenario */
-.scenario{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:24px;overflow:hidden}
-.sc-head{display:grid;grid-template-columns:auto 1fr 1.2fr auto;gap:14px 18px;align-items:end;padding:16px 18px 12px}
-.sc-tag{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:1.1rem;background:var(--text);color:var(--bg);align-self:center}
+.scenario{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.sc-head{display:grid;gap:12px;padding:14px 16px}
+#sitePanel:is([data-view="site"],[data-view="learn"]) .sc-head{padding-top:0}
+.sc-time .field{max-width:290px}
 .field{display:flex;flex-direction:column;gap:4px;min-width:0}
 .field>span{font-size:.82rem;color:var(--muted)}
 select,input[type=number],input[type=datetime-local]{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0;width:100%}
@@ -145,7 +153,7 @@ input[type=datetime-local]{color-scheme:dark}
 .coords{display:flex;gap:8px;margin-top:8px}
 .coords .field{flex:1}
 .steps{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.remove{align-self:start}
+.remove{justify-self:start}
 .insight{margin:0;padding:0 18px 12px;max-width:95ch;color:var(--text)}
 .insight b{font-weight:600}
 
@@ -155,7 +163,7 @@ input[type=datetime-local]{color-scheme:dark}
 .skycap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 16px;padding:8px 18px;font-size:.85rem;color:var(--muted);background:var(--panel2);border-top:1px solid var(--line)}
 
 /* Status cards */
-.cards{display:grid;grid-template-columns:1fr 1fr 1.25fr;gap:14px;padding:16px 18px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:14px;padding:16px 18px}
 .card{background:var(--panel2);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;border-top:4px solid var(--line)}
 .card.power{border-top-color:var(--sun)}
 .card.comms{border-top-color:var(--earth)}
@@ -178,7 +186,8 @@ input[type=datetime-local]{color-scheme:dark}
 /* Timeline */
 .tl{margin:0;padding:4px 18px 10px}
 .tl figcaption{font-size:.9rem;color:var(--muted);margin-bottom:4px}
-.tl svg{display:block;width:100%;height:auto;cursor:crosshair}
+.tl svg{display:block;width:100%;height:132px;cursor:ew-resize;touch-action:pan-y;user-select:none}
+.tl svg:focus-visible{outline:2px solid var(--earth);outline-offset:2px}
 .ext{display:grid;gap:14px;padding:0 18px}
 .ext:empty{display:none}
 .ext-slot:empty{display:none}
@@ -203,27 +212,13 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 .dlg dd{margin:2px 0 0;color:var(--muted)}
 .dlg-close{float:right}
 
-footer{border-top:1px solid var(--line);color:var(--muted);font-size:.88rem}
-footer .wrap{padding-top:16px;padding-bottom:28px}
-footer p{margin:4px 0;max-width:100ch}
-
-@media (max-width:900px){
-  .sc-head{grid-template-columns:auto 1fr;}
-  .sc-time{grid-column:1/-1}
-  .remove{grid-column:2;grid-row:1;justify-self:end}
-  .cards{grid-template-columns:1fr}
-}
 @media (max-width:700px){
-  .sky,.tl{overflow-x:auto}
-  .sky svg{min-width:760px}
-  .tl svg{min-width:680px}
   .skycap{min-width:0}
-  .btn,select,input,.mw-learn summary{min-height:44px}
+  .btn,select,input{min-height:44px}
   .mw-globe-pin{width:44px;height:44px}
 }
 @media (max-width:520px){
   .state .big{font-size:1.8rem}
-  .wrap{padding:0 12px}
   .sc-head,.cards{padding-left:12px;padding-right:12px}
 }
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
@@ -236,24 +231,25 @@ footer p{margin:4px 0;max-width:100ch}
   <aside id="sitePanel" data-view="site" aria-label="Landing site details" hidden>
     <nav class="panel-nav" aria-label="Site views">
       <button class="btn small" type="button" data-panel-view="site" aria-pressed="true" aria-controls="scenarioView">Site</button>
-      <button class="btn small" type="button" data-panel-view="analysis" aria-pressed="false" aria-controls="scenarioView">Analysis</button>
+      <button class="btn small" type="button" data-panel-view="sky" aria-pressed="false" aria-controls="scenarioView">Sky</button>
+      <button class="btn small" type="button" data-panel-view="power" aria-pressed="false" aria-controls="scenarioView">Power</button>
+      <button class="btn small" type="button" data-panel-view="planning" aria-pressed="false" aria-controls="scenarioView">Planning</button>
       <button class="btn small" type="button" data-panel-view="compare" aria-pressed="false" aria-controls="compareView">Compare</button>
+      <button class="btn small" type="button" data-panel-view="learn" aria-pressed="false" aria-controls="scenarioView">Learn</button>
     </nav>
     <div class="panel-content">
       <div id="scenarioView">
         <label class="panel-scenario">Scenario <select id="scenarioPicker"></select></label>
-        <div class="actions analysis-only" aria-label="Analysis actions">
+        <div class="actions science-actions">
           <button class="btn small" id="terrainBtn" type="button" aria-pressed="true">Terrain: real (NASA LOLA)</button>
           <button class="btn small" id="playBtn" type="button" aria-pressed="false">Play time</button>
+        </div>
+        <div id="scenarios"></div>
+        <div class="actions view-site">
           <button class="btn small" id="linkBtn" type="button">Copy link</button>
           <button class="btn small" id="aboutBtn" type="button">About and data</button>
         </div>
-        <div id="scenarios"></div>
-        <section id="extTop" class="analysis-only"></section>
-        <footer class="analysis-only">
-          <p>Positions are calculated in your browser from Astronomy Engine and the IAU model of the Moon's orientation. <span id="valNote">Each scenario links to the same query in NASA JPL Horizons.</span> Polar horizons come from NASA LRO LOLA. Site coordinates come from LROC, the USGS Gazetteer of Planetary Nomenclature and NASA NSSDC.</p>
-          <p>Built for the NASA Space Apps Challenge 2026. Development assisted by Anthropic Claude and OpenAI Codex. Independent project.</p>
-        </footer>
+        <div id="extTop" class="view-learn"></div>
       </div>
       <div id="compareView">
         <div class="actions"><button class="btn primary" id="addBtn" type="button">Add comparison</button></div>
@@ -281,7 +277,7 @@ footer p{margin:4px 0;max-width:100ch}
     <ul>
       <li><b>Sky view:</b> a 360° picture of the sky from the landing site. Left to right is compass direction, up and down is height above the horizon. The sky is black because the Moon has no air, even in daylight. Dotted tracks show where the Sun and Earth move over the next 30 days.</li>
       <li><b>Sunlight and Earth cards:</b> whether each is above the horizon now, how high, and how long until it sets or rises.</li>
-      <li><b>30-day timeline:</b> when there is sunlight, when Earth is in view, and when you have both. Click it to jump to that moment.</li>
+      <li><b>30-day timeline:</b> when there is sunlight, when Earth is in view, and when you have both. Drag or tap to choose a time, or focus the timeline and use the arrow keys to step by one hour.</li>
       <li><b>Comparison:</b> add up to three scenarios, for example the same site a week later after a launch slip.</li>
     </ul>
 
@@ -323,17 +319,9 @@ footer p{margin:4px 0;max-width:100ch}
   <section class="scenario">
     <div class="site-summary"><h2 class="summary-name"></h2><div class="summary-status"></div></div>
     <div class="sc-head">
-      <div class="sc-tag analysis-only" aria-hidden="true"></div>
-      <div class="sc-place analysis-only">
-        <label class="field"><span>Landing site</span><select class="site"></select></label>
-        <div class="coords">
-          <label class="field"><span>Latitude (°, south is negative)</span><input class="lat" type="number" step="0.001" min="-90" max="90" inputmode="decimal"></label>
-          <label class="field"><span>Longitude (° east)</span><input class="lon" type="number" step="0.001" min="-360" max="360" inputmode="decimal"></label>
-        </div>
-      </div>
       <div class="sc-time">
         <label class="field"><span>Date and time (UTC)</span><input class="dt" type="datetime-local" step="60"></label>
-        <div class="steps analysis-only" role="group" aria-label="Move time">
+        <div class="steps" role="group" aria-label="Move time">
           <button class="btn small" type="button" data-step="-24">−1 day</button>
           <button class="btn small" type="button" data-step="-1">−1 hour</button>
           <button class="btn small" type="button" data-now="1">Now</button>
@@ -342,29 +330,40 @@ footer p{margin:4px 0;max-width:100ch}
           <button class="btn small" type="button" data-step="168">Slip 1 week</button>
         </div>
       </div>
-      <button class="btn small remove analysis-only" type="button">Remove</button>
+      <div class="sc-place view-site">
+        <label class="field"><span>Landing site</span><select class="site"></select></label>
+        <div class="coords">
+          <label class="field"><span>Latitude (°, south is negative)</span><input class="lat" type="number" step="0.001" min="-90" max="90" inputmode="decimal"></label>
+          <label class="field"><span>Longitude (° east)</span><input class="lon" type="number" step="0.001" min="-360" max="360" inputmode="decimal"></label>
+        </div>
+      </div>
+      <button class="btn small remove view-site" type="button">Remove scenario</button>
     </div>
-    <div class="analysis-details analysis-only">
-    <p class="insight"></p>
-    <figure class="sky">
-      <svg class="skysvg" viewBox="0 0 1000 300" role="img"></svg>
-      <figcaption class="skycap"></figcaption>
-    </figure>
-    <div class="cards">
-      <article class="card power"></article>
-      <article class="card comms"></article>
-      <article class="card month"></article>
+    <div class="view-sky">
+      <figure class="sky">
+        <svg class="skysvg" viewBox="0 0 1000 300" role="img"></svg>
+        <figcaption class="skycap"></figcaption>
+      </figure>
+      <div class="cards">
+        <article class="card power"></article>
+        <article class="card comms"></article>
+      </div>
+      <p class="insight"></p>
+      <div class="sc-foot">
+        <span>Check this moment in NASA JPL Horizons</span>
+        <a class="hz-sun" target="_blank" rel="noopener">Sun position</a>
+        <a class="hz-earth" target="_blank" rel="noopener">Earth position</a>
+      </div>
     </div>
-    <div class="ext"></div>
-    <figure class="tl">
-      <figcaption class="tlcap"></figcaption>
-      <svg class="tlsvg" viewBox="0 0 1000 132" role="img"></svg>
-    </figure>
-    <div class="sc-foot">
-      <span>Check this moment in NASA JPL Horizons:</span>
-      <a class="hz-sun" target="_blank" rel="noopener">Sun position</a>
-      <a class="hz-earth" target="_blank" rel="noopener">Earth position</a>
-    </div>
+    <div class="view-power"><div class="ext" data-plugin-group="power"></div></div>
+    <div class="view-planning">
+      <figure class="tl">
+        <figcaption class="tlcap"></figcaption>
+        <svg class="tlsvg" viewBox="0 0 1000 132" role="slider" tabindex="0"
+          aria-label="Timeline time" aria-valuemin="0" aria-valuemax="720"></svg>
+      </figure>
+      <div class="cards"><article class="card month"></article></div>
+      <div class="ext"></div>
     </div>
   </section>
 </template>

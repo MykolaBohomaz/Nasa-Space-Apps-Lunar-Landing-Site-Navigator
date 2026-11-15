@@ -22,9 +22,9 @@
     name: 'learn',
     renderTop(slot, api) {
       if (slot.firstElementChild) return;
-      const details = document.createElement('details');
-      details.className = 'mw-learn';
-      details.innerHTML = '<summary>Learn mode for students</summary><p class="muted">Use scenario A to try these challenges.</p>';
+      const section = document.createElement('section');
+      section.className = 'mw-learn';
+      section.innerHTML = '<h2>Moon challenges</h2><p class="muted">Use scenario A to try these challenges.</p>';
       const list = document.createElement('ol');
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
       for (const challenge of challenges) {
@@ -68,8 +68,8 @@
         item.append(prompt, button, feedback);
         list.append(item);
       }
-      details.append(list);
-      slot.append(details);
+      section.append(list);
+      slot.append(section);
     }
   });
 })();
