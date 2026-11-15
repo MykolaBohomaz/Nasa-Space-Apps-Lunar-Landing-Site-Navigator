@@ -1,0 +1,218 @@
+{
+ "artemis-peak-cabeus-b": {
+  "name": "Peak near Cabeus B",
+  "centerLat": -83.661,
+  "centerLon": 290.986,
+  "centerSlopeDeg": 14.1,
+  "center": [
+   30.0,
+   0.0,
+   0.0
+  ],
+  "lat": -83.6181,
+  "lon": 291.4089,
+  "distanceKm": 1.93,
+  "slopeDeg": 6.0,
+  "groundM": 4582,
+  "best": [
+   69.8,
+   60.0,
+   41.2
+  ],
+  "screened": 7845,
+  "slopeOk": 1249,
+  "earthOk": 926
+ },
+ "artemis-haworth": {
+  "name": "Haworth",
+  "centerLat": -86.753,
+  "centerLon": 337.164,
+  "centerSlopeDeg": 5.6,
+  "center": [
+   11.3,
+   36.0,
+   5.6
+  ],
+  "lat": -86.9157,
+  "lon": 337.0866,
+  "distanceKm": 4.94,
+  "slopeDeg": 1.9,
+  "groundM": 1846,
+  "best": [
+   58.3,
+   59.2,
+   33.5
+  ],
+  "screened": 7845,
+  "slopeOk": 5235,
+  "earthOk": 4206
+ },
+ "artemis-malapert-massif": {
+  "name": "Malapert Massif",
+  "centerLat": -85.99,
+  "centerLon": 359.875,
+  "centerSlopeDeg": 6.3,
+  "center": [
+   43.6,
+   54.2,
+   21.7
+  ],
+  "lat": -86.0006,
+  "lon": 2.0475,
+  "distanceKm": 4.62,
+  "slopeDeg": 7.0,
+  "groundM": 5156,
+  "best": [
+   80.3,
+   54.0,
+   40.0
+  ],
+  "screened": 7845,
+  "slopeOk": 1550,
+  "earthOk": 1507
+ },
+ "artemis-mons-mouton-plateau": {
+  "name": "Mons Mouton Plateau",
+  "centerLat": -84.232,
+  "centerLon": 29.926,
+  "centerSlopeDeg": 18.4,
+  "center": [
+   36.6,
+   100.0,
+   36.6
+  ],
+  "lat": -84.2419,
+  "lon": 29.1536,
+  "distanceKm": 2.38,
+  "slopeDeg": 2.3,
+  "groundM": 5247,
+  "best": [
+   51.8,
+   100.0,
+   51.8
+  ],
+  "screened": 7845,
+  "slopeOk": 4741,
+  "earthOk": 4696
+ },
+ "artemis-mons-mouton": {
+  "name": "Mons Mouton",
+  "centerLat": -85.423,
+  "centerLon": 31.586,
+  "centerSlopeDeg": 8.8,
+  "center": [
+   39.6,
+   66.7,
+   24.2
+  ],
+  "lat": -85.4116,
+  "lon": 31.7397,
+  "distanceKm": 0.51,
+  "slopeDeg": 2.9,
+  "groundM": 6455,
+  "best": [
+   78.3,
+   63.0,
+   43.8
+  ],
+  "screened": 7845,
+  "slopeOk": 2978,
+  "earthOk": 2832
+ },
+ "artemis-nobile-rim-1": {
+  "name": "Nobile Rim 1",
+  "centerLat": -85.431,
+  "centerLon": 37.241,
+  "centerSlopeDeg": 14.2,
+  "center": [
+   28.0,
+   32.7,
+   8.9
+  ],
+  "lat": -85.3066,
+  "lon": 37.0461,
+  "distanceKm": 3.81,
+  "slopeDeg": 5.1,
+  "groundM": 6746,
+  "best": [
+   82.7,
+   53.0,
+   43.4
+  ],
+  "screened": 7845,
+  "slopeOk": 1719,
+  "earthOk": 1661
+ },
+ "artemis-nobile-rim-2": {
+  "name": "Nobile Rim 2",
+  "centerLat": -83.963,
+  "centerLon": 58.654,
+  "centerSlopeDeg": 6.9,
+  "center": [
+   37.5,
+   62.4,
+   23.7
+  ],
+  "lat": -84.0652,
+  "lon": 59.242,
+  "distanceKm": 3.62,
+  "slopeDeg": 1.5,
+  "groundM": 1468,
+  "best": [
+   52.3,
+   73.4,
+   39.0
+  ],
+  "screened": 7845,
+  "slopeOk": 4263,
+  "earthOk": 4223
+ },
+ "artemis-de-gerlache-rim-2": {
+  "name": "de Gerlache Rim 2",
+  "centerLat": -88.225,
+  "centerLon": 294.579,
+  "centerSlopeDeg": 8.8,
+  "center": [
+   36.4,
+   49.8,
+   20.8
+  ],
+  "lat": -88.287,
+  "lon": 289.5575,
+  "distanceKm": 5.0,
+  "slopeDeg": 6.9,
+  "groundM": 976,
+  "best": [
+   54.4,
+   56.0,
+   30.5
+  ],
+  "screened": 7845,
+  "slopeOk": 1464,
+  "earthOk": 1464
+ },
+ "artemis-slater-plain": {
+  "name": "Slater Plain",
+  "centerLat": -87.149,
+  "centerLon": 126.134,
+  "centerSlopeDeg": 6.5,
+  "center": [
+   3.6,
+   36.7,
+   2.9
+  ],
+  "lat": -87.2813,
+  "lon": 127.9327,
+  "distanceKm": 4.81,
+  "slopeDeg": 1.3,
+  "groundM": 527,
+  "best": [
+   65.5,
+   42.9,
+   31.4
+  ],
+  "screened": 7845,
+  "slopeOk": 5354,
+  "earthOk": 3749
+ }
+}
