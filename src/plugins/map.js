@@ -559,11 +559,15 @@
     let render;
     let sourceRequest = 0;
 
-    function selectSite(site) {
+    function selectSite(site, { surfacePick = false } = {}) {
       api.openSitePanel();
-      const index = api.scenarios().indexOf(api.activeScenario());
-      if (index < 0) return;
-      api.setSite(index, site.lat, site.lon);
+      if (surfacePick) {
+        api.pickSurfaceSite(site.lat, site.lon);
+      } else {
+        const index = api.scenarios().indexOf(api.activeScenario());
+        if (index < 0) return;
+        api.setSite(index, site.lat, site.lon);
+      }
       flyTo(direction(site.lat, site.lon));
     }
 
@@ -734,7 +738,7 @@
       const { xScale, yScale, centerX, centerY } = viewFor(width, height);
       const point = surfaceCoordinates(camera, distance, ((x ?? centerX) - centerX) / xScale,
         ((y ?? centerY) - centerY) / yScale);
-      if (point) selectSite(point);
+      if (point) selectSite(point, { surfacePick: true });
     }
 
     const pointers = new Map();
@@ -873,7 +877,9 @@
       const letter = scenarios.length > 1 ? letters[scenarios.indexOf(activeScenario)] : '';
       const target = letter ? ' for scenario ' + letter : '';
       select.setAttribute('aria-label', 'Select landing site' + target);
-      help.textContent = 'Pick a site' + target + ' · Drag to orbit · Scroll or pinch to zoom';
+      const nextLetter = letters[scenarios.length];
+      const pickHelp = nextLetter ? 'Pick a point to add ' + nextLetter : 'Pick a point' + target;
+      help.textContent = pickHelp + ' · Drag to orbit · Scroll or pinch to zoom';
       const time = activeScenario?.t;
       if (time !== undefined && time !== skyTime) {
         skyTime = time;

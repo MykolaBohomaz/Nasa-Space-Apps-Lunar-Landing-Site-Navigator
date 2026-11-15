@@ -750,6 +750,17 @@
     if (sitePanel.hidden) setPanel(sitePanel.dataset.view);
   }
 
+  function pickSurfaceSite(lat, lon) {
+    const active = inspectedScenario;
+    if (scenarios.length === MAX_SCENARIOS) {
+      API.setSite(scenarios.indexOf(active), lat, lon);
+      return;
+    }
+    const s = addScenario(lat, lon, active.t);
+    if (sitePanel.dataset.view !== 'learn') inspectedScenario = s;
+    renderAll();
+  }
+
   function loadSiteComparison(points) {
     if (points.length < 2 || points.length > MAX_SCENARIOS) return;
     stopPlayback();
@@ -870,6 +881,7 @@
     scenarios: () => scenarios.slice(),          // each: {lat, lon, t, siteId, anchor, samples[], stats, cur, nextSun, nextEarth, el}
     activeScenario: () => inspectedScenario,
     openSitePanel,
+    pickSurfaceSite,
     loadSiteComparison,
     renderMissionSummary,
     siteProfile: (lat, lon) => profileFor({ lat, lon, siteId: matchSite(lat, lon) }),
