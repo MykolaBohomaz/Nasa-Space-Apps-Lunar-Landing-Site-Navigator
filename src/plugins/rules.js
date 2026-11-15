@@ -53,7 +53,7 @@
   function year(s, api) {
     const day0 = Math.floor(s.t / api.DAY) * api.DAY;
     const info = api.terrainInfo(s);
-    const key = [s.lat, s.lon, day0, info ? info.source + info.resM : 'flat'].join();
+    const key = [s.lat, s.lon, day0, info ? info.source + info.resM : 'flat', api.sunRule()].join();
     if (cache.has(key)) return cache.get(key);
     let earth = 0, run = 0, best = 0;
     const n = DAYS * 24 / STEP_H;

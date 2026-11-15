@@ -55,15 +55,15 @@
       const { sun, earth } = moonSkyVectors(date);
       const f = siteFrame(latDeg, lonDeg);
       const sitePos = scale(f.up, MOON_RADIUS_KM + (altKm || 0));
-      const look = v => {
+      const look = (v, kind) => {
         const rel = sub(v, sitePos);
         const d = norm(rel);
         const el = Math.asin(dot(rel, f.up) / d) * R2D;
         let az = Math.atan2(dot(rel, f.east), dot(rel, f.north)) * R2D;
         if (az < 0) az += 360;
-        return { el, az, distKm: d };
+        return { el, az, distKm: d, kind };
       };
-      return { sun: look(sun), earth: look(earth) };
+      return { sun: look(sun, 'sun'), earth: look(earth, 'earth') };
     }
 
     // MK-3: how much of a body's disk is above the skyline (0..1).

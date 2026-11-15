@@ -55,13 +55,14 @@
       <p>Dates in the next year when a lander here keeps sunlight and direct radio to Earth together for long enough. It uses the same horizon as the rest of this scenario.</p>
       <form>
         <label>Need Sun and Earth together for at least <input type="number" min="1" max="20" step="1" value="7" inputmode="numeric"> days</label>
+        <label>Order <select name="order"><option value="earliest">Earliest start</option><option value="longest">Longest overlap</option></select></label>
         <button class="btn small" type="submit">Find dates</button>
       </form>
       <div class="out" aria-live="polite"></div>
     </section>`;
   }
 
-  function show(slot, s, api, res, minDays) {
+  function show(slot, s, api, res, minDays, order) {
     const out = slot.querySelector('.out'), f = api.fmt;
     const idx = () => api.scenarios().indexOf(s);
     const hasTerrain = api.terrainInfo ? !!api.terrainInfo(s) : false;
@@ -73,7 +74,8 @@
     const row = w => `<li><b>${f.esc(f.full(w.start))}</b><span class="len">${w.end === null ? '' : f.dur(w.end - w.start)}</span><span>until ${f.esc(f.utc(w.end))}</span><button type="button" class="btn small" data-t="${w.start}">Use this date</button></li>`;
     let html;
     if (res.windows.length) {
-      html = `<p>${res.windows.length === 1 ? '1 window' : res.windows.length + ' windows'} of at least ${minDays} days in the next year. ${terrainNote} Showing the first ${Math.min(SHOW, res.windows.length)}.</p><ol>${res.windows.slice(0, SHOW).map(row).join('')}</ol>`;
+      const ranked = order === 'longest' ? [...res.windows].sort((a, b) => b.hours - a.hours || a.start - b.start) : res.windows;
+      html = `<p>${res.windows.length === 1 ? '1 window' : res.windows.length + ' windows'} of at least ${minDays} days in the next year. ${terrainNote} Showing ${Math.min(SHOW, ranked.length)} by ${order === 'longest' ? 'longest overlap' : 'earliest start'}.</p><ol>${ranked.slice(0, SHOW).map(row).join('')}</ol>`;
     } else {
       html = `<p class="note"><b>No window of ${minDays} days</b> in the next year. ${terrainNote} The longest time with both Sun and Earth is ${f.dur(res.longest.end - res.longest.start)}:</p><ol>${row(res.longest)}</ol>`;
     }
@@ -88,10 +90,11 @@
     renderScenario(s, slot, api) {
       let st = state.get(s);
       if (!st) { st = { minDays: 7, key: '', request: 0 }; state.set(s, st); }
-      const keyFor = () => `${s.lat},${s.lon},${s.t},${api.terrain()},${api.terrainInfo(s)?.resM || 0}`;
+      const keyFor = () => `${s.lat},${s.lon},${s.t},${api.terrain()},${api.terrainInfo(s)?.resM || 0},${api.sunRule()}`;
       if (!slot.querySelector('.mw-plan')) {
         build(slot);
         const form = slot.querySelector('form'), input = slot.querySelector('input');
+        const order = form.elements.namedItem('order');
         input.value = st.minDays;
         form.addEventListener('submit', e => {
           e.preventDefault();
@@ -103,8 +106,12 @@
           out.textContent = `Searching from ${api.fmt.full(s.t)}…`;
           setTimeout(() => {
             if (request !== st.request || key !== keyFor()) return;
-            show(slot, s, api, findWindows(api, s, st.minDays, SEARCH_DAYS), st.minDays);
+            st.result = findWindows(api, s, st.minDays, SEARCH_DAYS);
+            show(slot, s, api, st.result, st.minDays, order.value);
           }, 20);
+        });
+        order.addEventListener('change', () => {
+          if (st.result && st.key === keyFor()) show(slot, s, api, st.result, st.minDays, order.value);
         });
       }
       // A unique name per scenario, so screen readers can tell the finders apart.

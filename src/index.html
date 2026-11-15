@@ -130,6 +130,13 @@ body.panel-open .mw-globe-dock{right:calc(var(--panel-width) + var(--edge) + 12p
 #sitePanel[data-view="finder"] #scenarioView,
 #sitePanel:not([data-view="finder"]) #finderView{display:none}
 .mission-verdict{margin:2px 0 9px;font-size:.93rem;font-weight:650}
+.mission-options{display:flex;justify-content:space-between;align-items:center;gap:6px;margin:0 0 5px}
+.mission-options label{display:flex;align-items:center;gap:6px;font-size:.8rem;white-space:nowrap}
+.mission-options input{width:4.1em;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:3px 5px}
+.mission-target,.mission-readiness{margin:0 0 5px;color:var(--muted);font-size:.74rem}
+.mission-readiness{margin:4px 0}
+.mission-pass{color:var(--both)}
+.mission-fail{color:#ffb1a5}
 .mission-legend{display:flex;align-items:center;flex-wrap:wrap;gap:3px 10px;margin:0 0 4px;color:var(--muted);font-size:.73rem}
 .mission-legend i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:3px}
 .mission-legend .sun{background:var(--sun)}
@@ -333,6 +340,11 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
         </div>
         <div class="view-mission">
           <p class="mission-verdict"></p>
+          <div class="mission-options">
+            <label for="missionDays">Mission days <input id="missionDays" type="number" min="1" max="30" step="1" value="30" required></label>
+            <button class="btn small" id="exportMission" type="button">Export CSV</button>
+          </div>
+          <p class="mission-target"></p>
           <div class="mission-legend" aria-label="Timeline and energy legend">
             <span>30-day visibility</span><span><i class="sun"></i>Sun</span><span><i class="earth"></i>Earth</span><span><i class="both"></i>Both</span>
             <span class="energy-label"></span>
@@ -341,6 +353,11 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
         <div id="scenarios"></div>
         <details class="mission-figures view-mission">
           <summary>Power settings and figures</summary>
+          <label class="field"><span>Sunlight rule for visibility windows</span><select id="missionSunRule">
+            <option value="edge">Any visible part</option>
+            <option value="centre" selected>Sun centre</option>
+            <option value="full">Full solar disk</option>
+          </select></label>
           <div data-top-slot="power"></div>
           <div id="compare">
             <div class="compare-table" tabindex="0" role="region" aria-label="Mission comparison figures">
@@ -386,7 +403,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
     <p id="aboutVal">Each scenario links to the same query in NASA JPL Horizons so you can compare the numbers.</p>
     <ul>
       <li><b>Terrain detail.</b> The 80 m and 240 m grids capture mountains, ridges and crater rims but not boulders or small craters near the lander. At the pole, a few hundred metres matter: on the connecting ridge, two points 200 m apart get 88% and 78% sunlight over a year. Listed south polar sites use precomputed 80 m skylines. Any other point south of 77°S, including custom coordinates, gets a skyline computed in your browser from 240 m LOLA terrain (960 m for distant mountains). That is accurate on plains and plateaus and approximate on narrow ridges. Points north of 77°S use flat ground.</li>
-      <li><b>Centers, not edges.</b> "Up" means the center of the Sun or Earth is above the horizon. The Sun's disk is about half a degree wide, so near the poles it can be partly visible.</li>
+      <li><b>Visibility thresholds.</b> Earth visibility uses its centre. The Mission panel lets you choose whether any part, the centre, or the entire Sun must clear the horizon. Power estimates use the visible fraction of the solar disk.</li>
     </ul>
 
     <h3>Landing sites</h3>
@@ -446,6 +463,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
         <svg class="tlsvg" viewBox="0 0 1000 37" role="slider" tabindex="0"
           aria-label="Timeline time" aria-valuemin="0" aria-valuemax="720"></svg>
       </figure>
+      <p class="mission-readiness"></p>
       <details class="mission-planning">
         <summary>Dates</summary>
         <div class="ext" data-plugin-group="planner"></div>

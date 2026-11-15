@@ -22,9 +22,9 @@ Choose a saved landmark from the globe dropdown, click its pin, enter precise co
 
 **Mission** puts up to three site-and-date scenarios side by side. Each 30-day timeline shows when the **Sun**, **Earth**, and **both together** clear the horizon. Drag a track or use the shared UTC scrubber above the sidebar. You can also enter a date, step by an hour, day or week, jump to **Now**, or press **Play**. The globe and analysis update as time changes.
 
-Open **Dates** on a scenario to search the next year for windows with continuous sunlight and direct Earth line of sight. Choose a minimum duration and jump to a result. The same section shows visibility percentages and the longest gaps in sunlight or Earth view within the chart window.
+Set **Mission days** to see whether each scenario has continuous sunlight and direct Earth line of sight for long enough. Mission tests each chosen UTC start and the same site one week later. Open **Dates** to search the next year, order qualifying windows by earliest start or longest overlap, and jump to a result. **Export CSV** saves the sites, times, window checks, visibility assumptions, and numeric power estimates.
 
-Open **Power settings and figures** to compare power now and average power in watts, total solar energy in kWh, and shared visibility. All scenarios use the same panel area, efficiency, fixed or Sun-tracking vertical mount, and mission duration. Earth visibility represents geometric line of sight. The solar estimates omit dust, temperature and equipment shadow losses.
+Open **Power settings and figures** to compare power now and average power in watts, total solar energy in kWh, and shared visibility. All scenarios use the same panel area, efficiency, fixed or Sun-tracking vertical mount, and mission duration. The Sun rule can require any visible part of the disk, its centre, or the entire disk for visibility windows. Solar estimates use the visible fraction in all three modes and omit dust, temperature and equipment shadow losses. Earth visibility represents geometric line of sight.
 
 ![Mission compares three landing sites with separate Sun, Earth and overlap tracks and shared solar settings](docs/moonwindow-mission.webp)
 
@@ -66,7 +66,7 @@ Across 72 comparisons (9 sites × 4 dates × Sun and Earth), the app matches NAS
 
 ### Validation against LRO camera observations
 
-We used 309 LROC frames to bracket 52 south-pole sunrise and sunset events. The current terrain model landed inside 11 observed intervals, versus one for a flat horizon. A model variant that accounts for the first or last visible edge of the Sun reached 32 of 52. [Observational study, figure, and reproduction steps](docs/lroc-transition-validation.md)
+We used 309 LROC frames to bracket 52 south-pole sunrise and sunset events. The terrain model using the default Sun-centre rule landed inside 11 observed intervals, versus one for a flat horizon. The disk-edge rule, available as **Any visible part** in Mission, reached 32 of 52. [Observational study, figure, and reproduction steps](docs/lroc-transition-validation.md)
 
 ## Real terrain from NASA LOLA
 
@@ -122,7 +122,7 @@ Use **Compare at selected time** for a common reference date, or **Compare earli
 
 To regenerate the offline shortlist from the existing terrain assets, run `node tools/make_site_candidates.js > src/site-candidates.js` and then `python3 build.py`. The grid provides preliminary screening and can miss terrain between sampled points.
 
-Demo example. Filter **Mons Mouton Plateau**, rank by **Most Sun and Earth together**, and set January 15, 2027 at 06:00 UTC. At 84.1652°S, 28.9528°E the hourly model gives **13 days 18 hours** of shared visibility from that time and **6 days 18 hours** from a week later. A seven-day requirement passes at the original time and falls short after the delay.
+Demo example. Filter **Mons Mouton Plateau**, rank by **Most Sun and Earth together**, and set January 15, 2027 at 06:00 UTC. At 84.1652°S, 28.9528°E the hourly Finder gives **13 days 18 hours** of shared visibility from that time and **6 days 18 hours** from a week later. In **Mission**, set **Mission days** to **7**. Its more finely resolved crossings show **13 days 17 hours** at the selected start and **6 days 17 hours** after the slip. The original start meets the target and the delayed start falls short.
 
 NASA's Artemis III candidate regions are each about 15 × 15 km; the lander needs a spot about 100 m across inside one. A single "region" coordinate can land on a steep slope or in shadow. The published coordinate for Slater Plain, for example, gets 4% sunlight over a year. So for each region, `tools/find_artemis_spots.py` searches the LOLA 80 m map within 5 km of the published coordinate and applies NASA's landing rules ([Artemis HLS Overview, Space Apps 2025](https://ntrs.nasa.gov/citations/20250009323)):
 

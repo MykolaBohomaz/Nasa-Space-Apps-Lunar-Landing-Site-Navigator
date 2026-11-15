@@ -74,6 +74,7 @@
     let request = 0;
     let checking = false;
     let selectedTime;
+    let selectedSunRule;
     let checkedStarts = null;
 
     function syncButtons() {
@@ -103,7 +104,7 @@
       scope.textContent = (wide
         ? `Search points on a ${polar.stepKm} km grid within ${polar.radiusKm} km of the south pole.`
         : 'Search points within 5 km of the selected Artemis region reference points.') +
-        ' Coverage filters use modeled 2027 visibility.';
+        ' Coverage filters use modeled 2027 Sun-centre and Earth-centre visibility.';
       const searchRegions = wide ? [polar] : artemis.filter(r => !regionId || r.id === regionId);
       const matches = searchRegions
         .flatMap(r => r.sites.map(s => ({ ...s, region: r.name })))
@@ -146,8 +147,9 @@
 
     function updateSearchStart() {
       const time = api.activeScenario().t;
-      if (time === selectedTime) return;
+      if (time === selectedTime && api.sunRule() === selectedSunRule) return;
       selectedTime = time;
+      selectedSunRule = api.sunRule();
       startLabel.textContent = `Search from ${f.full(time)}`;
       clearReport();
     }
@@ -162,7 +164,7 @@
       const planner = window.MW_PLANNER;
       const horizonApi = {
         ...api,
-        isUp: (s, body) => body.el > api.skylineAt(s.prof, body.az)
+        isUp: (s, body) => api.clearsSkyline(body, api.skylineAt(s.prof, body.az))
       };
       checking = true;
       syncButtons();

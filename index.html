@@ -130,6 +130,13 @@ body.panel-open .mw-globe-dock{right:calc(var(--panel-width) + var(--edge) + 12p
 #sitePanel[data-view="finder"] #scenarioView,
 #sitePanel:not([data-view="finder"]) #finderView{display:none}
 .mission-verdict{margin:2px 0 9px;font-size:.93rem;font-weight:650}
+.mission-options{display:flex;justify-content:space-between;align-items:center;gap:6px;margin:0 0 5px}
+.mission-options label{display:flex;align-items:center;gap:6px;font-size:.8rem;white-space:nowrap}
+.mission-options input{width:4.1em;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:3px 5px}
+.mission-target,.mission-readiness{margin:0 0 5px;color:var(--muted);font-size:.74rem}
+.mission-readiness{margin:4px 0}
+.mission-pass{color:var(--both)}
+.mission-fail{color:#ffb1a5}
 .mission-legend{display:flex;align-items:center;flex-wrap:wrap;gap:3px 10px;margin:0 0 4px;color:var(--muted);font-size:.73rem}
 .mission-legend i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:3px}
 .mission-legend .sun{background:var(--sun)}
@@ -333,6 +340,11 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
         </div>
         <div class="view-mission">
           <p class="mission-verdict"></p>
+          <div class="mission-options">
+            <label for="missionDays">Mission days <input id="missionDays" type="number" min="1" max="30" step="1" value="30" required></label>
+            <button class="btn small" id="exportMission" type="button">Export CSV</button>
+          </div>
+          <p class="mission-target"></p>
           <div class="mission-legend" aria-label="Timeline and energy legend">
             <span>30-day visibility</span><span><i class="sun"></i>Sun</span><span><i class="earth"></i>Earth</span><span><i class="both"></i>Both</span>
             <span class="energy-label"></span>
@@ -341,6 +353,11 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
         <div id="scenarios"></div>
         <details class="mission-figures view-mission">
           <summary>Power settings and figures</summary>
+          <label class="field"><span>Sunlight rule for visibility windows</span><select id="missionSunRule">
+            <option value="edge">Any visible part</option>
+            <option value="centre" selected>Sun centre</option>
+            <option value="full">Full solar disk</option>
+          </select></label>
           <div data-top-slot="power"></div>
           <div id="compare">
             <div class="compare-table" tabindex="0" role="region" aria-label="Mission comparison figures">
@@ -386,7 +403,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
     <p id="aboutVal">Each scenario links to the same query in NASA JPL Horizons so you can compare the numbers.</p>
     <ul>
       <li><b>Terrain detail.</b> The 80 m and 240 m grids capture mountains, ridges and crater rims but not boulders or small craters near the lander. At the pole, a few hundred metres matter: on the connecting ridge, two points 200 m apart get 88% and 78% sunlight over a year. Listed south polar sites use precomputed 80 m skylines. Any other point south of 77°S, including custom coordinates, gets a skyline computed in your browser from 240 m LOLA terrain (960 m for distant mountains). That is accurate on plains and plateaus and approximate on narrow ridges. Points north of 77°S use flat ground.</li>
-      <li><b>Centers, not edges.</b> "Up" means the center of the Sun or Earth is above the horizon. The Sun's disk is about half a degree wide, so near the poles it can be partly visible.</li>
+      <li><b>Visibility thresholds.</b> Earth visibility uses its centre. The Mission panel lets you choose whether any part, the centre, or the entire Sun must clear the horizon. Power estimates use the visible fraction of the solar disk.</li>
     </ul>
 
     <h3>Landing sites</h3>
@@ -446,6 +463,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
         <svg class="tlsvg" viewBox="0 0 1000 37" role="slider" tabindex="0"
           aria-label="Timeline time" aria-valuemin="0" aria-valuemax="720"></svg>
       </figure>
+      <p class="mission-readiness"></p>
       <details class="mission-planning">
         <summary>Dates</summary>
         <div class="ext" data-plugin-group="planner"></div>
@@ -809,15 +827,15 @@ window.MW_SITES = [
       const { sun, earth } = moonSkyVectors(date);
       const f = siteFrame(latDeg, lonDeg);
       const sitePos = scale(f.up, MOON_RADIUS_KM + (altKm || 0));
-      const look = v => {
+      const look = (v, kind) => {
         const rel = sub(v, sitePos);
         const d = norm(rel);
         const el = Math.asin(dot(rel, f.up) / d) * R2D;
         let az = Math.atan2(dot(rel, f.east), dot(rel, f.north)) * R2D;
         if (az < 0) az += 360;
-        return { el, az, distKm: d };
+        return { el, az, distKm: d, kind };
       };
-      return { sun: look(sun), earth: look(earth) };
+      return { sun: look(sun, 'sun'), earth: look(earth, 'earth') };
     }
 
     // MK-3: how much of a body's disk is above the skyline (0..1).
@@ -2054,7 +2072,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
   function year(s, api) {
     const day0 = Math.floor(s.t / api.DAY) * api.DAY;
     const info = api.terrainInfo(s);
-    const key = [s.lat, s.lon, day0, info ? info.source + info.resM : 'flat'].join();
+    const key = [s.lat, s.lon, day0, info ? info.source + info.resM : 'flat', api.sunRule()].join();
     if (cache.has(key)) return cache.get(key);
     let earth = 0, run = 0, best = 0;
     const n = DAYS * 24 / STEP_H;
@@ -2111,11 +2129,12 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
   const defaults = { area: 1, efficiency: 30, azimuth: null, days: 30 };
   let settings = { ...defaults };
   let days = defaults.days;
+  let missionDays = defaults.days;
 
   function watts(scenario, sun, api, peakWatts, azimuth) {
-    if (!api.isUp(scenario, sun)) return 0;
+    const visible = api.engine.sunVisible(sun, api.horizonAt(scenario, sun.az));
     const facing = azimuth === null ? 1 : Math.cos((sun.az - azimuth) * radians);
-    return peakWatts * Math.max(0, Math.cos(sun.el * radians) * facing);
+    return peakWatts * visible * Math.max(0, Math.cos(sun.el * radians) * facing);
   }
 
   function mount(slot, api) {
@@ -2130,16 +2149,15 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
             <option value="fixed">Vertical, fixed</option>
           </select></label>
           <label hidden>Panel azimuth (°) <input name="azimuth" type="number" min="0" max="360" step="any" value="0" required></label>
-          <label>Mission duration (days) <input name="days" type="number" min="1" max="30" step="1" value="30" required></label>
         </div>
-        <p class="muted">Applies to every scenario from its selected UTC time. This estimate omits dust, temperature, and equipment shadow losses.</p>
+        <p class="muted">Power uses the visible fraction of the Sun’s disk. The estimate omits dust, temperature, and equipment shadow losses.</p>
         <p class="mw-plugin-error" role="status" hidden>Enter valid solar settings to compare power.</p>
       </details>`;
     const area = slot.querySelector('[name="area"]');
     const efficiency = slot.querySelector('[name="efficiency"]');
     const mounting = slot.querySelector('[name="mounting"]');
     const azimuth = slot.querySelector('[name="azimuth"]');
-    const duration = slot.querySelector('[name="days"]');
+    const duration = document.getElementById('missionDays');
     const summary = slot.querySelector('.mw-power-summary');
     const error = slot.querySelector('[role="status"]');
     function update() {
@@ -2147,10 +2165,11 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       azimuth.parentElement.hidden = !fixed;
       const inputs = fixed ? [area, efficiency, azimuth, duration] : [area, efficiency, duration];
       const valid = inputs.every(input => input.validity.valid && Number.isFinite(input.valueAsNumber));
+      missionDays = duration.validity.valid ? duration.valueAsNumber : null;
       error.hidden = valid;
       settings = valid ? { area: area.valueAsNumber, efficiency: efficiency.valueAsNumber,
         azimuth: fixed ? azimuth.valueAsNumber : null, days: duration.valueAsNumber } : null;
-      if (settings) days = settings.days;
+      if (missionDays !== null) days = missionDays;
       summary.textContent = settings
         ? `${format.format(settings.area)} m² · ${format.format(settings.efficiency)}% · ${fixed ? 'Fixed ' + settings.azimuth + '°' : 'Sun-tracking'} · ${days} days`
         : 'Settings incomplete';
@@ -2159,6 +2178,8 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
 
     slot.addEventListener('input', update);
     slot.addEventListener('change', update);
+    duration.addEventListener('input', update);
+    duration.addEventListener('change', update);
     update();
   }
 
@@ -2179,11 +2200,15 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     return {
       now: format.format(now) + ' W',
       average: format.format(wattHours / hours) + ' W',
-      energy: format.format(wattHours / 1000) + ' kWh'
+      energy: format.format(wattHours / 1000) + ' kWh',
+      nowW: now,
+      averageW: wattHours / hours,
+      energyKWh: wattHours / 1000
     };
   }
 
-  window.MW_POWER = { estimate, get days() { return days; } };
+  window.MW_POWER = { estimate, get days() { return days; }, get missionDays() { return missionDays; },
+    get settings() { return settings; } };
   (window.MoonWindowPlugins = window.MoonWindowPlugins || []).push({
     name: 'power',
     renderTop(slot, api) {
@@ -2331,13 +2356,14 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       <p>Dates in the next year when a lander here keeps sunlight and direct radio to Earth together for long enough. It uses the same horizon as the rest of this scenario.</p>
       <form>
         <label>Need Sun and Earth together for at least <input type="number" min="1" max="20" step="1" value="7" inputmode="numeric"> days</label>
+        <label>Order <select name="order"><option value="earliest">Earliest start</option><option value="longest">Longest overlap</option></select></label>
         <button class="btn small" type="submit">Find dates</button>
       </form>
       <div class="out" aria-live="polite"></div>
     </section>`;
   }
 
-  function show(slot, s, api, res, minDays) {
+  function show(slot, s, api, res, minDays, order) {
     const out = slot.querySelector('.out'), f = api.fmt;
     const idx = () => api.scenarios().indexOf(s);
     const hasTerrain = api.terrainInfo ? !!api.terrainInfo(s) : false;
@@ -2349,7 +2375,8 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     const row = w => `<li><b>${f.esc(f.full(w.start))}</b><span class="len">${w.end === null ? '' : f.dur(w.end - w.start)}</span><span>until ${f.esc(f.utc(w.end))}</span><button type="button" class="btn small" data-t="${w.start}">Use this date</button></li>`;
     let html;
     if (res.windows.length) {
-      html = `<p>${res.windows.length === 1 ? '1 window' : res.windows.length + ' windows'} of at least ${minDays} days in the next year. ${terrainNote} Showing the first ${Math.min(SHOW, res.windows.length)}.</p><ol>${res.windows.slice(0, SHOW).map(row).join('')}</ol>`;
+      const ranked = order === 'longest' ? [...res.windows].sort((a, b) => b.hours - a.hours || a.start - b.start) : res.windows;
+      html = `<p>${res.windows.length === 1 ? '1 window' : res.windows.length + ' windows'} of at least ${minDays} days in the next year. ${terrainNote} Showing ${Math.min(SHOW, ranked.length)} by ${order === 'longest' ? 'longest overlap' : 'earliest start'}.</p><ol>${ranked.slice(0, SHOW).map(row).join('')}</ol>`;
     } else {
       html = `<p class="note"><b>No window of ${minDays} days</b> in the next year. ${terrainNote} The longest time with both Sun and Earth is ${f.dur(res.longest.end - res.longest.start)}:</p><ol>${row(res.longest)}</ol>`;
     }
@@ -2364,10 +2391,11 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     renderScenario(s, slot, api) {
       let st = state.get(s);
       if (!st) { st = { minDays: 7, key: '', request: 0 }; state.set(s, st); }
-      const keyFor = () => `${s.lat},${s.lon},${s.t},${api.terrain()},${api.terrainInfo(s)?.resM || 0}`;
+      const keyFor = () => `${s.lat},${s.lon},${s.t},${api.terrain()},${api.terrainInfo(s)?.resM || 0},${api.sunRule()}`;
       if (!slot.querySelector('.mw-plan')) {
         build(slot);
         const form = slot.querySelector('form'), input = slot.querySelector('input');
+        const order = form.elements.namedItem('order');
         input.value = st.minDays;
         form.addEventListener('submit', e => {
           e.preventDefault();
@@ -2379,8 +2407,12 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
           out.textContent = `Searching from ${api.fmt.full(s.t)}…`;
           setTimeout(() => {
             if (request !== st.request || key !== keyFor()) return;
-            show(slot, s, api, findWindows(api, s, st.minDays, SEARCH_DAYS), st.minDays);
+            st.result = findWindows(api, s, st.minDays, SEARCH_DAYS);
+            show(slot, s, api, st.result, st.minDays, order.value);
           }, 20);
+        });
+        order.addEventListener('change', () => {
+          if (st.result && st.key === keyFor()) show(slot, s, api, st.result, st.minDays, order.value);
         });
       }
       // A unique name per scenario, so screen readers can tell the finders apart.
@@ -2475,6 +2507,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     let request = 0;
     let checking = false;
     let selectedTime;
+    let selectedSunRule;
     let checkedStarts = null;
 
     function syncButtons() {
@@ -2504,7 +2537,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       scope.textContent = (wide
         ? `Search points on a ${polar.stepKm} km grid within ${polar.radiusKm} km of the south pole.`
         : 'Search points within 5 km of the selected Artemis region reference points.') +
-        ' Coverage filters use modeled 2027 visibility.';
+        ' Coverage filters use modeled 2027 Sun-centre and Earth-centre visibility.';
       const searchRegions = wide ? [polar] : artemis.filter(r => !regionId || r.id === regionId);
       const matches = searchRegions
         .flatMap(r => r.sites.map(s => ({ ...s, region: r.name })))
@@ -2547,8 +2580,9 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
 
     function updateSearchStart() {
       const time = api.activeScenario().t;
-      if (time === selectedTime) return;
+      if (time === selectedTime && api.sunRule() === selectedSunRule) return;
       selectedTime = time;
+      selectedSunRule = api.sunRule();
       startLabel.textContent = `Search from ${f.full(time)}`;
       clearReport();
     }
@@ -2563,7 +2597,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       const planner = window.MW_PLANNER;
       const horizonApi = {
         ...api,
-        isUp: (s, body) => body.el > api.skylineAt(s.prof, body.az)
+        isUp: (s, body) => api.clearsSkyline(body, api.skylineAt(s.prof, body.az))
       };
       checking = true;
       syncButtons();
@@ -2647,6 +2681,9 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
   let playTimer = null;
   let uid = 0;
   let useTerrain = true;
+  const SUN_RULES = { edge: 1, centre: 0, full: -1 };
+  const SUN_RULE_LABELS = { edge: 'Any visible part of the Sun', centre: 'Sun centre', full: 'Full solar disk' };
+  let sunRule = 'centre';
   const HZ_DATA = window.MW_HORIZONS || null;          // generated by tools/make_horizons.py (NASA LOLA)
   const HZ = (HZ_DATA && HZ_DATA.sites) || {};
   const TG = window.MW_TERRAIN_GRID || null;          // generated by tools/make_horizons.py (NASA LOLA grids, MK-10)
@@ -2723,7 +2760,12 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
   function horizonAt(s, az, flat) {
     return flat || !terrainOn(s) ? 0 : skylineAt(s.prof, az);
   }
-  const isUp = (s, b, flat) => b.el > horizonAt(s, b.az, flat);
+  function clearsSkyline(b, skyline) {
+    const offset = b.kind === 'sun' && sunRule !== 'centre'
+      ? SUN_RULES[sunRule] * E.angularRadiusDeg(b.distKm, E.SUN_RADIUS_KM) : 0;
+    return b.el + offset > skyline;
+  }
+  const isUp = (s, b, flat) => clearsSkyline(b, horizonAt(s, b.az, flat));
 
   // Hourly samples from the window start (anchor). Recomputed only when the site changes
   // or the chosen time leaves the 30-day window, so "Play" stays smooth.
@@ -2754,11 +2796,11 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
   }
 
   // Next time the body crosses the horizon after s.t, refined to one minute.
-  function nextChange(s, body, upNow) {
-    const i0 = Math.floor((s.t - s.anchor) / HOUR);
+  function nextChange(s, body, upNow, time = s.t) {
+    const i0 = Math.floor((time - s.anchor) / HOUR);
     for (let i = i0 + 1; i <= SAMPLE_H; i++) {
       if (isUp(s, s.samples[i][body]) !== upNow) {
-        let lo = Math.max(s.t, s.anchor + (i - 1) * HOUR), hi = s.anchor + i * HOUR;
+        let lo = Math.max(time, s.anchor + (i - 1) * HOUR), hi = s.anchor + i * HOUR;
         while (hi - lo > 60e3) {
           const mid = (lo + hi) / 2;
           if (isUp(s, E.skyAt(new Date(mid), s.lat, s.lon)[body]) === upNow) lo = mid; else hi = mid;
@@ -2890,7 +2932,9 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
         ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}" stroke="#000" stroke-width="1.5"/>`
         : `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="3 3"/>`;
       const txt = `${label} ${fmtDeg(b.el)}${inView ? '' : ' (below view)'}`;
-      const sub = `${up ? 'above horizon' : blocked ? 'hidden behind terrain' : 'below horizon'}, ${Math.round(b.az)}° ${compass(b.az)}`;
+      const status = b.kind === 'sun' && sunRule !== 'centre' ? (up ? 'meets sunlight rule' : 'below sunlight threshold')
+        : (up ? 'above horizon' : blocked ? 'hidden behind terrain' : 'below horizon');
+      const sub = `${status}, ${Math.round(b.az)}° ${compass(b.az)}`;
       const w = Math.max(txt.length * 9, sub.length * 6.8);
       const box = (rt, yy) => { const xx = rt ? cx + r + 6 : cx - r - 6; return { rt, xx, yy, x1: rt ? xx : xx - w, x2: rt ? xx + w : xx, y1: yy - 15, y2: yy + 19 }; };
       const fits = a => a.y1 >= T && a.y2 <= T + ph + 6 && a.x1 >= L - 4 && a.x2 <= L + pw + 4;
@@ -2947,16 +2991,19 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       ? 'Solar panels need the Sun above the horizon. At the poles the Sun stays low, so panels are mounted vertically.'
       : 'Direct-to-Earth radio needs Earth above the local horizon. Otherwise a relay satellite is needed.';
     const word = isSun ? (up ? 'Sun up' : 'Sun down') : (up ? 'Earth up' : 'Earth down');
-    const chip = blocked ? 'Blocked by terrain' : isSun ? (up ? 'Power available' : 'No solar power') : (up ? 'Direct radio possible' : 'No direct radio');
+    const chip = isSun ? (up ? 'Meets sunlight rule' : blocked && sunRule === 'centre' ? 'Blocked by terrain' : 'Below sunlight threshold')
+      : blocked ? 'Blocked by terrain' : (up ? 'Direct radio possible' : 'No direct radio');
     const ev = isSun ? (up ? 'Sunset' : 'Sunrise') : (up ? 'Earthset' : 'Earthrise');
     const count = nc.at
       ? `<p class="count">${ev} in ${fmtDur(nc.at - s.t)}</p><p class="muted">${esc(fmtUTC(nc.at))}</p>`
       : `<p class="count">No ${ev.toLowerCase()} in the next ${nc.days} days</p><p class="muted">${terrainOn(s) ? 'With real terrain' : 'With a flat horizon'}</p>`;
     const h = horizonAt(s, b.az);
-    const terrLine = terrainOn(s) ? `<p class="muted">Skyline in that direction: ${fmtDeg(h)}. ${up ? 'Clears it by' : 'Below it by'} ${fmtDeg(Math.abs(b.el - h))}.</p>` : '';
+    const terrLine = terrainOn(s) ? `<p class="muted">Skyline in that direction: ${fmtDeg(h)}. ${isSun ? 'Sun' : 'Earth'} centre ${fmtDeg(Math.abs(b.el - h))} ${b.el >= h ? 'above' : 'below'} it.</p>` : '';
+    const where = isSun ? `Sunlight rule: ${SUN_RULE_LABELS[sunRule]}`
+      : blocked ? 'Earth above flat ground but hidden by hills' : word + ', ' + (up ? 'above' : 'below') + ' the horizon';
     return `<h3>${title} <button type="button" class="tip" data-tip="${esc(tip)}" aria-label="${esc(tip)}">?</button></h3>
       <div class="state"><span class="big">${fmtDeg(b.el)}</span><span class="chip ${up ? 'ok' : 'no'}">${chip}</span></div>
-      <p class="muted">${blocked ? (isSun ? 'Sun' : 'Earth') + ' above flat ground but hidden by hills' : word + ', ' + (up ? 'above' : 'below') + ' the horizon'}, toward ${Math.round(b.az)}° (${compass(b.az)})</p>
+      <p class="muted">${where} · ${Math.round(b.az)}° (${compass(b.az)})</p>
       ${terrLine}${count}`;
   }
 
@@ -2979,6 +3026,14 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     if (!(isUp(s, s.cur.sun) && isUp(s, s.cur.earth))) return null;
     const ends = [s.nextSun.at, s.nextEarth.at].filter(v => v);
     return ends.length ? Math.min(...ends) - s.t : Infinity;
+  }
+
+  function slippedWindow(s, time) {
+    const sky = E.skyAt(new Date(time), s.lat, s.lon);
+    if (!isUp(s, sky.sun) || !isUp(s, sky.earth)) return null;
+    const sun = nextChange(s, 'sun', true, time).at;
+    const earth = nextChange(s, 'earth', true, time).at;
+    return Math.min(sun ?? Infinity, earth ?? Infinity) - time;
   }
 
   function renderSiteSummary(s, el) {
@@ -3202,12 +3257,31 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     if (!view || view === 'mission') $(el, '.month').innerHTML = monthCard(s);
   }
 
+  // Shared by the Mission panel and the spreadsheet export.
+  function missionResults() {
+    return scenarios.map(s => {
+      const slipTime = s.t + 7 * DAY;
+      return { s, overlap: bothWindow(s), slipTime, slipped: slippedWindow(s, slipTime),
+        searchedThrough: s.anchor + SAMPLE_H * HOUR, power: window.MW_POWER.estimate(s, API) };
+    });
+  }
+
+  function overlapLabel(duration, time, limit) {
+    if (duration === null) return 'No overlap';
+    return duration === Infinity ? `≥ ${fmtDur(limit - time)}` : fmtDur(duration);
+  }
+
+  function meetsMission(duration, days) {
+    return duration !== null && duration >= days * DAY;
+  }
+
   function renderMissionSummary() {
     const box = document.getElementById('compare');
-    const bw = scenarios.map(s => bothWindow(s));
+    const results = missionResults();
+    const bw = results.map(r => r.overlap);
     const best = Math.max(...bw.map(v => v === null ? -1 : v));
     const solar = window.MW_POWER;
-    const estimates = scenarios.map(s => solar.estimate(s, API));
+    const estimates = results.map(r => r.power);
     const leaders = bw.flatMap((duration, i) => duration === best ? [LETTERS[i]] : []);
     const durationText = best === Infinity ? 'many days' : best > 0 ? fmtDur(best) : '';
     const verdict = best < 0 ? 'Sun and Earth are not both visible at the selected times.'
@@ -3216,7 +3290,24 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       : `${leaders[0]} has the longest shared visibility from its selected time, at ${durationText}.`;
     document.querySelector('.mission-verdict').textContent = verdict;
     document.querySelector('.energy-label').textContent = `${solar.days}-day solar energy`;
-    scenarios.forEach((s, i) => { $(s.el, '.mission-energy').textContent = estimates[i].energy; });
+    const days = solar.missionDays;
+    const ready = results.filter(r => meetsMission(r.overlap, days)).length;
+    const readyAfterSlip = results.filter(r => meetsMission(r.slipped, days)).length;
+    document.querySelector('.mission-target').textContent = days === null
+      ? 'Enter a mission duration of 1–30 days.'
+      : `${ready}/${results.length} meet the ${days}-day requirement · ${readyAfterSlip}/${results.length} after a 1-week slip`;
+    for (const { s, overlap, slipTime, slipped, searchedThrough, power } of results) {
+      $(s.el, '.mission-energy').textContent = power.energy;
+      const status = duration => days === null ? '' : meetsMission(duration, days)
+        ? ' <b class="mission-pass" aria-hidden="true">✓</b>' : ' <b class="mission-fail" aria-hidden="true">✕</b>';
+      const start = overlapLabel(overlap, s.t, searchedThrough);
+      const delayed = overlapLabel(slipped, slipTime, searchedThrough);
+      const readiness = $(s.el, '.mission-readiness');
+      readiness.innerHTML = `Selected: ${start}${status(overlap)} · +1 week: ${delayed}${status(slipped)}`;
+      const explain = duration => days === null ? '' : meetsMission(duration, days) ? ', meets target' : ', below target';
+      readiness.setAttribute('aria-label', `Selected: ${start}${explain(overlap)}. One week later: ${delayed}${explain(slipped)}.`);
+      readiness.title = `Continuous Sun and Earth visibility from ${fmtFull(s.t)} and ${fmtFull(slipTime)}`;
+    }
     const rows = [
       ['Site and time', s => `${esc(siteName(s))}<br><span class="muted">${esc(fmtUTC(s.t))} · ${terrainOn(s) ? 'LOLA skyline' : 'Flat horizon'}</span>`],
       ['Both visible for', (_, i) => {
@@ -3236,6 +3327,38 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     table.tBodies[0].innerHTML = rows.map(([label, value]) =>
       `<tr><th scope="row">${label}</th>${scenarios.map((s, i) => `<td>${value(s, i)}</td>`).join('')}</tr>`
     ).join('');
+  }
+
+  function downloadMissionCsv() {
+    const solar = window.MW_POWER.settings;
+    const days = window.MW_POWER.missionDays;
+    const hours = (duration, time, limit) => (duration === Infinity ? limit - time : duration ?? 0) / HOUR;
+    const iso = t => new Date(t).toISOString();
+    const rows = [[
+      'scenario', 'site', 'latitude_deg', 'longitude_deg_east', 'start_utc', 'slip_start_utc', 'horizon',
+      'horizon_grid_m', 'visibility_rule', 'required_continuous_days', 'overlap_hours',
+      'overlap_is_lower_bound', 'meets_requirement', 'slip_overlap_hours', 'slip_overlap_is_lower_bound',
+      'slip_meets_requirement', 'hourly_search_through_utc', 'panel_area_m2', 'panel_efficiency_pct',
+      'panel_mount', 'panel_azimuth_deg', 'power_at_start_w', 'average_power_w', 'energy_kwh',
+      'timeline_start_utc', 'sun_fraction_30d', 'earth_fraction_30d', 'overlap_fraction_30d'
+    ], ...missionResults().map(({ s, overlap, slipTime, slipped, searchedThrough, power }, i) => [
+      LETTERS[i], siteName(s), s.lat, lonE360(s.lon), iso(s.t), iso(slipTime),
+      terrainOn(s) ? 'NASA LOLA' : 'Flat', terrainOn(s) ? s.profInfo.resM : '',
+      `${SUN_RULE_LABELS[sunRule]} above skyline; Earth centre above skyline`, days,
+      hours(overlap, s.t, searchedThrough), overlap === Infinity, days === null ? '' : meetsMission(overlap, days),
+      hours(slipped, slipTime, searchedThrough), slipped === Infinity, days === null ? '' : meetsMission(slipped, days),
+      iso(searchedThrough), solar?.area, solar?.efficiency,
+      solar ? (solar.azimuth === null ? 'Vertical Sun-tracking' : 'Vertical fixed') : '', solar?.azimuth,
+      power.nowW, power.averageW, power.energyKWh, iso(s.anchor), s.stats.sun, s.stats.earth, s.stats.both
+    ])];
+    const csv = rows.map(row => row.map(value => typeof value === 'string'
+      ? '"' + value.replaceAll('"', '""') + '"' : String(value ?? '')).join(',')).join('\r\n') + '\r\n';
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'moonwindow-mission.csv';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   function renderAll() {
@@ -3301,11 +3424,13 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
   // URL: #s=lat,lon,YYYYMMDDTHHMM;...
   function saveHash() {
     const enc = scenarios.map(s => `${+s.lat.toFixed(4)},${+s.lon.toFixed(4)},${new Date(s.t).toISOString().slice(0, 16).replace(/[-:]/g, '')}`).join(';');
-    try { history.replaceState(null, '', '#s=' + enc); } catch (e) { /* sandboxed preview */ }
+    try { history.replaceState(null, '', '#s=' + enc + (sunRule === 'centre' ? '' : '&sun=' + sunRule)); } catch (e) { /* sandboxed preview */ }
   }
   function loadHash() {
     const m = /#s=([^&]+)/.exec(location.hash);
     if (!m) return false;
+    const rule = new URLSearchParams(location.hash.slice(1)).get('sun');
+    if (Object.hasOwn(SUN_RULES, rule)) sunRule = rule;
     const parts = decodeURIComponent(m[1]).split(';').slice(0, MAX_SCENARIOS);
     let ok = false;
     parts.forEach(p => {
@@ -3406,6 +3531,12 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
   }
 
   panelToggle.addEventListener('click', () => setPanel(sitePanel.hidden ? sitePanel.dataset.view : null));
+  document.getElementById('exportMission').addEventListener('click', downloadMissionCsv);
+  const sunRuleInput = document.getElementById('missionSunRule');
+  sunRuleInput.addEventListener('change', () => {
+    sunRule = sunRuleInput.value;
+    renderAll();
+  });
   for (const button of panelButtons) {
     button.addEventListener('click', () => setPanel(button.dataset.panelView));
   }
@@ -3519,6 +3650,8 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     renderMissionSummary,
     siteProfile: (lat, lon) => profileFor({ lat, lon, siteId: matchSite(lat, lon) }),
     skylineAt,
+    sunRule: () => sunRule,
+    clearsSkyline,
     setSite(i, lat, lon) { const s = scenarios[i]; if (!s) return; s.lat = lat; s.lon = lon; s.siteId = matchSite(lat, lon); ensureSamples(s, true); renderAll(); },
     setTime(i, t, { inspect = false } = {}) {
       const s = scenarios[i];
@@ -3532,7 +3665,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     render: () => renderAll(),
     fmt: { deg: fmtDeg, dur: fmtDur, utc: fmtUTC, full: fmtFull, date: fmtDate, pct, hours: fmtHours, esc },
     nextChange,
-    isUp: (s, b) => isUp(s, b),                     // true if body b ({el, az}) is above the horizon used by scenario s
+    isUp: (s, b) => isUp(s, b),                     // true if the body clears the scenario's visibility threshold
     horizonAt: (s, az) => horizonAt(s, az),          // skyline elevation (deg) for scenario s toward az
     terrain: () => useTerrain, horizons: HZ_DATA, validation: VAL,
     terrainInfo: s => (terrainOn(s) ? { resM: s.profInfo.resM, source: s.profInfo.source } : null)  // null = flat ground
@@ -3558,6 +3691,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     const site = siteById('im2');
     addScenario(site.lat, site.lon, Math.floor(Date.now() / HOUR) * HOUR);
   }
+  sunRuleInput.value = sunRule;
   renderAll();
 
   // Decode the LOLA terrain grids in the background (about 0.1 s), then redraw so custom polar

@@ -8,8 +8,8 @@ We checked MoonWindow’s sunlight predictions against **309 real Lunar Reconnai
 | --- | ---: | ---: | ---: |
 | Flat horizon, Sun centre | 77.3% | 1 / 52 | 1 / 52 |
 | Flat horizon, first or last visible edge | 74.0% | 0 / 52 | 1 / 52 |
-| LOLA terrain, Sun centre (current Mission rule) | 96.8% | 11 / 52 | 31 / 52 |
-| LOLA terrain, first or last visible edge (tested variant) | 98.3% | 32 / 52 | 49 / 52 |
+| LOLA terrain, Sun centre (default Mission rule) | 96.8% | 11 / 52 | 31 / 52 |
+| LOLA terrain, first or last visible edge (Any visible part) | 98.3% | 32 / 52 | 49 / 52 |
 
 The current rule correctly classifies **19,338 of 19,343** confidently dark patches and **5,778 of 6,172** confidently bright patches. Of the 32 centre-rule crossings found near the interval but outside it, all 15 sunrises are late and all 17 sunsets are early. That pattern is consistent with partial sunlight reaching the surface before the Sun’s centre clears the skyline and persisting after the centre drops below it.
 
@@ -21,7 +21,7 @@ On **18 August 2010** at **89.28604°S, 270.13232°E**, the camera saw shadow fo
 
 ![Observed LROC brightness measurements and model predictions for the 18 August 2010 sunrise](lroc-sunrise.png)
 
-This matters for planning because first direct light and usable solar power are different thresholds. A camera can see illuminated terrain when only part of the disk is visible. Available power also depends on panel orientation and how much of the disk is exposed. The timing experiment evaluates the sunlight side of the challenge. Direct-to-Earth communications and electrical output require separate evidence.
+To try the study’s disk-edge rule in the app, open **Mission → Power settings and figures** and select **Any visible part**. A camera can see illuminated terrain when only part of the disk is visible. Available power also depends on panel orientation and how much of the disk is exposed. The timing experiment evaluates the sunlight side of the challenge. Direct-to-Earth communications and electrical output require separate evidence.
 
 ## Method
 
