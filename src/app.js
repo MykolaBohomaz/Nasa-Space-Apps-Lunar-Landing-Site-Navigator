@@ -547,20 +547,34 @@
     box.hidden = scenarios.length < 2;
     document.getElementById('compareEmpty').hidden = !box.hidden;
     if (box.hidden) return;
-    box.tabIndex = 0; // the table can scroll sideways on small screens; this lets keyboard users scroll it
     const bw = scenarios.map(s => bothWindow(s));
     const best = Math.max(...bw.map(v => v === null ? -1 : v));
-    const now = (b, nc, setW, riseW, s) => `${isUp(s, b) ? 'Up' : b.el > 0 ? 'Behind terrain' : 'Down'}, ${fmtDeg(b.el)}<br><span class="muted">${changeText(s, nc, isUp(s, b), setW, riseW)}</span>`;
-    box.querySelector('tbody').innerHTML = scenarios.map((s, i) => {
-      const isBest = bw[i] !== null && bw[i] === best && scenarios.length > 1;
-      const bwText = bw[i] === null ? 'Not now' : bw[i] === Infinity ? 'Many days' : fmtDur(bw[i]);
-      return `<tr>
-      <td><b>${LETTERS[i]}</b></td><td>${esc(siteName(s))}${terrainOn(s) ? '<br><span class="muted">Real terrain (LOLA)</span>' : ''}</td><td>${esc(fmtUTC(s.t))}</td>
-      <td>${now(s.cur.sun, s.nextSun, 'Sets', 'Rises', s)}</td><td>${now(s.cur.earth, s.nextEarth, 'Sets', 'Rises', s)}</td>
-      <td class="num ${isBest ? 'best' : ''}">${bwText}${isBest ? ' (longest)' : ''}</td>
-      <td class="num">${pct(s.stats.sun)}</td><td class="num">${pct(s.stats.earth)}</td><td class="num">${pct(s.stats.both)}</td>
-      <td class="num">${s.stats.maxDark ? fmtHours(s.stats.maxDark) : 'none'}</td></tr>`;
-    }).join('');
+    const now = (s, body, next) => {
+      const up = isUp(s, body);
+      return `${up ? 'Up' : body.el > 0 ? 'Behind terrain' : 'Down'}, ${fmtDeg(body.el)}<br><span class="muted">${changeText(s, next, up, 'Sets', 'Rises')}</span>`;
+    };
+    const rows = [
+      ['Site', s => `${esc(siteName(s))}<br><span class="muted">${terrainOn(s) ? 'LOLA skyline' : 'Flat horizon'}</span>`],
+      ['Time (UTC)', s => esc(fmtUTC(s.t))],
+      ['Sun now', s => now(s, s.cur.sun, s.nextSun)],
+      ['Earth now', s => now(s, s.cur.earth, s.nextEarth)],
+      ['Both visible for', (_, i) => {
+        if (bw[i] === null) return 'Not now';
+        const duration = bw[i] === Infinity ? 'Many days' : fmtDur(bw[i]);
+        return bw[i] === best ? `<span class="best">${duration} (longest)</span>` : duration;
+      }],
+      ['Sunlight, 30 d', s => pct(s.stats.sun)],
+      ['Earth in view, 30 d', s => pct(s.stats.earth)],
+      ['Both visible, 30 d', s => pct(s.stats.both)],
+      ['Longest night', s => s.stats.maxDark ? fmtHours(s.stats.maxDark) : 'None']
+    ];
+    const table = box.querySelector('table');
+    table.style.minWidth = (80 + scenarios.length * 86) + 'px';
+    table.tHead.innerHTML = `<tr><th scope="col">Metric</th>${scenarios.map((_, i) =>
+      `<th scope="col">Scenario ${LETTERS[i]}</th>`).join('')}</tr>`;
+    table.tBodies[0].innerHTML = rows.map(([label, value]) =>
+      `<tr><th scope="row">${label}</th>${scenarios.map((s, i) => `<td>${value(s, i)}</td>`).join('')}</tr>`
+    ).join('');
   }
 
   function renderAll() {
@@ -765,7 +779,7 @@
   terrainBtn.addEventListener('click', () => {
     useTerrain = !useTerrain;
     terrainBtn.setAttribute('aria-pressed', String(useTerrain));
-    terrainBtn.textContent = useTerrain ? 'Terrain: real (NASA LOLA)' : 'Terrain: flat ground';
+    terrainBtn.textContent = useTerrain ? 'LOLA terrain' : 'Flat horizon';
     renderAll();
   });
   if (VAL) {

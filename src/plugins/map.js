@@ -478,33 +478,46 @@
         <div class="mw-globe-header">
           <h1>MoonWindow</h1>
           <select aria-label="Select landing site for scenario A"></select>
-          <p id="mw-globe-help">Pick a site on the Moon or from the list. Drag to orbit and scroll or pinch to zoom.</p>
+          <p id="mw-globe-help">Pick a site · Drag to orbit · Scroll or pinch to zoom</p>
           <div role="status" class="mw-globe-status"></div>
         </div>
-        <div class="mw-globe-controls" role="group" aria-label="Globe controls">
-            <button type="button" data-action="pole">South pole</button>
-            <button type="button" data-action="reset">Reset view</button>
-            <button type="button" data-action="in" aria-label="Zoom in">+</button>
-            <button type="button" data-action="out" aria-label="Zoom out">−</button>
-            <button type="button" data-action="earth" title="Find Earth at the selected scenario time">Find Earth</button>
-            <button type="button" data-action="sun" title="Find the Sun at the selected scenario time">Find Sun</button>
+        <div class="mw-globe-dock">
+          <div class="mw-globe-controls" role="group" aria-label="Globe controls">
+            <button type="button" data-action="pole" aria-label="South pole"><span class="mw-pole-prefix">South </span>Pole</button>
+            <button type="button" data-action="reset" aria-label="Reset view">Reset</button>
+            <div class="mw-globe-zoom" role="group" aria-label="Zoom">
+              <button type="button" data-action="in" aria-label="Zoom in">+</button>
+              <button type="button" data-action="out" aria-label="Zoom out">−</button>
+            </div>
+            <div class="mw-globe-find" role="group" aria-label="Find in the sky">
+              <button type="button" data-action="earth" aria-label="Find Earth" title="Find Earth at the selected scenario time">Earth</button>
+              <button type="button" data-action="sun" aria-label="Find Sun" title="Find the Sun at the selected scenario time">Sun</button>
+            </div>
+          </div>
+          <details class="mw-globe-credit">
+            <summary>Globe data</summary>
+            <div class="mw-globe-sources">
+              <div><a target="_blank" rel="noopener"></a><span></span></div>
+              <div><a href="https://svs.gsfc.nasa.gov/4720/" target="_blank" rel="noopener">NASA SVS / LROC imagery</a></div>
+              <div><a href="https://svs.gsfc.nasa.gov/4851/" target="_blank" rel="noopener">NASA SVS star map</a></div>
+            </div>
+          </details>
         </div>
         <div class="mw-globe-viewport">
           <canvas tabindex="0" aria-label="Moon terrain. Use arrow keys to orbit, plus or minus to zoom, and Enter to select the center."
             aria-describedby="mw-globe-help"></canvas>
           <div class="mw-globe-pins"></div>
         </div>
-          <span class="mw-globe-credit"><a target="_blank" rel="noopener"></a><span></span> · <a href="https://svs.gsfc.nasa.gov/4720/" target="_blank" rel="noopener">NASA SVS / LROC imagery</a> · <a href="https://svs.gsfc.nasa.gov/4851/" target="_blank" rel="noopener">NASA SVS star map</a></span>
       </section>`;
     const canvas = slot.querySelector('canvas');
     const viewport = canvas.parentElement;
     const panel = document.getElementById('sitePanel');
     const sheetLayout = window.matchMedia('(max-width: 900px)');
     if (window.MW_POLAR_MAP?.credit) {
-      const polarCredit = document.createElement('span');
-      polarCredit.textContent = ' · South pole relief: NASA LOLA';
+      const polarCredit = document.createElement('div');
+      polarCredit.textContent = 'South pole relief from NASA LOLA';
       polarCredit.title = window.MW_POLAR_MAP.credit;
-      slot.querySelector('.mw-globe-credit').append(polarCredit);
+      slot.querySelector('.mw-globe-sources').append(polarCredit);
     }
     const pins = slot.querySelector('.mw-globe-pins');
     const select = slot.querySelector('select');
@@ -576,7 +589,8 @@
       pins.append(button);
       return { ...site, element: button };
     });
-    const markers = ['A', 'B', 'C'].map(letter => {
+    const letters = ['A', 'B', 'C'];
+    const markers = letters.map(letter => {
       const element = document.createElement('span');
       element.textContent = letter;
       element.className = 'mw-globe-scenario';
@@ -858,7 +872,20 @@
           earth: normalize(positions.sun.map((value, i) => value - positions.earth[i]))
         };
       }
-      scenarioPins = scenarios.map((scenario, index) => ({ ...scenario, element: markers[index] }));
+      const locations = new Map();
+      scenarios.forEach(({ lat, lon }, index) => {
+        const key = `${lat},${((lon % 360) + 360) % 360}`;
+        const existing = locations.get(key);
+        const element = markers[index];
+        if (existing) {
+          existing.element.textContent += ' · ' + letters[index];
+          element.hidden = true;
+        } else {
+          element.textContent = letters[index];
+          locations.set(key, { lat, lon, element });
+        }
+      });
+      scenarioPins = [...locations.values()];
       markers.slice(scenarios.length).forEach(marker => { marker.hidden = true; });
       schedule();
     };
