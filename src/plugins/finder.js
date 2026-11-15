@@ -3,16 +3,28 @@
   'use strict';
   const MAX_PICKS = 3;
   const MAX_RESULTS = 8;
+  const ARTEMIS_SPACING_KM = 2;
+  const POLAR_SPACING_KM = 12;
+  const radians = Math.PI / 180;
   const regions = window.MW_SITE_CANDIDATES || [];
+  const polar = regions.find(region => region.id === 'south-pole');
+  const artemis = regions.filter(region => region !== polar);
   const nextFrame = () => new Promise(resolve => setTimeout(resolve, 0));
+
+  function surfaceDistanceKm(a, b, radiusKm) {
+    const latA = a.lat * radians, latB = b.lat * radians;
+    const h = Math.sin((latB - latA) / 2) ** 2 +
+      Math.cos(latA) * Math.cos(latB) * Math.sin((b.lon - a.lon) * radians / 2) ** 2;
+    return 2 * radiusKm * Math.asin(Math.sqrt(Math.min(1, h)));
+  }
 
   function mount(slot, api) {
     slot.innerHTML = `
       <section class="mw-finder" aria-labelledby="mw-finder-heading">
         <h2 id="mw-finder-heading">Find landing sites</h2>
-        <p class="muted">Screen points within 5 km of the nine Artemis region reference coordinates. The coverage filters use modeled 2027 visibility.</p>
+        <p class="mw-finder-scope muted"></p>
         <form class="mw-finder-fields">
-          <label class="field"><span>Region</span><select name="region"></select></label>
+          <label class="field"><span>Search area</span><select name="region"></select></label>
           <label class="field"><span>Rank by</span><select name="rank">
             <option value="both">Most Sun and Earth together</option>
             <option value="sun">Most sunlight</option>
@@ -40,11 +52,13 @@
 
     const form = slot.querySelector('form');
     const regionSelect = form.elements.namedItem('region');
-    regionSelect.add(new Option('All nine regions', ''));
-    for (const region of regions) regionSelect.add(new Option(region.name, region.id));
+    if (polar) regionSelect.add(new Option(`South pole · ${polar.radiusKm} km radius`, polar.id));
+    regionSelect.add(new Option('All nine Artemis regions', ''));
+    for (const region of artemis) regionSelect.add(new Option(region.name, region.id));
     const value = name => form.elements.namedItem(name).value;
     const number = name => form.elements.namedItem(name).valueAsNumber;
     const count = slot.querySelector('.mw-finder-count');
+    const scope = slot.querySelector('.mw-finder-scope');
     const choices = slot.querySelector('.mw-finder-picks');
     const list = choices.querySelector('ol');
     const daysInput = slot.querySelector('.mw-finder-days');
@@ -78,19 +92,33 @@
     function filter() {
       const regionId = value('region');
       const rank = value('rank');
-      const matches = regions.filter(r => !regionId || r.id === regionId)
+      const wide = polar && regionId === polar.id;
+      const spacing = wide ? POLAR_SPACING_KM : ARTEMIS_SPACING_KM;
+      scope.textContent = (wide
+        ? `Search points on a ${polar.stepKm} km grid within ${polar.radiusKm} km of the south pole.`
+        : 'Search points within 5 km of the selected Artemis region reference points.') +
+        ' Coverage filters use modeled 2027 visibility.';
+      const searchRegions = wide ? [polar] : artemis.filter(r => !regionId || r.id === regionId);
+      const matches = searchRegions
         .flatMap(r => r.sites.map(s => ({ ...s, region: r.name })))
         .filter(s => s.slope <= number('slope') && s.sun * 100 >= number('sun') && s.earth * 100 >= number('earth'))
         .sort((a, b) => (rank === 'slope' ? a.slope - b.slope : b[rank] - a[rank]) || b.both - a.both || a.slope - b.slope);
-      results = matches.slice(0, MAX_RESULTS);
+      results = [];
+      for (const site of matches) {
+        if (results.some(other => surfaceDistanceKm(site, other, api.engine.MOON_RADIUS_KM) < spacing)) continue;
+        results.push(site);
+        if (results.length === MAX_RESULTS) break;
+      }
       picked = new Set(results.slice(0, MAX_PICKS));
-      count.textContent = matches.length ? `${matches.length} matching points · showing ${results.length}` : 'No points match. Try a different region or relax a filter.';
+      count.textContent = matches.length
+        ? `${matches.length} matching points · ${results.length} shortlisted · minimum ${spacing} km spacing`
+        : 'No points match. Try a different region or relax a filter.';
       choices.hidden = !results.length;
       slot.querySelector('.mw-finder-window').hidden = !results.length;
       list.innerHTML = results.map((s, i) => `<li><label>
         <input type="checkbox" data-rank="${i}" ${picked.has(s) ? 'checked' : ''}>
         <span><strong>${f.esc(s.region)}</strong> · ${coordinates(s)}
-          <small>${s.slope.toFixed(1)}° slope · ${s.resM} m LOLA · ${s.original ? 'original candidate' : s.distanceKm.toFixed(1) + ' km from reference point'}</small>
+          <small>${s.slope.toFixed(1)}° slope · ${s.resM} m LOLA · ${s.original ? 'original candidate' : s.distanceKm.toFixed(1) + (wide ? ' km from pole' : ' km from reference point')}</small>
           <small>Sun ${f.pct(s.sun)} · Earth ${f.pct(s.earth)} · Both ${f.pct(s.both)}</small>
         </span>
       </label></li>`).join('');
