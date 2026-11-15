@@ -539,6 +539,7 @@
       }
       groups.get(site.group).append(new Option(site.name, site.id));
     }
+    select.value = '';
     select.addEventListener('change', () => {
       const site = api.SITES.find(item => item.id === select.value);
       select.value = '';

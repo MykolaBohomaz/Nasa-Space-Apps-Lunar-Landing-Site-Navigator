@@ -54,7 +54,7 @@
       <h3>Find landing dates</h3>
       <p>Dates in the next year when a lander here keeps sunlight and direct radio to Earth together for long enough. It uses the same horizon as the rest of this scenario.</p>
       <form>
-        <label>Need Sun and Earth together for at least <input type="number" min="1" max="20" step="1" value="7" inputmode="numeric"> days</label>
+        <label>Need Sun and Earth together for at least <input type="number" min="1" max="30" step="1" value="7" inputmode="numeric"> days</label>
         <label>Order <select name="order"><option value="earliest">Earliest start</option><option value="longest">Longest overlap</option></select></label>
         <button class="btn small" type="submit">Find dates</button>
       </form>
@@ -62,12 +62,12 @@
     </section>`;
   }
 
-  function show(slot, s, api, res, minDays, order) {
+  function show(slot, s, api, res, minDays, order, start) {
     const out = slot.querySelector('.out'), f = api.fmt;
     const idx = () => api.scenarios().indexOf(s);
     const hasTerrain = api.terrainInfo ? !!api.terrainInfo(s) : false;
     const terrainNote = hasTerrain ? 'Uses real NASA LOLA terrain.' : 'Uses flat ground.';
-    const searchNote = `<p>Searched from <strong>${f.esc(f.full(s.t))}</strong> for one year.</p>`;
+    const searchNote = `<p>Searched from <strong>${f.esc(f.full(start))}</strong> for one year.</p>`;
     if (!res.anyEarth) { out.innerHTML = searchNote + '<p class="note"><b>No window.</b> Earth never rises during this search.</p>'; return; }
     if (!res.anySun) { out.innerHTML = searchNote + '<p class="note"><b>No window.</b> The Sun never clears the horizon during this search.</p>'; return; }
     if (!res.longest) { out.innerHTML = searchNote + '<p class="note"><b>No shared visibility window during this search.</b></p>'; return; }
@@ -96,22 +96,28 @@
         const form = slot.querySelector('form'), input = slot.querySelector('input');
         const order = form.elements.namedItem('order');
         input.value = st.minDays;
-        form.addEventListener('submit', e => {
-          e.preventDefault();
-          st.minDays = Math.max(1, Math.min(20, Math.round(Number(input.value) || 7)));
+        st.search = (days, start = s.t, earliest = false) => {
+          if (earliest) order.value = 'earliest';
+          st.minDays = Math.max(1, Math.min(30, Math.round(days || 7)));
           input.value = st.minDays;
           const out = slot.querySelector('.out');
           const request = ++st.request;
           const key = st.key = keyFor();
-          out.textContent = `Searching from ${api.fmt.full(s.t)}…`;
+          st.result = null;
+          st.start = start;
+          out.textContent = `Searching from ${api.fmt.full(start)}…`;
           setTimeout(() => {
             if (request !== st.request || key !== keyFor()) return;
-            st.result = findWindows(api, s, st.minDays, SEARCH_DAYS);
-            show(slot, s, api, st.result, st.minDays, order.value);
+            st.result = findWindows(api, { ...s, t: start }, st.minDays, SEARCH_DAYS);
+            show(slot, s, api, st.result, st.minDays, order.value, start);
           }, 20);
+        };
+        form.addEventListener('submit', e => {
+          e.preventDefault();
+          st.search(Number(input.value));
         });
         order.addEventListener('change', () => {
-          if (st.result && st.key === keyFor()) show(slot, s, api, st.result, st.minDays, order.value);
+          if (st.result && st.key === keyFor()) show(slot, s, api, st.result, st.minDays, order.value, st.start);
         });
       }
       // A unique name per scenario, so screen readers can tell the finders apart.
@@ -124,5 +130,5 @@
       }
     }
   });
-  window.MW_PLANNER = { findWindows };
+  window.MW_PLANNER = { findWindows, search(s, days, start) { state.get(s)?.search(days, start, true); } };
 })();

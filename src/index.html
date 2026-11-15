@@ -130,6 +130,10 @@ body.panel-open .mw-globe-dock{right:calc(var(--panel-width) + var(--edge) + 12p
 #sitePanel[data-view="finder"] #scenarioView,
 #sitePanel:not([data-view="finder"]) #finderView{display:none}
 .mission-verdict{margin:2px 0 9px;font-size:.93rem;font-weight:650}
+.mission-context,.decision-event p{color:var(--muted);font-size:.8rem;margin:0 0 7px}
+.mission-decision-actions{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.decision-event{margin:0 0 8px;padding:8px;border:1px solid var(--line);border-radius:8px}
+.limit-card{outline:2px solid var(--sun);outline-offset:-2px}
 .mission-options{display:flex;justify-content:space-between;align-items:center;gap:6px;margin:0 0 5px}
 .mission-options label{display:flex;align-items:center;gap:6px;font-size:.8rem;white-space:nowrap}
 .mission-options input{width:4.1em;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:3px 5px}
@@ -340,6 +344,11 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
         </div>
         <div class="view-mission">
           <p class="mission-verdict"></p>
+          <p class="mission-context"></p>
+          <div class="mission-decision-actions" hidden>
+            <button class="btn small" id="explainDecision" type="button">Show why</button>
+            <button class="btn small" id="findDecisionDate" type="button">Find next qualifying start</button>
+          </div>
           <div class="mission-options">
             <label for="missionDays">Mission days <input id="missionDays" type="number" min="1" max="30" step="1" value="30" required></label>
             <button class="btn small" id="exportMission" type="button">Export CSV</button>
@@ -441,6 +450,10 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       <button class="btn small remove view-site" type="button">Remove scenario</button>
     </div>
     <div class="view-sky">
+      <div class="decision-event" hidden>
+        <p class="decision-event-detail"></p>
+        <button class="btn small" type="button">Back to Mission</button>
+      </div>
       <figure class="sky">
         <svg class="skysvg" viewBox="0 0 1000 300" role="img"></svg>
         <figcaption class="skycap"></figcaption>

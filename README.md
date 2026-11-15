@@ -38,6 +38,8 @@ Open **Power settings and figures** to compare power now and average power in wa
 
 Open `index.html` in any modern browser. That's it: there's no server, nothing to install, and it works offline.
 
+A fresh open goes straight to the **Mons Mouton seven-day decision**. The January 15 start passes. A one-week slip leaves it **6 h 39 min short** because sunlight ends before the mission does. **Show why** opens Sky at that crossing and highlights the limiting body. **Find next qualifying start** searches from the slipped date using the same duration and visibility assumptions. To open this exact scenario from a published copy, append `#s=-84.1652,28.9528,20270115T0600&days=7&view=mission` to the app URL.
+
 To publish it on GitHub Pages: repository **Settings → Pages → Build and deployment → Deploy from a branch → `main` / root → Save**. After a minute the site is live at `https://<user>.github.io/<repo>/`.
 
 ## How it works
