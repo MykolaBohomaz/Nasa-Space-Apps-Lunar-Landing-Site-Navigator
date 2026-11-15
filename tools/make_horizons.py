@@ -114,6 +114,23 @@ def site_frame(lat, lon):
     return up, east, north
 
 
+SITE_R_M = 100.0  # Artemis HLS landing site radius, m
+
+def slope_deg(dem, x, y):
+    """Ground slope (deg) across a 100 m-radius landing site: tilt of the best-fit plane through 7 x 7 samples.
+    NASA's Artemis III rule is under 10 deg (Artemis HLS Overview, Space Apps 2025, ntrs 20250009323)."""
+    x, y = np.atleast_1d(x), np.atleast_1d(y)
+    o = np.linspace(-SITE_R_M, SITE_R_M, 7)
+    ox, oy = np.meshgrid(o, o); keep = (ox ** 2 + oy ** 2) <= SITE_R_M ** 2 + 1
+    ox, oy = ox[keep], oy[keep]
+    Z = dem.sample((x[:, None] + ox[None]).ravel(), (y[:, None] + oy[None]).ravel()).reshape(len(x), -1)
+    A = np.stack([ox, oy, np.ones_like(ox)], 1)
+    coef = np.linalg.lstsq(A, np.nan_to_num(Z).T, rcond=None)[0]
+    s = np.degrees(np.arctan(np.hypot(coef[0], coef[1])))
+    s[~np.isfinite(Z).all(1)] = np.nan
+    return s
+
+
 def horizon_profile(dem, lat, lon, fine=None):
     up, east, north = site_frame(lat, lon)
     az = np.radians(np.arange(0, 360, AZ_STEP))
@@ -235,7 +252,8 @@ def main():
         "source": "NASA LRO LOLA south polar DEM LDEM_60S_240MPP_ADJ (Barker et al. 2023, PSJ 4:183; NASA GSFC PGDA, doi:10.60903/gsfcpgda-lola-spole)",
         "fineSource": ("NASA LRO LOLA LDEM_80S_80MPP_ADJ (80 m, 80S to the pole; Barker et al. 2023)" if fine else None),
         "resolutionM": round(dem.sx), "azStepDeg": AZ_STEP, "mastM": MAST_M, "maxDistanceKm": 400,
-        "method": "Highest terrain elevation angle along each azimuth over a 1737.4 km sphere, observer 2 m above ground."},
+        "method": "Highest terrain elevation angle along each azimuth over a 1737.4 km sphere, observer 2 m above ground. "
+                  "slopeDeg: tilt of the best-fit plane across a 100 m-radius landing site."},
         "sites": {}}
     for s in load_sites():
         if s["lat"] > -60.5:
@@ -244,7 +262,10 @@ def main():
         prof, h0, covered, far, res = horizon_profile(dem, s["lat"], s["lon"], fine)
         if not np.isfinite(h0):
             print(f"  {s['id']}: no DEM height at site, skipped"); continue
+        sdem = fine if (fine is not None and res == fine.sx) else dem
+        slope = float(slope_deg(sdem, *sdem.xy(np.array([s["lat"]]), np.array([s["lon"]])))[0])
         out["sites"][s["id"]] = {"lat": s["lat"], "lon": s["lon"], "groundM": round(h0, 1), "resM": round(res),
+                                 "slopeDeg": round(slope, 1) if np.isfinite(slope) else None,
                                  "values": [round(float(v), 2) for v in prof]}
         i = int(np.argmax(prof))
         print(f"  {s['id']:>6}: ground {h0:7.0f} m | skyline {prof.min():6.2f}° to {prof.max():5.2f}° "

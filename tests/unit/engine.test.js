@@ -193,3 +193,31 @@ test('every script in src/ parses', () => {
   assert.ok(files.length >= 5);
   for (const f of files) assert.doesNotThrow(() => new Function(fs.readFileSync(f, 'utf8')), f);
 });
+
+// 15. NASA Artemis III landing rules at our best landing spots (tools/find_artemis_spots.py):
+// slope under 10 deg, Earth in view at least 25% of the year, at least 6.5 days of unbroken sunlight,
+// within 6 deg of the pole. Peak near Cabeus B is the exception to the last rule: the published
+// coordinate for that region is itself at 83.66S (see docs/sites.md).
+test('Artemis III best spots meet NASA landing rules over 2027', () => {
+  const up = (v, b) => b.el > skyline(v, b.az);
+  for (const s of SITES.filter(s => s.id.startsWith('artemis'))) {
+    const h = HZ.sites[s.id];
+    assert.ok(h && h.resM === 80, `${s.id} needs an 80 m precomputed skyline`);
+    assert.ok(h.slopeDeg < 10, `${s.id} slope ${h.slopeDeg}`);
+    if (s.id !== 'artemis-peak-cabeus-b') assert.ok(s.lat <= -84, `${s.id} not within 6 deg of the pole`);
+    let earth = 0, run = 0, best = 0; const n = 365 * 12;
+    for (let i = 0; i < n; i++) {
+      const k = E.skyAt(new Date(Date.UTC(2027, 0, 1) + i * 2 * 3600e3), s.lat, s.lon);
+      earth += up(h.values, k.earth); run = up(h.values, k.sun) ? run + 1 : 0; best = Math.max(best, run);
+    }
+    assert.ok(earth / n >= 0.25, `${s.id} Earth ${(earth / n * 100).toFixed(0)}%`);
+    assert.ok(best * 2 >= 156, `${s.id} longest sunlight ${best * 2} h`);
+  }
+});
+
+// 16. Slope check against a real landing: NASA estimated a 12 deg slope where IM-1 Odysseus came to rest
+// (and tipped over), from LRO images. Our 100 m LOLA slope there must agree within 1.5 deg.
+test('IM-1 slope matches NASA estimate of 12 deg', () => {
+  const s = HZ.sites.im1.slopeDeg;
+  assert.ok(Math.abs(s - 12) <= 1.5, `IM-1 slope ${s}`);
+});

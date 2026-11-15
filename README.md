@@ -6,7 +6,8 @@ NASA Space Apps Challenge 2026 project for the lunar landing site challenge (Sun
 
 ## What it does
 
-- **Landing sites:** 8 real landing sites (IM-2 Athena, IM-1 Odysseus, the Shackleton connecting ridge, Chandrayaan-3, Chang'e 6, SLIM, Blue Ghost 1, Apollo 11) or any custom latitude/longitude.
+- **Landing sites:** 9 real landing sites (IM-2 Athena, IM-1 Odysseus, two points on the Shackleton connecting ridge, Chandrayaan-3, Chang'e 6, SLIM, Blue Ghost 1, Apollo 11), the best landing spot in each of NASA's 9 Artemis III candidate regions, or any custom latitude/longitude.
+- **NASA Artemis III landing rules:** every scenario is checked against the rules NASA set for the crewed lander: within 6° of the pole, ground slope under 10° across the 100 m landing site, Earth in view at least 25% of the year, and unbroken sunlight for the 6.5-day surface stay.
 - **Real terrain from NASA LOLA:** at south polar sites, the skyline (mountains and crater rims) decides when the Sun and Earth are visible. A button compares with flat ground.
 - **Any date and time (UTC):** buttons for ±1 hour, ±1 day, "Now" and "Slip 1 week".
 - **Sky view:** a 360° picture of the sky from the site with the horizon, the Sun and Earth, and their tracks over the next 30 days.
@@ -93,6 +94,30 @@ pip install numpy tifffile imagecodecs pillow
 python3 tools/make_horizons.py && node tools/terrain_report.js && python3 build.py
 ```
 
+## Best landing spots in NASA's Artemis III regions
+
+NASA's Artemis III candidate regions are each about 15 × 15 km; the lander needs a spot about 100 m across inside one. A single "region" coordinate can land on a steep slope or in shadow. The published coordinate for Slater Plain, for example, gets 4% sunlight over a year. So for each region, `tools/find_artemis_spots.py` searches the LOLA 80 m map within 5 km of the published coordinate and applies NASA's landing rules ([Artemis HLS Overview, Space Apps 2025](https://ntrs.nasa.gov/citations/20250009323)):
+
+1. Every point on a 100 m grid (7,845 per region) gets its ground slope across a 100 m-radius site, from a plane fitted to the terrain. Points at 9° or steeper are dropped: NASA's limit is 10°, and an 80 m map smooths small bumps, so we keep a margin.
+2. Each remaining point gets a fast skyline and a year of Sun and Earth positions (2027, every 2 hours). Points with Earth in view less than 25% of the time are dropped.
+3. The 25 sunniest points that remain (at least 300 m apart) get the full skyline the app uses. The sunniest of those becomes the site.
+
+| Region | Published coordinate | Slope | Sun / Earth (year) | Best spot | Distance | Slope | Sun / Earth (year) |
+| --- | --- | ---: | ---: | --- | ---: | ---: | ---: |
+| Peak near Cabeus B | -83.661, 290.986 | 14.1° | 30% / 0% | -83.6181, 291.4089 | 1.93 km | 6.0° | 70% / 60% |
+| Haworth | -86.753, 337.164 | 5.6° | 11% / 36% | -86.9157, 337.0866 | 4.94 km | 1.9° | 58% / 59% |
+| Malapert Massif | -85.99, 359.875 | 6.3° | 44% / 54% | -86.0006, 2.0475 | 4.62 km | 7.0° | 80% / 54% |
+| Mons Mouton Plateau | -84.232, 29.926 | 18.4° | 37% / 100% | -84.2419, 29.1536 | 2.38 km | 2.3° | 52% / 100% |
+| Mons Mouton | -85.423, 31.586 | 8.8° | 40% / 67% | -85.4116, 31.7397 | 0.51 km | 2.9° | 78% / 63% |
+| Nobile Rim 1 | -85.431, 37.241 | 14.2° | 28% / 33% | -85.3066, 37.0461 | 3.81 km | 5.1° | 83% / 53% |
+| Nobile Rim 2 | -83.963, 58.654 | 6.9° | 38% / 62% | -84.0652, 59.242 | 3.62 km | 1.5° | 52% / 73% |
+| de Gerlache Rim 2 | -88.225, 294.579 | 8.8° | 36% / 50% | -88.287, 289.5575 | 5.0 km | 6.9° | 54% / 56% |
+| Slater Plain | -87.149, 126.134 | 6.5° | 4% / 37% | -87.2813, 127.9327 | 4.81 km | 1.3° | 66% / 43% |
+
+The published coordinate for Peak near Cabeus B is at 83.66°S, just outside NASA's 6° limit, so its best spot fails that one rule. The region coordinates come from Table 4 of [this preprint](https://www.preprints.org/manuscript/202511.1488) (`tools/artemis_regions.json`) and should be checked against NASA's official region outlines.
+
+**Checking the slope method against a real landing:** NASA estimated from LRO images that IM-1 Odysseus came to rest on a 12° slope, and the lander tipped over. Our LOLA slope at the IM-1 site is 11.6°. The app shows it failing NASA's 10° rule.
+
 ## Limitations
 
 - **Terrain detail.** The 80 m and 240 m grids capture mountains, ridges and crater rims, not boulders or small craters next to the lander. Points north of 77°S that are not listed sites use flat ground.
@@ -127,7 +152,7 @@ python3 tools/make_horizons.py && node tools/terrain_report.js && python3 build.
 - `src/app.js` is the core UI. `src/engine.js` computes Sun and Earth positions. `src/terrain.js` computes skylines from the LOLA grids. `src/sites.js` is the landing site list.
 - `src/plugins/` holds the extra features, one file each; `_template.js` shows the plugin API.
 - `src/horizon-data.js`, `src/map-data.js`, `src/terrain-grid.js` and `src/validation-data.js` are generated NASA data. Don't edit them by hand; see the `tools/` scripts.
-- `tools/` holds `fetch_horizons.py` and `compare_horizons.js` (JPL Horizons validation) and `make_horizons.py` (LOLA terrain). `docs/validation.md` is the validation table.
+- `tools/` holds `fetch_horizons.py` and `compare_horizons.js` (JPL Horizons validation), `make_horizons.py` (LOLA terrain and slopes), and `artemis_series.js` + `find_artemis_spots.py` (best Artemis III landing spots; results in `artemis_spots.json`). `docs/validation.md` is the validation table.
 - `data/` is the local LOLA elevation model download; it's not in git.
 - `build.py` inlines every `<script src>` into `index.html`. Run `npm install` once, then `python3 build.py`.
 

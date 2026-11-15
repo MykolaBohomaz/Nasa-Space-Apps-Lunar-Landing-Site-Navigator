@@ -1,0 +1,59 @@
+{
+ "source": "Representative coordinates of NASA's Artemis III candidate regions, Table 4 of https://www.preprints.org/manuscript/202511.1488 (names per NASA's 2024 update)",
+ "regions": [
+  {
+   "id": "artemis-peak-cabeus-b",
+   "name": "Peak near Cabeus B",
+   "lat": -83.661,
+   "lon": 290.986
+  },
+  {
+   "id": "artemis-haworth",
+   "name": "Haworth",
+   "lat": -86.753,
+   "lon": 337.164
+  },
+  {
+   "id": "artemis-malapert-massif",
+   "name": "Malapert Massif",
+   "lat": -85.99,
+   "lon": 359.875
+  },
+  {
+   "id": "artemis-mons-mouton-plateau",
+   "name": "Mons Mouton Plateau",
+   "lat": -84.232,
+   "lon": 29.926
+  },
+  {
+   "id": "artemis-mons-mouton",
+   "name": "Mons Mouton",
+   "lat": -85.423,
+   "lon": 31.586
+  },
+  {
+   "id": "artemis-nobile-rim-1",
+   "name": "Nobile Rim 1",
+   "lat": -85.431,
+   "lon": 37.241
+  },
+  {
+   "id": "artemis-nobile-rim-2",
+   "name": "Nobile Rim 2",
+   "lat": -83.963,
+   "lon": 58.654
+  },
+  {
+   "id": "artemis-de-gerlache-rim-2",
+   "name": "de Gerlache Rim 2",
+   "lat": -88.225,
+   "lon": 294.579
+  },
+  {
+   "id": "artemis-slater-plain",
+   "name": "Slater Plain",
+   "lat": -87.149,
+   "lon": 126.134
+  }
+ ]
+}
