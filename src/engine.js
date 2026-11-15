@@ -40,26 +40,30 @@
       return { up, east, north, pos: scale(up, MOON_RADIUS_KM) };
     }
 
-    // Returns {sun:{el,az,distKm}, earth:{el,az,distKm}} for a Date (UTC) at a site.
-    function skyAt(date, latDeg, lonDeg, altKm) {
+    // Sun and Earth positions in lunar body-fixed coordinates, in kilometres.
+    function moonSkyVectors(date) {
       const time = A.MakeTime(date);
       const moonGeo = scale(v3(A.GeoMoon(time)), AU_KM);              // Earth -> Moon
       const sunGeo = scale(v3(A.GeoVector(A.Body.Sun, time, true)), AU_KM); // Earth -> Sun
-      const sunFromMoon = sub(sunGeo, moonGeo);
-      const earthFromMoon = scale(moonGeo, -1);
       const ax = moonAxes(time);
       const toBF = v => [dot(v, ax.X), dot(v, ax.Y), dot(v, ax.Z)];
+      return { sun: toBF(sub(sunGeo, moonGeo)), earth: toBF(scale(moonGeo, -1)) };
+    }
+
+    // Returns {sun:{el,az,distKm}, earth:{el,az,distKm}} for a Date (UTC) at a site.
+    function skyAt(date, latDeg, lonDeg, altKm) {
+      const { sun, earth } = moonSkyVectors(date);
       const f = siteFrame(latDeg, lonDeg);
       const sitePos = scale(f.up, MOON_RADIUS_KM + (altKm || 0));
       const look = v => {
-        const rel = sub(toBF(v), sitePos);
+        const rel = sub(v, sitePos);
         const d = norm(rel);
         const el = Math.asin(dot(rel, f.up) / d) * R2D;
         let az = Math.atan2(dot(rel, f.east), dot(rel, f.north)) * R2D;
         if (az < 0) az += 360;
         return { el, az, distKm: d };
       };
-      return { sun: look(sunFromMoon), earth: look(earthFromMoon) };
+      return { sun: look(sun), earth: look(earth) };
     }
 
     // MK-3: how much of a body's disk is above the skyline (0..1).
@@ -81,7 +85,7 @@
     const earthVisible = (earth, horizonDeg) => visibleFraction(earth.el, horizonDeg || 0, earth.distKm, EARTH_RADIUS_KM);
     const angularRadiusDeg = (distKm, radiusKm) => Math.asin(Math.min(1, radiusKm / distKm)) * R2D;
 
-    return { skyAt, visibleFraction, sunVisible, earthVisible, angularRadiusDeg, SUN_RADIUS_KM, EARTH_RADIUS_KM, MOON_RADIUS_KM };
+    return { skyAt, moonSkyVectors, visibleFraction, sunVisible, earthVisible, angularRadiusDeg, SUN_RADIUS_KM, EARTH_RADIUS_KM, MOON_RADIUS_KM };
   }
 
   if (typeof module !== 'undefined' && module.exports) module.exports = engine;

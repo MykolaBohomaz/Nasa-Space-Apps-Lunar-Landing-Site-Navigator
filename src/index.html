@@ -28,7 +28,7 @@ button,input,select{font:inherit;color:inherit}
 .mw-globe-header h1{font-size:1.2rem;margin:0 0 7px}
 .mw-globe-header p{margin:7px 0;color:#dbe4ee;font-size:.8rem}
 .mw-globe-header h1,.mw-globe-header p,.mw-globe-credit{text-shadow:0 1px 4px #000,0 1px 6px #000}
-.mw-globe-controls{position:absolute;z-index:1;left:16px;bottom:46px;display:flex;gap:6px;flex-wrap:wrap}
+.mw-globe-controls{position:absolute;z-index:1;left:16px;bottom:46px;display:flex;gap:6px;flex-wrap:wrap;max-width:calc(100% - 32px)}
 .mw-globe-controls button,.mw-globe-header select,#panelToggle{color-scheme:dark}
 .mw-globe-controls button,.mw-globe select{min-height:44px;padding:6px 10px;border:1px solid #667991;border-radius:6px;background:#152233;color:#ece9e2}
 .mw-globe-controls button{min-width:44px;cursor:pointer}
@@ -38,6 +38,8 @@ button,input,select{font:inherit;color:inherit}
 .mw-globe canvas.is-dragging{cursor:grabbing}
 .mw-globe canvas:focus-visible{outline:2px solid #9fcbff;outline-offset:-3px}
 .mw-globe-pins{pointer-events:none}
+.mw-globe-body{position:absolute;transform:translateX(-50%);padding:2px 7px;border-radius:4px;background:#070a0fdd;color:#f9ce88;font-size:.78rem;font-weight:600}
+.mw-globe-body[data-body="earth"]{color:#aad5ff}
 .mw-globe-pin{position:absolute;transform:translate(-50%,-50%);width:24px;height:24px;padding:0;border:0;border-radius:50%;background:transparent;pointer-events:auto;cursor:pointer}
 .mw-globe-pin::before{content:'';display:block;width:9px;height:9px;margin:auto;border:2px solid #101925;border-radius:50%;background:#ffc573;box-sizing:content-box}
 .mw-globe-pin:hover,.mw-globe-pin:focus-visible{z-index:1;outline:2px solid #fff}
@@ -312,6 +314,7 @@ footer p{margin:4px 0;max-width:100ch}
 
     <h3>Credits and AI use</h3>
     <p>NASA LRO LOLA supplies the horizon and terrain data. NASA JPL Horizons provides validation. Globe imagery comes from NASA Goddard Scientific Visualization Studio's <a href="https://svs.gsfc.nasa.gov/4720/">CGI Moon Kit</a> and <a href="https://svs.gsfc.nasa.gov/4851/">Deep Star Maps 2020</a> with ESA/Gaia/DPAC (Gaia DR2). Astronomy Engine by Don Cross is bundled under the MIT License.</p>
+    <p>The 3D globe uses the selected scenario's time to light the Moon and position the Sun and Earth. A faint fill keeps the lunar night side visible for navigation. The Sun and Earth are enlarged for readability. Earth uses a fixed <a href="https://science.nasa.gov/earth/earth-observatory/blue-marble-next-generation/base-topography-bathymetry/">NASA Earth Observatory Blue Marble</a> texture.</p>
     <p>Anthropic Claude and OpenAI Codex assisted with code and documentation. See <a href="docs/sources.md">sources, licenses, and AI disclosure</a> for the full inventory.</p>
   </div>
 </dialog>
@@ -379,6 +382,7 @@ footer p{margin:4px 0;max-width:100ch}
 <script id="moonwindow-dem" type="application/octet-stream"></script>
 <script id="moonwindow-albedo" type="application/octet-stream"></script>
 <script id="moonwindow-stars" type="application/octet-stream"></script>
+<script id="moonwindow-earth" type="application/octet-stream"></script>
 <script src="plugins/terrain-source.js"></script>
 <script src="plugins/map.js"></script>
 <script src="plugins/rules.js"></script>

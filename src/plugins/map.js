@@ -6,6 +6,11 @@
   const floatsPerVertex = 7;
   const focalLength = 2.6;
   const tapSlop = 6;
+  const bodySizeScale = 3;
+  function normalize(vector) {
+    const length = Math.hypot(...vector);
+    return vector.map(value => value / length);
+  }
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
   const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 
@@ -233,7 +238,7 @@
       out vec3 surfacePosition;
       void main() {
         vec3 position = camera * vertex.xyz;
-        surfaceNormal = camera * normal;
+        surfaceNormal = normal;
         elevation = vertex.w;
         surfacePosition = vertex.xyz;
         float depth = view.x - position.z;
@@ -249,11 +254,13 @@
       uniform bool hasMosaic;
       uniform sampler2D southRelief;
       uniform float polarScale;
+      uniform vec3 moonLight;
       out vec4 color;
       void main() {
         vec3 normal = normalize(surfaceNormal);
-        vec3 light = normalize(vec3(-0.55, 0.72, 0.55));
-        float shade = 0.34 + 0.66 * max(dot(normal, light), 0.0);
+        float direct = max(dot(normal, moonLight), 0.0);
+        // Keep the lunar night side faintly visible for picking and navigation.
+        float shade = 0.12 + 0.88 * pow(direct, 0.65);
         float highland = clamp((elevation + 5500.0) / 10000.0, 0.0, 1.0);
         vec3 surface = mix(vec3(0.49, 0.48, 0.46), vec3(0.77, 0.76, 0.72), highland);
         vec3 radial = normalize(surfacePosition);
@@ -301,6 +308,7 @@
 
     const program = link(vertex, fragment);
     const camera = gl.getUniformLocation(program, 'camera');
+    const moonLight = gl.getUniformLocation(program, 'moonLight');
     const view = gl.getUniformLocation(program, 'view');
     const hasMosaic = gl.getUniformLocation(program, 'hasMosaic');
     const polarSampler = gl.getUniformLocation(program, 'southRelief');
@@ -336,6 +344,7 @@
 
     const mosaic = loadTexture(embeddedJpeg('moonwindow-albedo'));
     const stars = loadTexture(embeddedJpeg('moonwindow-stars'));
+    const earth = loadTexture(embeddedJpeg('moonwindow-earth'));
     const polarMap = window.MW_POLAR_MAP;
     const polar = loadTexture(polarMap?.image);
     const skyProgram = link(
@@ -352,6 +361,11 @@
         uniform vec2 projection;
         uniform vec2 viewCenter;
         uniform sampler2D sky;
+        uniform sampler2D earthMap;
+        uniform bool hasEarthMap;
+        uniform vec4 sunDisk;
+        uniform vec4 earthDisk;
+        uniform vec3 earthLight;
         out vec4 color;
 
         vec2 panorama(vec3 ray) {
@@ -363,33 +377,69 @@
           // Use direction only: the sky has no distance or zoom parallax.
           vec3 ray = normalize(axes * vec3((screen - viewCenter) / projection, -1.0));
           // Frame the Milky Way near the initial orbit as a visual backdrop.
-          ray = vec3(ray.y, -ray.x, ray.z);
-          vec2 uv = panorama(ray);
+          vec2 uv = panorama(vec3(ray.y, -ray.x, ray.z));
           vec2 dx = dFdx(uv);
           vec2 dy = dFdy(uv);
           dx.x -= round(dx.x);
           dy.x -= round(dy.x);
           vec3 rgb = textureGrad(sky, uv, dx, dy).rgb;
-          color = vec4(vec3(0.012, 0.017, 0.026) + 0.72 * rgb, 1.0);
+          vec3 scene = vec3(0.012, 0.017, 0.026) + 0.72 * rgb;
+          float towardSun = dot(ray, sunDisk.xyz);
+          if (towardSun > 0.99) {
+            float r = length(cross(ray, sunDisk.xyz)) / sunDisk.w;
+            scene += vec3(0.44, 0.23, 0.07) * exp(-2.0 * r);
+            float disk = 1.0 - smoothstep(0.96, 1.04, r);
+            scene = mix(scene, mix(vec3(1.0, 0.61, 0.25), vec3(1.0, 0.97, 0.83),
+              sqrt(max(0.0, 1.0 - r * r))), disk);
+          }
+          float towardEarth = dot(ray, earthDisk.xyz);
+          if (towardEarth > 0.99) {
+            float r = length(cross(ray, earthDisk.xyz)) / earthDisk.w;
+            if (r < 1.04) {
+              float depth = sqrt(max(0.0, 1.0 - r * r));
+              vec3 normal = (towardEarth * ray - earthDisk.xyz) / earthDisk.w - depth * ray;
+              vec2 uv = vec2(atan(normal.x, normal.z) / 6.2831853 + 0.5,
+                0.5 - asin(clamp(normal.y, -1.0, 1.0)) / 3.14159265);
+              vec3 albedo = hasEarthMap ? textureLod(earthMap, uv, 0.0).rgb : vec3(0.16, 0.42, 0.8);
+              float light = max(0.0, dot(normal, earthLight));
+              vec3 atmosphere = pow(1.0 - depth, 3.0) * vec3(0.14, 0.41, 0.76);
+              vec3 litEarth = albedo * (0.14 + 0.95 * light) + atmosphere * (0.25 + light);
+              scene = mix(scene, litEarth, 1.0 - smoothstep(0.98, 1.04, r));
+            }
+          }
+          color = vec4(scene, 1.0);
         }`)
     );
     const skyAxes = gl.getUniformLocation(skyProgram, 'axes');
     const skyProjection = gl.getUniformLocation(skyProgram, 'projection');
     const skyCenter = gl.getUniformLocation(skyProgram, 'viewCenter');
+    const earthMap = gl.getUniformLocation(skyProgram, 'earthMap');
+    const hasEarthMap = gl.getUniformLocation(skyProgram, 'hasEarthMap');
+    const sunDisk = gl.getUniformLocation(skyProgram, 'sunDisk');
+    const earthDisk = gl.getUniformLocation(skyProgram, 'earthDisk');
+    const earthLight = gl.getUniformLocation(skyProgram, 'earthLight');
     const globeCenter = gl.getUniformLocation(program, 'viewCenter');
     const skyVao = gl.createVertexArray();
 
-    return (surface, axes, distance, { xScale, yScale, centerX, centerY }) => {
+    return (surface, axes, distance, { xScale, yScale, centerX, centerY }, bodies, lighting) => {
       gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-      if (stars.ready) {
+      if (bodies) {
         gl.disable(gl.DEPTH_TEST);
         gl.useProgram(skyProgram);
         gl.uniformMatrix3fv(skyAxes, false, axes.flat());
         gl.uniform2f(skyProjection, xScale, yScale);
         gl.uniform2f(skyCenter, centerX, centerY);
+        gl.uniform4f(sunDisk, ...bodies.sun.direction, bodies.sun.size);
+        gl.uniform4f(earthDisk, ...bodies.earth.direction, bodies.earth.size);
+        gl.uniform3f(earthLight, ...lighting.earth);
         gl.bindTexture(gl.TEXTURE_2D, stars.texture);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, earth.texture);
+        gl.uniform1i(earthMap, 1);
+        gl.uniform1i(hasEarthMap, earth.ready ? 1 : 0);
+        gl.activeTexture(gl.TEXTURE0);
         gl.bindVertexArray(skyVao);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
         gl.bindVertexArray(null);
@@ -397,6 +447,7 @@
       if (!surface) return;
       gl.enable(gl.DEPTH_TEST);
       gl.useProgram(program);
+      gl.uniform3fv(moonLight, lighting?.moon ?? [0, 0, 0]);
       gl.bindTexture(gl.TEXTURE_2D, mosaic.texture);
       gl.uniform1i(hasMosaic, mosaic.ready ? 1 : 0);
       gl.activeTexture(gl.TEXTURE1);
@@ -435,6 +486,8 @@
             <button type="button" data-action="reset">Reset view</button>
             <button type="button" data-action="in" aria-label="Zoom in">+</button>
             <button type="button" data-action="out" aria-label="Zoom out">−</button>
+            <button type="button" data-action="earth" title="Find Earth at the selected scenario time">Find Earth</button>
+            <button type="button" data-action="sun" title="Find the Sun at the selected scenario time">Find Sun</button>
         </div>
         <div class="mw-globe-viewport">
           <canvas tabindex="0" aria-label="Moon terrain. Use arrow keys to orbit, plus or minus to zoom, and Enter to select the center."
@@ -484,21 +537,30 @@
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     let surface = null;
     let scenarioPins = [];
+    let skyTime;
+    let positions;
+    let lighting;
     let gl;
     let render;
     let sourceRequest = 0;
 
     function selectSite(site) {
-      api.setSite(0, site.lat, site.lon);
       api.openSitePanel();
-      const move = flightTo(camera, direction(site.lat, site.lon));
+      api.setSite(0, site.lat, site.lon);
+      flyTo(direction(site.lat, site.lon));
+    }
+
+    function flyTo(target, endDistance = distance) {
+      const move = flightTo(camera, target);
       if (reducedMotion.matches || move.angle < 0.001) {
         camera = orbitCamera(camera, move.horizontal, move.vertical);
+        distance = endDistance;
         flight = null;
       } else {
         flight = {
           from: camera, move, start: performance.now(),
-          duration: clamp(350 + move.angle * 250, 350, 950)
+          duration: clamp(350 + move.angle * 250, 350, 950),
+          startDistance: distance, endDistance
         };
       }
       schedule();
@@ -521,6 +583,32 @@
       pins.append(element);
       return element;
     });
+    const bodyMarkers = {
+      sun: document.createElement('span'),
+      earth: document.createElement('span')
+    };
+    for (const [name, element] of Object.entries(bodyMarkers)) {
+      element.className = 'mw-globe-body';
+      element.dataset.body = name;
+      element.textContent = name === 'sun' ? 'Sun' : 'Earth';
+      element.hidden = true;
+      pins.append(element);
+    }
+    const bodyRadii = {
+      sun: api.engine.SUN_RADIUS_KM / api.engine.MOON_RADIUS_KM,
+      earth: api.engine.EARTH_RADIUS_KM / api.engine.MOON_RADIUS_KM
+    };
+
+    function findBody(name) {
+      if (!positions) return;
+      const target = normalize(positions[name]);
+      const hint = Math.abs(dot(camera[0], target)) < 0.9 ? camera[0] : camera[1];
+      const along = dot(hint, target);
+      const tangent = normalize(hint.map((value, i) => value - along * target[i]));
+      // Leave room for the Moon's disk and frame the body next to it.
+      const angle = 15 * radians;
+      flyTo(target.map((value, i) => -Math.cos(angle) * value + Math.sin(angle) * tangent[i]), 6.5);
+    }
 
     function viewFor(width, height) {
       let visibleWidth = width;
@@ -546,10 +634,11 @@
       const height = viewport.clientHeight;
       if (!width || !height) return;
       if (flight) {
-        const { from, move, start, duration } = flight;
+        const { from, move, start, duration, startDistance, endDistance } = flight;
         const t = reducedMotion.matches ? 1 : clamp((now - start) / duration, 0, 1);
         const eased = t * t * (3 - 2 * t);
         camera = orbitCamera(from, move.horizontal * eased, move.vertical * eased);
+        distance = startDistance + (endDistance - startDistance) * eased;
         if (t === 1) flight = null;
         else schedule();
       }
@@ -561,7 +650,27 @@
       const [right, up, forward] = camera;
       const view = viewFor(width, height);
       const { xScale, yScale, centerX, centerY } = view;
-      render(surface, camera, distance, view);
+      const bodies = positions && Object.fromEntries(Object.entries(positions).map(([name, position]) => {
+        const relative = position.map((value, i) => value - distance * forward[i]);
+        return [name, {
+          direction: normalize(relative),
+          size: bodySizeScale * bodyRadii[name] / Math.hypot(...relative)
+        }];
+      }));
+      render(surface, camera, distance, view, bodies, lighting);
+
+      if (bodies) for (const [name, body] of Object.entries(bodies)) {
+        const label = bodyMarkers[name];
+        const depth = -dot(body.direction, forward);
+        const x = dot(body.direction, right) * xScale / depth + centerX;
+        const y = dot(body.direction, up) * yScale / depth + centerY;
+        const behindMoon = surface && depth >= Math.sqrt(1 - (1.02 / distance) ** 2);
+        label.hidden = depth <= 0 || behindMoon || Math.abs(x) >= 0.97 || Math.abs(y) >= 0.93;
+        if (label.hidden) continue;
+        const margin = yScale * height * body.size / (2 * depth ** 2) + 5;
+        label.style.left = (x + 1) * width / 2 + 'px';
+        label.style.top = ((1 - y) * height / 2 + margin) + 'px';
+      }
 
       for (const pin of [...sitePins, ...scenarioPins]) {
         const normal = direction(pin.lat, pin.lon);
@@ -661,7 +770,9 @@
       pole() { flight = null; camera = cameraAt(-90, 0); distance = 1.45; schedule(); },
       reset() { flight = null; camera = cameraAt(-62, 20); distance = 3.35; schedule(); },
       in() { zoom(0.7); },
-      out() { zoom(1 / 0.7); }
+      out() { zoom(1 / 0.7); },
+      earth() { findBody('earth'); },
+      sun() { findBody('sun'); }
     };
     slot.querySelectorAll('[data-action]').forEach(button => {
       button.addEventListener('click', controls[button.dataset.action]);
@@ -728,12 +839,25 @@
       status.textContent = 'The globe paused while the graphics context recovers.';
       sitePins.forEach(pin => { pin.element.hidden = true; });
       markers.forEach(marker => { marker.hidden = true; });
+      Object.values(bodyMarkers).forEach(marker => { marker.hidden = true; });
     });
     canvas.addEventListener('webglcontextrestored', startRenderer);
     startRenderer();
 
     return () => {
       const scenarios = api.scenarios();
+      const time = api.activeScenario()?.t;
+      if (time !== undefined && time !== skyTime) {
+        skyTime = time;
+        const vectors = api.engine.moonSkyVectors(new Date(time));
+        // Convert (prime meridian, east, north) to the globe's (east, north, prime meridian).
+        const toGlobe = ([x, y, z]) => [y, z, x].map(km => km / api.engine.MOON_RADIUS_KM);
+        positions = { sun: toGlobe(vectors.sun), earth: toGlobe(vectors.earth) };
+        lighting = {
+          moon: normalize(positions.sun),
+          earth: normalize(positions.sun.map((value, i) => value - positions.earth[i]))
+        };
+      }
       scenarioPins = scenarios.map((scenario, index) => ({ ...scenario, element: markers[index] }));
       markers.slice(scenarios.length).forEach(marker => { marker.hidden = true; });
       schedule();

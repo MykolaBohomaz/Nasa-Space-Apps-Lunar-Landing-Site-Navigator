@@ -613,7 +613,7 @@
   }
   scenarioPicker.addEventListener('change', () => {
     inspectedScenario = scenarios[Number(scenarioPicker.value)];
-    updateScenarioPicker();
+    renderAll();
   });
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && !sitePanel.hidden && !document.querySelector('dialog[open]')) {
@@ -653,6 +653,7 @@
   const API = {
     engine: E, HOUR, DAY, WINDOW_H, SAMPLE_H, SITES,
     scenarios: () => scenarios.slice(),          // each: {lat, lon, t, siteId, anchor, samples[], stats, cur, nextSun, nextEarth, el}
+    activeScenario: () => inspectedScenario,
     openSitePanel,
     setSite(i, lat, lon) { const s = scenarios[i]; if (!s) return; s.lat = lat; s.lon = lon; s.siteId = matchSite(lat, lon); ensureSamples(s, true); renderAll(); },
     setTime(i, t) { const s = scenarios[i]; if (!s) return; s.t = t; ensureSamples(s, false); renderAll(); },
