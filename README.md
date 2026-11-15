@@ -1,6 +1,8 @@
 # MoonWindow
 
-**Compare up to three lunar landing sites side by side, each with its own start date. See when each site has sunlight for solar power and a direct line of sight to Earth.**
+**Open `index.html` in a modern browser and start exploring.** MoonWindow runs entirely offline from one self-contained file (about 14 MB), with the terrain, imagery, and code already bundled. Setup takes one step.
+
+**Click the Moon, choose a date, and see what changes.** Use the side panel to analyze the site. The globe and timeline show when sunlight and a direct line of sight to Earth are available. Compare up to three landing sites side by side, each with its own start date.
 
 NASA Space Apps Challenge 2026 project for the lunar landing site challenge (Sun and Earth visibility at the Moon's south pole).
 
@@ -15,6 +17,8 @@ Choose a saved landmark from the globe dropdown, click its pin, enter precise co
 ### See the local skyline and solar and Earth tracks
 
 **Sky** is a 360° SVG chart from the selected landing site. Azimuth runs left to right and elevation runs vertically. The chart overlays the Sun and Earth’s current positions and their **next 30 days of tracks** on the NASA LOLA skyline, including ridges and crater rims. Switch between **LOLA terrain** and **Flat horizon** to see what the local terrain blocks. The cards show each body’s direction, clearance above or below the skyline, and time until the next rise or set when one is found. They also link to NASA JPL Horizons for the selected site and time.
+
+Choose a historical or future UTC date to see the modeled Sun and Earth positions for that moment. The tracks extend 30 days forward from the selected time. At your chosen site, follow where each track clears or drops below the skyline, then scrub through time to check when both bodies are valid qualifying times. **Mission → Dates** can also search for starts that meet your required duration of continuous shared visibility.
 
 ![MoonWindow globe and the Sky chart showing the Sun behind the local ridge at IM-1 Odysseus](docs/moonwindow-globe-sky.webp)
 
@@ -68,6 +72,8 @@ Across 72 comparisons (9 sites × 4 dates × Sun and Earth), the app matches NAS
 
 ### Terrain validation and how to check it in Sky
 
+**Does terrain change a seven-day landing decision?** We screened 1,600 historical site/start combinations and checked approved starts against LRO camera observations. With a flat horizon, **150 of 217** approved starts had an observed shadow. With the LOLA skyline and the same Sun-centre rule, **zero of 34** approved starts had an observed shadow. The cameras sample at intervals, so they can reveal a false pass while leaving gaps between observations. [Seven-day study and in-app replay](docs/lroc-mission-window-validation.md)
+
 MoonWindow tests its terrain-based sunlight predictions against images from NASA’s Lunar Reconnaissance Orbiter Camera (LROC). We used **309 camera frames** to bracket **52 observed sunrise and sunset events** near the south pole. With the default Sun-centre rule, the LOLA terrain model predicted **11 of 52** transitions inside their observed intervals, compared with **1 of 52** for a flat horizon. Counting the first or last visible edge of the Sun reached **32 of 52**. The camera cadence bounds when the change happened to an interval. [Observational study, sunrise figure, and reproduction steps](docs/lroc-transition-validation.md)
 
 **Try the terrain check in Sky**
@@ -88,7 +94,6 @@ For each south polar site and every 0.5° of azimuth, the tool traces 400 km out
 
 Checks:
 - **Map reading:** both maps give 2,592 m at IM-1 Odysseus's landing point; LROC reports 2,579 m.
-- **Published research:** the best-lit point on the Shackleton–de Gerlache connecting ridge gets **88.3%** sunlight over one year in our model, against 52% on flat ground. Gläser et al. (2014, *Icarus* 243) found up to 92.3% on this ridge with a finer 20 m LOLA model.
 
 **Why location matters:** we found the ridge's best-lit point by testing the 40 highest 80 m pixels within 1.5 km. Their yearly sunlight ranges from **57.5% to 88.3%**. The app includes a second ridge site only 200 m from the best one, which gets 77.5%.
 
@@ -111,8 +116,6 @@ How accurate the 240 m skylines are depends on the ground:
 - **Narrow ridge crests:** they are approximate. The Sun grazes the skyline there for about 2,100 hours a year, so tenths of a degree matter. At 240 m, the two ridge points even swap ranking compared with 80 m. The app says so for custom points.
 
 A known check: 87.5°S 45°E, inside the permanently shadowed Shoemaker crater, gets 0% sunlight.
-
-Our longest ridge night (10.7 days, in the southern winter) is longer than the 3–5 days Gläser et al. report at their best points. The likely reasons are their finer 20 m grid and exact point choice; we note it rather than tune it away.
 
 To regenerate, download the maps (not stored in git) and run the tools:
 
