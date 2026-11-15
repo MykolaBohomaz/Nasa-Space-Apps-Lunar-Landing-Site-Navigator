@@ -1,6 +1,6 @@
 # MoonWindow
 
-**Pick a landing site on the Moon and a date. See where the Sun and Earth are in its sky, whether a lander there gets solar power and direct radio contact with Earth, and for how long.**
+**Compare up to three lunar landing sites side by side, each with its own start date. See when each site has sunlight for solar power and a direct line of sight to Earth.**
 
 NASA Space Apps Challenge 2026 project for the lunar landing site challenge (Sun and Earth visibility at the Moon's south pole).
 
@@ -66,9 +66,17 @@ Sanity checks we ran:
 
 Across 72 comparisons (9 sites × 4 dates × Sun and Earth), the app matches NASA JPL Horizons within **0.003° in elevation** and 0.005° in azimuth, with identical up/down status in all 72 cases. Full table: [docs/validation.md](docs/validation.md). Re-run with `python3 tools/fetch_horizons.py` (needs internet) and then `node tools/compare_horizons.js`.
 
-### Validation against LRO camera observations
+### Terrain validation and how to check it in Sky
 
-We used 309 LROC frames to bracket 52 south-pole sunrise and sunset events. The terrain model using the default Sun-centre rule landed inside 11 observed intervals, versus one for a flat horizon. The disk-edge rule, available as **Any visible part** in Mission, reached 32 of 52. [Observational study, figure, and reproduction steps](docs/lroc-transition-validation.md)
+MoonWindow tests its terrain-based sunlight predictions against images from NASA’s Lunar Reconnaissance Orbiter Camera (LROC). We used **309 camera frames** to bracket **52 observed sunrise and sunset events** near the south pole. With the default Sun-centre rule, the LOLA terrain model predicted **11 of 52** transitions inside their observed intervals, compared with **1 of 52** for a flat horizon. Counting the first or last visible edge of the Sun reached **32 of 52**. The camera cadence bounds when the change happened to an interval. [Observational study, sunrise figure, and reproduction steps](docs/lroc-transition-validation.md)
+
+**Try the terrain check in Sky**
+
+1. Choose **IM-1 Odysseus** from the saved-site dropdown and set the UTC time to **January 15, 2027, 06:00**.
+2. Open **Sky** and switch the horizon toggle to **Flat horizon**. The Sun is **1.05° above** the 0° line, toward the east, so it clears a flat horizon.
+3. Switch back to **LOLA terrain**. The skyline in that direction rises to **8.71°**, placing the Sun below the modeled crater rim. The Sun card reports the obstruction and the chart shows the Sun and Earth tracks against the local skyline. Scrub the time to watch the tracks cross the skyline.
+
+Sky lets you inspect why a particular prediction changes with terrain. The LROC study checks the predicted timing against spacecraft observations at other south-pole locations. To try the disk-edge rule used in that study, go to **Mission → Power settings and figures** and choose **Any visible part** under the sunlight rule.
 
 ## Real terrain from NASA LOLA
 
