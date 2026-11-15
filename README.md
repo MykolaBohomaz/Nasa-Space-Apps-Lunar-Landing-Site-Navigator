@@ -48,6 +48,10 @@ Sanity checks we ran:
 
 Across 72 comparisons (9 sites × 4 dates × Sun and Earth), the app matches NASA JPL Horizons within **0.003° in elevation** and 0.005° in azimuth, with identical up/down status in all 72 cases. Full table: [docs/validation.md](docs/validation.md). Re-run with `python3 tools/fetch_horizons.py` (needs internet) and then `node tools/compare_horizons.js`.
 
+### Validation against LRO camera observations
+
+We used 309 LROC frames to bracket 52 south-pole sunrise and sunset events. The current terrain model landed inside 11 observed intervals, versus one for a flat horizon. A model variant that accounts for the first or last visible edge of the Sun reached 32 of 52. [Observational study, figure, and reproduction steps](docs/lroc-transition-validation.md)
+
 ## Real terrain from NASA LOLA
 
 `tools/make_horizons.py` reads two LOLA south polar elevation models from the NASA GSFC Planetary Geodesy Data Archive (Barker et al. 2023, *Planetary Science Journal* 4:183, doi:10.60903/gsfcpgda-lola-spole):
