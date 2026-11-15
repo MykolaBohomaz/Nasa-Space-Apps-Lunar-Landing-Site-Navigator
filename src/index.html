@@ -17,7 +17,7 @@
   --bg:#1E2226; --panel:#262B30; --panel2:#2D3338; --line:#3C434A; --text:#ECE9E2; --muted:#A3A9AE;
   --sun:#F4B942; --earth:#5DA9E9; --both:#8FD6B0; --bad:#E9806E;
   --radius:10px;
-  --edge:16px; --panel-width:410px; --section-gap:16px;
+  --edge:16px; --panel-width:410px; --section-gap:12px;
   --font:"Avenir Next","Avenir","Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
 }
 *{box-sizing:border-box}
@@ -59,16 +59,12 @@ button,input,select{font:inherit;color:inherit}
 .mw-globe-credit,.mw-globe-status{color:#c2cbd8;font-size:.8rem}
 .mw-globe-credit a{color:#a9d1ff}
 .mw-globe-status:empty{display:none}
-.mw-power,.mw-learn{padding:14px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)}
-.mw-power h3{margin:0 0 8px;font-size:1rem}
-.mw-plugin-fields,.mw-power-results{display:grid;gap:10px}
-.mw-plugin-fields{grid-template-columns:repeat(auto-fit,minmax(min(112px,100%),1fr))}
+.mw-power,.mw-learn{padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)}
+.mw-power summary{cursor:pointer;font-weight:600}
+.mw-power-summary{display:block;font-size:.8rem;font-weight:400;margin-top:3px}
+.mw-plugin-fields{display:grid;gap:10px;margin-top:10px;grid-template-columns:repeat(auto-fit,minmax(min(112px,100%),1fr))}
 .mw-plugin-fields label{min-width:0;color:var(--muted);font-size:.875rem}
 .mw-plugin-fields input,.mw-plugin-fields select{display:block;margin-top:4px}
-.mw-power-results{grid-template-columns:repeat(auto-fit,minmax(min(98px,100%),1fr));margin:16px 0 12px}
-.mw-power-results > div{padding:8px 10px;background:var(--bg);border-radius:8px}
-.mw-power-results dt{color:var(--muted);font-size:.85rem}
-.mw-power-results dd{margin:0;color:var(--sun);font-weight:600}
 .mw-power p{margin:6px 0 0}
 .mw-plugin-error{color:var(--bad)}
 .mw-learn{margin:12px 0}
@@ -93,33 +89,28 @@ a{color:var(--earth)}
 .btn.small{padding:5px 10px;font-size:.88rem}
 
 #panelToggle{position:fixed;z-index:3;top:var(--edge);right:var(--edge);min-height:44px;background:#152233;border-color:#667991}
-#sitePanel{position:fixed;z-index:2;top:70px;right:var(--edge);bottom:var(--edge);width:var(--panel-width);display:flex;flex-direction:column;gap:8px;container:site-panel / inline-size;pointer-events:none}
+#sitePanel{position:fixed;z-index:2;top:70px;right:var(--edge);bottom:var(--edge);width:var(--panel-width);display:flex;flex-direction:column;gap:8px;pointer-events:none}
 #sitePanel[hidden]{display:none}
 .panel-shell,.time-controls{border:1px solid #48566b;border-radius:16px;background:#101925;box-shadow:0 16px 52px #000a;pointer-events:auto}
 .panel-shell{display:flex;flex:1 1 auto;flex-direction:column;min-height:0}
-.time-controls{flex:none;padding:8px 10px}
-.time-row{display:flex;align-items:flex-end;gap:8px}
-.time-date{flex:1;min-width:0;max-width:320px}
-.time-row .btn,.time-date input{min-height:40px}
-.time-date input{display:block}
+.time-controls{flex:none;display:grid;grid-template-columns:auto minmax(36px,1fr) auto;align-items:center;gap:8px;padding:4px 7px;position:relative;z-index:1}
 .time-steps{position:relative}
-.time-steps summary{display:grid;align-items:center;min-width:44px;text-align:center}
-.time-steps .steps{position:absolute;z-index:2;top:100%;right:0;width:min(265px,calc(100vw - 30px));padding:10px;background:#101925;border:1px solid #48566b;border-radius:8px;box-shadow:0 12px 28px #000a}
-.time-controls input[type=range]{display:block;width:100%;height:24px;min-height:24px;margin:3px 0 0;accent-color:var(--earth);cursor:ew-resize;touch-action:pan-y}
+.time-steps summary{display:grid;align-items:center;font-variant-numeric:tabular-nums}
+.time-editor{position:absolute;z-index:2;top:calc(100% + 6px);right:0;width:min(272px,calc(100vw - 32px));padding:10px;background:#101925;border:1px solid #48566b;border-radius:8px;box-shadow:0 12px 28px #000a}
+.time-controls input[type=range]{display:block;width:100%;height:28px;min-height:28px;margin:0;accent-color:var(--earth);cursor:ew-resize;touch-action:pan-y}
 #closedTime{position:fixed;z-index:1;top:70px;right:var(--edge);padding:4px 8px;border-radius:6px;background:#101925e6;color:#dbe4ee;font-size:.8rem;font-variant-numeric:tabular-nums;pointer-events:none}
 body.panel-open #closedTime{display:none}
 body.panel-open:not([data-panel-view="site"]){--panel-width:min(920px,72vw)}
+body.panel-open[data-panel-view="mission"]{--panel-width:430px}
 body.panel-open .mw-globe-dock{right:calc(var(--panel-width) + var(--edge) + 12px)}
-.panel-nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:10px;border-bottom:1px solid #344459}
-.panel-nav button{min-height:40px;padding-inline:4px;font-size:.82rem}
+.panel-nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;padding:7px;border-bottom:1px solid #344459}
+.panel-nav button{min-height:34px;padding-inline:3px;font-size:.82rem;white-space:normal;line-height:1.15}
 .panel-nav .btn[aria-pressed="true"]{background:#233a52;color:#e7f2ff;border-color:#688fb7}
-@container site-panel (min-width:630px){
-  .panel-nav{grid-template-columns:repeat(7,minmax(0,1fr))}
-}
 .panel-content{min-height:0;overflow:auto;overscroll-behavior:contain;padding:var(--section-gap);scrollbar-gutter:stable}
-.panel-content .actions,.panel-scenario{margin:0 0 12px}
-.panel-content .actions.view-site{margin:12px 0 0}
-.panel-toolbar{display:flex;align-items:center;flex-wrap:wrap;column-gap:12px}
+.panel-content .actions,.panel-scenario{margin:0 0 8px}
+.panel-content .actions.view-site{margin:8px 0 0}
+.panel-toolbar{display:flex;align-items:center;flex-wrap:wrap;column-gap:8px}
+.panel-toolbar .actions:has(#addBtn:disabled){display:none}
 .panel-scenario{display:flex;align-items:center;gap:6px;font-size:.875rem}
 .panel-scenario[hidden]{display:none}
 .panel-scenario select{width:auto}
@@ -131,17 +122,33 @@ body.panel-open .mw-globe-dock{right:calc(var(--panel-width) + var(--edge) + 12p
 .sky svg{min-width:700px}
 #sitePanel:not([data-view="site"]) .view-site,
 #sitePanel:not([data-view="sky"]) .view-sky,
-#sitePanel:not([data-view="power"]) .view-power,
-#sitePanel:not([data-view="planning"]) .view-planning,
+#sitePanel:not([data-view="mission"]) .view-mission,
 #sitePanel:not([data-view="learn"]) .view-learn,
 #sitePanel:is([data-view="site"],[data-view="learn"]) .science-actions,
 #sitePanel:not([data-view="site"],[data-view="learn"]) .site-summary,
 #sitePanel[data-view="learn"] .panel-scenario,
-#sitePanel:is([data-view="compare"],[data-view="finder"]) #scenarioView,
-#sitePanel:not([data-view="finder"]) #finderView,
-#sitePanel:not([data-view="compare"]) #compareView{display:none}
-.view-power,.view-planning{padding-bottom:16px}
-.compare-empty{color:var(--muted)}
+#sitePanel[data-view="finder"] #scenarioView,
+#sitePanel:not([data-view="finder"]) #finderView{display:none}
+.mission-verdict{margin:2px 0 9px;font-size:.93rem;font-weight:650}
+.mission-legend{display:flex;align-items:center;flex-wrap:wrap;gap:3px 10px;margin:0 0 4px;color:var(--muted);font-size:.73rem}
+.mission-legend i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:3px}
+.mission-legend .sun{background:var(--sun)}
+.mission-legend .earth{background:var(--earth)}
+.mission-legend .both{background:var(--both)}
+.mission-legend .energy-label{margin-left:auto}
+#sitePanel[data-view="mission"] #scenarios{border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+#sitePanel[data-view="mission"] .scenario{background:none;border:0;border-radius:0}
+#sitePanel[data-view="mission"] .scenario + .scenario{border-top:1px solid var(--line)}
+.mission-track{position:relative;padding:5px 8px 3px}
+.mission-track-head{display:flex;align-items:baseline;gap:6px;padding-right:54px}
+.mission-scenario-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.81rem;margin:0}
+.mission-energy{margin-left:auto;flex:none;color:var(--sun);font-size:.76rem;font-variant-numeric:tabular-nums}
+.mission-planning > summary{position:absolute;top:5px;right:8px;cursor:pointer;font-size:.76rem;color:#dbe4ee}
+.mission-planning[open]{border-top:1px solid var(--line);padding-top:8px}
+.mission-figures{margin-top:8px}
+.mission-figures > summary{cursor:pointer;padding:5px 0;font-size:.84rem;color:#dbe4ee}
+.mission-figures > div{margin-top:5px}
+#sitePanel[data-view="mission"] .panel-toolbar{gap:0 6px}
 .mw-finder h2{margin:0;font-size:1.15rem}
 .mw-finder p{margin:6px 0 12px;font-size:.9rem}
 .mw-finder-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(135px,100%),1fr));gap:10px;align-items:end}
@@ -159,12 +166,13 @@ body.panel-open .mw-globe-dock{right:calc(var(--panel-width) + var(--edge) + 12p
 .mw-finder-window .actions{margin-bottom:8px}
 .mw-finder button:disabled{opacity:.5;cursor:default}
 @media (min-width:901px){
-  #sitePanel[data-view="site"]{bottom:auto;max-height:calc(100dvh - 86px)}
+  #sitePanel:is([data-view="site"],[data-view="mission"]){bottom:auto;max-height:calc(100dvh - 86px)}
 }
 @media (max-width:900px){
-  :root{--sheet-height:min(62dvh,max(52dvh,390px));--section-gap:12px;--edge:12px}
+  :root{--sheet-height:min(62dvh,max(52dvh,390px));--section-gap:10px;--edge:12px}
   #sitePanel{top:auto;left:8px;right:8px;bottom:8px;width:auto;height:var(--sheet-height)}
   #sitePanel:not([data-view="site"]){height:calc(100dvh - 120px)}
+  #sitePanel[data-view="mission"]{height:min(64dvh,calc(100dvh - 110px))}
   body.panel-open .mw-globe-dock{right:var(--edge);bottom:calc(var(--sheet-height) + 16px)}
   body.panel-open .mw-globe-credit{display:none}
   body.panel-open:not([data-panel-view="site"]) .mw-globe-dock{display:none}
@@ -176,39 +184,29 @@ body.panel-open .mw-globe-dock{right:calc(var(--panel-width) + var(--edge) + 12p
   .mw-globe-controls button{font-size:.82rem;padding-inline:8px}
   .mw-plugin-fields label:has(select){grid-column:1/-1}
 }
-@media (max-width:370px){
-  .time-controls{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:6px 8px}
-  .time-row{display:contents}
-  .time-date{grid-column:1/-1;max-width:none}
-  .time-controls input[type=range]{grid-row:2;grid-column:1;margin:0}
-  .time-row > button{grid-row:2;grid-column:2}
-  .time-steps{grid-row:2;grid-column:3}
-}
 @media (max-width:360px){
   .mw-pole-prefix{display:none}
   .mw-globe-controls{gap:4px}
 }
 
 /* Compare table */
-#compare h2{font-size:1.15rem;margin:0 0 6px}
-#compare p{margin:0 0 12px;font-size:.875rem;color:var(--muted);max-width:68ch}
 .compare-table{overflow:auto;border:1px solid var(--line);border-radius:var(--radius)}
 .compare-table table{border-collapse:separate;border-spacing:0;table-layout:fixed;width:100%;font-variant-numeric:tabular-nums;font-size:.875rem}
-.compare-table th,.compare-table td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere}
+.compare-table th,.compare-table td{text-align:left;padding:5px 7px;line-height:1.32;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere}
 .compare-table thead th{background:#233a52;color:#e7f2ff;font-weight:600}
-.compare-table th:first-child{position:sticky;left:0;width:24%;min-width:82px}
+.compare-table th:first-child{position:sticky;left:0;width:max(24%,74px)}
 .compare-table tbody th{background:var(--panel);color:var(--muted);font-weight:500}
 .compare-table td{background:#182534}
 .compare-table tbody tr:last-child > *{border-bottom:0}
 .compare-table .muted{color:var(--muted);font-size:.8rem}
 @media (max-width:520px){
-  .compare-table th,.compare-table td{padding:7px;font-size:.8rem}
+  .compare-table th,.compare-table td{padding:5px;font-size:.8rem}
 }
 .best{color:var(--both);font-weight:600}
 
 /* Scenario */
 .scenario{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
-.sc-head{display:grid;gap:12px;padding:var(--section-gap)}
+.sc-head{display:grid;gap:8px;padding:var(--section-gap)}
 #sitePanel:is([data-view="site"],[data-view="learn"]) .sc-head{padding-top:0}
 .field{display:flex;flex-direction:column;gap:4px;min-width:0}
 .field>span{font-size:.82rem;color:var(--muted)}
@@ -249,9 +247,9 @@ input[type=datetime-local]{color-scheme:dark}
 .bar i{display:block;height:100%}
 
 /* Timeline */
-.tl{margin:0;padding:4px var(--section-gap) 10px}
-.tl figcaption{font-size:.9rem;color:var(--muted);margin-bottom:4px}
-.tl svg{display:block;width:100%;height:132px;cursor:ew-resize;touch-action:pan-y;user-select:none}
+.tl{margin:0}
+.tl figcaption{font-size:.71rem;color:var(--muted)}
+.tl svg{display:block;width:100%;height:37px;cursor:ew-resize;touch-action:pan-y;user-select:none}
 .tl svg:focus-visible{outline:2px solid var(--earth);outline-offset:2px}
 .ext{display:grid;gap:var(--section-gap);padding:0 var(--section-gap)}
 .ext:empty{display:none}
@@ -280,6 +278,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 
 @media (max-width:700px){
   .btn,select,input:not([type="checkbox"]),.mw-globe-credit summary{min-height:44px}
+  .panel-nav button{min-height:44px}
   .mw-globe-credit summary{align-content:center}
   .mw-globe-pin{width:44px;height:44px}
 }
@@ -298,11 +297,12 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
   <time id="closedTime"></time>
   <aside id="sitePanel" data-view="site" aria-label="Landing site details" hidden>
     <section class="time-controls" aria-label="Scenario time">
-      <div class="time-row">
-        <label class="field time-date"><span id="timeLabel">Date and time (UTC)</span><input id="scenarioTime" type="datetime-local" step="60" required></label>
-        <button class="btn small" id="playBtn" type="button" aria-pressed="false">Play</button>
-        <details class="time-steps">
-          <summary class="btn small" aria-label="Time step controls">Step</summary>
+      <button class="btn small" id="playBtn" type="button" aria-pressed="false">Play</button>
+      <input id="timeScrub" type="range" min="0" max="720" step="1" aria-label="Scrub the 30-day timeline">
+      <details class="time-steps">
+        <summary class="btn small" aria-label="Change date and time"><time id="timeReadout"></time></summary>
+        <div class="time-editor">
+          <label class="field"><span id="timeLabel">Date and time (UTC)</span><input id="scenarioTime" type="datetime-local" step="60" required></label>
           <div class="steps" role="group" aria-label="Move time">
             <button class="btn small" type="button" data-step="-24">−1 day</button>
             <button class="btn small" type="button" data-step="-1">−1 hour</button>
@@ -311,18 +311,15 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
             <button class="btn small" type="button" data-step="24">+1 day</button>
             <button class="btn small" type="button" data-step="168">+1 week</button>
           </div>
-        </details>
-      </div>
-      <input id="timeScrub" type="range" min="0" max="720" step="1" aria-label="Scrub the 30-day timeline">
+        </div>
+      </details>
     </section>
     <div class="panel-shell">
     <nav class="panel-nav" aria-label="Site views">
       <button class="btn small" type="button" data-panel-view="site" aria-pressed="true" aria-controls="scenarioView">Site</button>
       <button class="btn small" type="button" data-panel-view="sky" aria-pressed="false" aria-controls="scenarioView">Sky</button>
-      <button class="btn small" type="button" data-panel-view="power" aria-pressed="false" aria-controls="scenarioView">Power</button>
-      <button class="btn small" type="button" data-panel-view="planning" aria-pressed="false" aria-controls="scenarioView">Planning</button>
+      <button class="btn small" type="button" data-panel-view="mission" aria-pressed="false" aria-controls="scenarioView">Mission</button>
       <button class="btn small" type="button" data-panel-view="finder" aria-pressed="false" aria-controls="finderView">Find sites</button>
-      <button class="btn small" type="button" data-panel-view="compare" aria-pressed="false" aria-controls="compareView">Compare</button>
       <button class="btn small" type="button" data-panel-view="learn" aria-pressed="false" aria-controls="scenarioView">Learn</button>
     </nav>
     <div class="panel-content">
@@ -332,8 +329,25 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
           <div class="actions science-actions">
             <button class="btn small" id="terrainBtn" type="button" aria-pressed="true" title="Toggle NASA LOLA terrain">LOLA terrain</button>
           </div>
+          <div class="actions view-mission"><button class="btn small" id="addBtn" type="button">Add scenario</button></div>
+        </div>
+        <div class="view-mission">
+          <p class="mission-verdict"></p>
+          <div class="mission-legend" aria-label="Timeline and energy legend">
+            <span>30-day visibility</span><span><i class="sun"></i>Sun</span><span><i class="earth"></i>Earth</span><span><i class="both"></i>Both</span>
+            <span class="energy-label"></span>
+          </div>
         </div>
         <div id="scenarios"></div>
+        <details class="mission-figures view-mission">
+          <summary>Power settings and figures</summary>
+          <div data-top-slot="power"></div>
+          <div id="compare">
+            <div class="compare-table" tabindex="0" role="region" aria-label="Mission comparison figures">
+              <table><thead></thead><tbody></tbody></table>
+            </div>
+          </div>
+        </details>
         <div class="actions view-site">
           <button class="btn small" id="linkBtn" type="button">Copy link</button>
           <button class="btn small" id="aboutBtn" type="button">About and data</button>
@@ -341,17 +355,6 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
         <div id="extTop" class="view-learn"></div>
       </div>
       <div id="finderView" data-top-slot="finder"></div>
-      <div id="compareView">
-        <div class="actions"><button class="btn primary" id="addBtn" type="button">Add comparison</button></div>
-        <p class="compare-empty" id="compareEmpty">Add a scenario to compare sites or landing times.</p>
-        <section id="compare" hidden aria-labelledby="cmpTitle">
-          <h2 id="cmpTitle">Side-by-side summary</h2>
-          <p>“Both visible for” measures how long a lander can keep solar power and direct radio after landing.</p>
-          <div class="compare-table" tabindex="0" role="region" aria-labelledby="cmpTitle">
-            <table><thead></thead><tbody></tbody></table>
-          </div>
-        </section>
-      </div>
     </div>
     </div>
   </aside>
@@ -370,7 +373,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       <li><b>Sky view:</b> a 360° picture of the sky from the landing site. Left to right is compass direction, up and down is height above the horizon. The sky is black because the Moon has no air, even in daylight. Dotted tracks show where the Sun and Earth move over the next 30 days.</li>
       <li><b>Sunlight and Earth cards:</b> whether each is above the horizon now, how high, and how long until it sets or rises.</li>
       <li><b>30-day timeline:</b> when there is sunlight, when Earth is in view, and when you have both. Drag or tap to choose a time, or focus the timeline and use the arrow keys to step by one hour.</li>
-      <li><b>Comparison:</b> add up to three scenarios, for example the same site a week later after a launch slip.</li>
+      <li><b>Mission:</b> compare power and visibility for up to three scenarios using shared solar settings. Each timeline has a landing-date finder below it.</li>
     </ul>
 
     <h3>How it's calculated</h3>
@@ -436,16 +439,19 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
         <a class="hz-earth" target="_blank" rel="noopener">Earth position</a>
       </div>
     </div>
-    <div class="view-power"><div class="ext" data-plugin-group="power"></div></div>
-    <div class="view-planning">
+    <div class="view-mission mission-track">
+      <div class="mission-track-head"><h3 class="mission-scenario-name"></h3><span class="mission-energy"></span></div>
       <figure class="tl">
         <figcaption class="tlcap"></figcaption>
-        <svg class="tlsvg" viewBox="0 0 1000 132" role="slider" tabindex="0"
+        <svg class="tlsvg" viewBox="0 0 1000 37" role="slider" tabindex="0"
           aria-label="Timeline time" aria-valuemin="0" aria-valuemax="720"></svg>
       </figure>
-      <div class="ext" data-plugin-group="planner"></div>
-      <div class="cards"><article class="card month"></article></div>
-      <div class="ext"></div>
+      <details class="mission-planning">
+        <summary>Dates</summary>
+        <div class="ext" data-plugin-group="planner"></div>
+        <div class="cards"><article class="card month"></article></div>
+        <div class="ext"></div>
+      </details>
     </div>
   </section>
 </template>

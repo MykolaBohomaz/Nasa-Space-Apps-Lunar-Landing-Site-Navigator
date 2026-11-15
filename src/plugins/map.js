@@ -511,6 +511,7 @@
       </section>`;
     const canvas = slot.querySelector('canvas');
     const viewport = canvas.parentElement;
+    const globeHeader = slot.querySelector('.mw-globe-header');
     const panel = document.getElementById('sitePanel');
     const sheetLayout = window.matchMedia('(max-width: 900px)');
     if (window.MW_POLAR_MAP?.credit) {
@@ -630,17 +631,22 @@
     function viewFor(width, height) {
       let visibleWidth = width;
       let visibleHeight = height;
+      let top = 0;
       if (!panel.hidden) {
         if (!sheetLayout.matches) visibleWidth = panel.offsetLeft;
         else if (panel.dataset.view === 'site') visibleHeight = panel.offsetTop;
+        else if (panel.dataset.view === 'mission') {
+          visibleHeight = panel.offsetTop;
+          top = Math.min(globeHeader.offsetTop + globeHeader.offsetHeight + 8, visibleHeight * 0.55);
+        }
       }
-      const shortSide = Math.max(1, Math.min(visibleWidth, visibleHeight));
+      const shortSide = Math.max(1, Math.min(visibleWidth, visibleHeight - top));
       return {
         shortSide,
         xScale: focalLength * shortSide / width,
         yScale: focalLength * shortSide / height,
         centerX: visibleWidth / width - 1,
-        centerY: 1 - visibleHeight / height
+        centerY: 1 - (visibleHeight + top) / height
       };
     }
 

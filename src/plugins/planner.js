@@ -78,7 +78,8 @@
       html = `<p class="note"><b>No window of ${minDays} days</b> in the next year. ${terrainNote} The longest time with both Sun and Earth is ${f.dur(res.longest.end - res.longest.start)}:</p><ol>${row(res.longest)}</ol>`;
     }
     out.innerHTML = searchNote + html;
-    out.querySelectorAll('button[data-t]').forEach(b => b.addEventListener('click', () => api.setTime(idx(), Number(b.dataset.t))));
+    out.querySelectorAll('button[data-t]').forEach(b =>
+      b.addEventListener('click', () => api.setTime(idx(), Number(b.dataset.t), { inspect: true })));
   }
 
   (window.MoonWindowPlugins = window.MoonWindowPlugins || []).push({

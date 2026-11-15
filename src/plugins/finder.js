@@ -43,7 +43,8 @@
           <p class="mw-finder-start muted"></p>
           <div class="actions">
             <button class="btn small" type="button" data-check>Check landing windows</button>
-            <button class="btn small" type="button" data-compare>Replace comparison with picks</button>
+            <button class="btn small" type="button" data-compare title="Replace the mission scenarios with these picks">Compare at selected time</button>
+            <button class="btn small" type="button" data-compare-earliest hidden title="Replace the mission scenarios with these picks">Compare earliest starts</button>
           </div>
           <div class="mw-finder-report" aria-live="polite"></div>
         </div>
@@ -64,6 +65,7 @@
     const daysInput = slot.querySelector('.mw-finder-days');
     const check = slot.querySelector('[data-check]');
     const compare = slot.querySelector('[data-compare]');
+    const compareEarliest = slot.querySelector('[data-compare-earliest]');
     const report = slot.querySelector('.mw-finder-report');
     const startLabel = slot.querySelector('.mw-finder-start');
     const f = api.fmt;
@@ -72,10 +74,13 @@
     let request = 0;
     let checking = false;
     let selectedTime;
+    let checkedStarts = null;
 
     function syncButtons() {
       check.disabled = picked.size === 0 || checking;
       compare.disabled = picked.size < 2 || checking;
+      compareEarliest.hidden = !checkedStarts || picked.size < 2;
+      compareEarliest.disabled = checking || checkedStarts?.length !== picked.size;
       for (const input of list.querySelectorAll('input')) {
         input.disabled = !input.checked && picked.size >= MAX_PICKS;
       }
@@ -84,6 +89,7 @@
     function clearReport() {
       request++;
       checking = false;
+      checkedStarts = null;
       report.replaceChildren();
       syncButtons();
     }
@@ -162,6 +168,7 @@
       syncButtons();
       report.textContent = 'Checking lunar visibility…';
       const rows = [];
+      const starts = [];
       for (const site of sites) {
         await nextFrame();
         if (token !== request) return;
@@ -176,6 +183,7 @@
           return window ? window.end - time : 0;
         };
         const next = windows.find(w => w.end - w.start >= required);
+        if (next) starts.push({ lat: site.lat, lon: site.lon, t: next.start });
         const nextText = next ? f.full(next.start) : 'No qualifying window in the next year';
         const duration = time => {
           const span = remaining(time);
@@ -187,7 +195,10 @@
           <small>Earliest qualifying start: ${f.esc(nextText)}</small></li>`);
       }
       checking = false;
-      report.innerHTML = `<p>Searched from <strong>${f.esc(f.full(start))}</strong> for one year. The first qualifying window can start later.</p><ol>${rows.join('')}</ol>`;
+      checkedStarts = starts;
+      const unavailable = sites.length > 1 && starts.length !== sites.length
+        ? '<p>Compare earliest starts becomes available when every pick has a qualifying window.</p>' : '';
+      report.innerHTML = `<p>Searched from <strong>${f.esc(f.full(start))}</strong> for one year. The first qualifying window can start later.</p><ol>${rows.join('')}</ol>` + unavailable;
       syncButtons();
     });
     compare.addEventListener('click', () => {
@@ -196,7 +207,11 @@
         report.textContent = 'Local terrain is unavailable for one or more picks. Wait for it to load or choose different points.';
         return;
       }
-      api.loadSiteComparison(sites, api.activeScenario().t);
+      const t = api.activeScenario().t;
+      api.loadSiteComparison(sites.map(({ lat, lon }) => ({ lat, lon, t })));
+    });
+    compareEarliest.addEventListener('click', () => {
+      if (checkedStarts?.length === picked.size) api.loadSiteComparison(checkedStarts);
     });
     filter();
     return updateSearchStart;

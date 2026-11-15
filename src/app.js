@@ -4,7 +4,7 @@
   const E = MoonEngine(Astronomy);
   const HOUR = 3600e3, DAY = 24 * HOUR;
   const WINDOW_H = 720;   // 30-day timeline and statistics
-  const TIMELINE_LEFT = 110, TIMELINE_RIGHT = 14;
+  const TIMELINE_LEFT = 4, TIMELINE_RIGHT = 4, TIMELINE_HEIGHT = 37;
   const SAMPLE_H = 2160;  // 90 days of hourly samples, so countdowns can look 60+ days ahead
   const MAX_SCENARIOS = 3, LETTERS = 'ABC';
 
@@ -98,7 +98,7 @@
     const key = s.lat + ',' + s.lon;
     const inWindow = s.anchor !== null && s.t >= s.anchor && s.t <= s.anchor + WINDOW_H * HOUR;
     if (!reanchor && s.samples && s.key === key && inWindow) return;
-    s.anchor = Math.floor(s.t / HOUR) * HOUR;
+    s.anchor = s.t;
     s.key = key;
     const out = new Array(SAMPLE_H + 1);
     for (let i = 0; i <= SAMPLE_H; i++) out[i] = E.skyAt(new Date(s.anchor + i * HOUR), s.lat, s.lon);
@@ -400,39 +400,34 @@
   function renderTimeline(s, el) {
     const svg = $(el, '.tlsvg');
     const width = svg.clientWidth || svg.viewBox.baseVal.width;
-    svg.setAttribute('viewBox', `0 0 ${width} 132`);
+    svg.setAttribute('viewBox', `0 0 ${width} ${TIMELINE_HEIGHT}`);
     const L = TIMELINE_LEFT, pw = width - L - TIMELINE_RIGHT;
     const rows = [
-      { label: 'Sunlight', y: 8, color: '#F4B942', f: p => isUp(s, p.sun) },
-      { label: 'Earth in view', y: 36, color: '#5DA9E9', f: p => isUp(s, p.earth) },
-      { label: 'Both', y: 64, color: '#8FD6B0', f: p => isUp(s, p.sun) && isUp(s, p.earth) }
+      { y: 3, color: '#F4B942', f: p => isUp(s, p.sun) },
+      { y: 13, color: '#5DA9E9', f: p => isUp(s, p.earth) },
+      { y: 23, color: '#8FD6B0', f: p => isUp(s, p.sun) && isUp(s, p.earth) }
     ];
     const x = i => L + i / WINDOW_H * pw;
     let g = '';
     rows.forEach(r => {
-      g += `<text x="${L - 10}" y="${r.y + 15}" text-anchor="end" font-size="13" fill="#ECE9E2">${r.label}</text>`;
-      g += `<rect x="${L}" y="${r.y}" width="${pw}" height="20" rx="3" fill="#1E2226"/>`;
+      g += `<rect x="${L}" y="${r.y}" width="${pw}" height="7" rx="2" fill="#171e25"/>`;
       let start = -1;
       for (let i = 0; i <= WINDOW_H; i++) {
         const on = i < WINDOW_H && r.f(s.samples[i]);
         if (on && start < 0) start = i;
-        if (!on && start >= 0) { g += `<rect x="${x(start).toFixed(1)}" y="${r.y}" width="${(x(i) - x(start)).toFixed(1)}" height="20" fill="${r.color}"/>`; start = -1; }
+        if (!on && start >= 0) { g += `<rect x="${x(start).toFixed(1)}" y="${r.y}" width="${(x(i) - x(start)).toFixed(1)}" height="7" fill="${r.color}"/>`; start = -1; }
       }
     });
-    // day ticks
-    const firstMidnight = Math.ceil(s.anchor / DAY) * DAY;
-    for (let t = firstMidnight; t <= s.anchor + WINDOW_H * HOUR; t += DAY) {
-      const i = (t - s.anchor) / HOUR, xx = x(i);
-      const major = (t - firstMidnight) / DAY % (pw < 380 ? 10 : 5) === 0;
-      g += `<line x1="${xx}" x2="${xx}" y1="90" y2="${major ? 100 : 95}" stroke="#A3A9AE"/>`;
-      if (major && xx < width - TIMELINE_RIGHT - 34 && xx > L + 20) g += `<text x="${xx}" y="116" text-anchor="middle" font-size="12" fill="#A3A9AE">${fmtDate(t)}</text>`;
+    for (let i = 0; i <= WINDOW_H; i += 5 * 24) {
+      const xx = x(i);
+      g += `<line x1="${xx}" x2="${xx}" y1="33" y2="36" stroke="#A3A9AE"/>`;
     }
     svg.innerHTML = g + `<g class="tl-playhead" aria-hidden="true">
-      <line y1="2" y2="90" stroke="#ECE9E2" stroke-width="2"/>
-      <path d="M-6 0 L6 0 L0 8Z" fill="#ECE9E2"/>
+      <line y1="0" y2="31" stroke="#ECE9E2" stroke-width="2"/>
+      <path d="M-4 0 L4 0 L0 5Z" fill="#ECE9E2"/>
     </g>`;
     updatePlayhead(s, svg);
-    $(el, '.tlcap').textContent = `30 days from ${fmtFull(s.anchor)}. Drag or tap the timeline to choose a time.`;
+    $(el, '.tlcap').textContent = `Chart starts ${fmtFull(s.anchor)}`;
   }
 
   function updatePlayhead(s, svg) {
@@ -445,13 +440,18 @@
   }
 
   function previewScenarioHour(s, hour) {
+    const switched = s !== inspectedScenario;
+    if (switched) {
+      inspectedScenario = s;
+      updateScenarioPicker();
+    }
     const time = s.anchor + hour * HOUR;
-    if (s.t === time) return;
+    if (s.t === time && !switched) return;
     s.t = time;
     updatePlayhead(s, $(s.el, '.tlsvg'));
     const view = sitePanel.dataset.view;
     renderScenarioTime(s, view);
-    if (view === 'compare') renderCompare();
+    if (view === 'mission') renderMissionSummary();
     renderTimeControls();
     renderTopPlugins();
   }
@@ -537,6 +537,11 @@
     s.stats = windowStats(s, false);
     s.statsFlat = terrainOn(s) ? windowStats(s, true) : s.stats;
     el.setAttribute('aria-label', 'Scenario ' + LETTERS[index]);
+    const trackName = $(el, '.mission-scenario-name');
+    trackName.textContent = LETTERS[index] + ' · ' + siteName(s);
+    trackName.title = trackName.textContent;
+    $(el, '.mission-planning > summary').setAttribute('aria-label', 'Landing dates and site checks for scenario ' + LETTERS[index]);
+    $(el, '.tlsvg').setAttribute('aria-label', 'Scenario ' + LETTERS[index] + ' timeline time');
     $(el, '.site').value = s.siteId;
     if (document.activeElement !== $(el, '.lat')) $(el, '.lat').value = s.lat;
     if (document.activeElement !== $(el, '.lon')) $(el, '.lon').value = s.lon;
@@ -561,40 +566,40 @@
       $(el, '.hz-sun').href = horizonsUrl(s, '10');
       $(el, '.hz-earth').href = horizonsUrl(s, '399');
     }
-    if (!view || view === 'planning') $(el, '.month').innerHTML = monthCard(s);
-    if (!view || view === 'power') runPlugins('renderTime', p => [s, slotFor(el, p), API]);
+    if (!view || view === 'mission') $(el, '.month').innerHTML = monthCard(s);
   }
 
-  function renderCompare() {
+  function renderMissionSummary() {
     const box = document.getElementById('compare');
-    box.hidden = scenarios.length < 2;
-    document.getElementById('compareEmpty').hidden = !box.hidden;
-    if (box.hidden) return;
     const bw = scenarios.map(s => bothWindow(s));
     const best = Math.max(...bw.map(v => v === null ? -1 : v));
-    const now = (s, body, next) => {
-      const up = isUp(s, body);
-      return `${up ? 'Up' : body.el > 0 ? 'Behind terrain' : 'Down'}, ${fmtDeg(body.el)}<br><span class="muted">${changeText(s, next, up, 'Sets', 'Rises')}</span>`;
-    };
+    const solar = window.MW_POWER;
+    const estimates = scenarios.map(s => solar.estimate(s, API));
+    const leaders = bw.flatMap((duration, i) => duration === best ? [LETTERS[i]] : []);
+    const durationText = best === Infinity ? 'many days' : best > 0 ? fmtDur(best) : '';
+    const verdict = best < 0 ? 'Sun and Earth are not both visible at the selected times.'
+      : scenarios.length === 1 ? `Sun and Earth are both visible for ${durationText} from the selected time.`
+      : leaders.length > 1 ? `${leaders.join(' and ')} tie at ${durationText} of shared visibility.`
+      : `${leaders[0]} has the longest shared visibility from its selected time, at ${durationText}.`;
+    document.querySelector('.mission-verdict').textContent = verdict;
+    document.querySelector('.energy-label').textContent = `${solar.days}-day solar energy`;
+    scenarios.forEach((s, i) => { $(s.el, '.mission-energy').textContent = estimates[i].energy; });
     const rows = [
-      ['Site', s => `${esc(siteName(s))}<br><span class="muted">${terrainOn(s) ? 'LOLA skyline' : 'Flat horizon'}</span>`],
-      ['Time (UTC)', s => esc(fmtUTC(s.t))],
-      ['Sun now', s => now(s, s.cur.sun, s.nextSun)],
-      ['Earth now', s => now(s, s.cur.earth, s.nextEarth)],
+      ['Site and time', s => `${esc(siteName(s))}<br><span class="muted">${esc(fmtUTC(s.t))} · ${terrainOn(s) ? 'LOLA skyline' : 'Flat horizon'}</span>`],
       ['Both visible for', (_, i) => {
         if (bw[i] === null) return 'Not now';
         const duration = bw[i] === Infinity ? 'Many days' : fmtDur(bw[i]);
-        return bw[i] === best ? `<span class="best">${duration} (longest)</span>` : duration;
+        return scenarios.length > 1 && bw[i] === best ? `<span class="best">${duration} (longest)</span>` : duration;
       }],
-      ['Sunlight, 30 d', s => pct(s.stats.sun)],
-      ['Earth in view, 30 d', s => pct(s.stats.earth)],
-      ['Both visible, 30 d', s => pct(s.stats.both)],
-      ['Longest night', s => s.stats.maxDark ? fmtHours(s.stats.maxDark) : 'None']
+      ['Power now', (_, i) => estimates[i].now],
+      [`Average power, ${solar.days} d`, (_, i) => estimates[i].average],
+      [`Solar energy, ${solar.days} d`, (_, i) => estimates[i].energy],
+      ['Both visible in timeline', s => pct(s.stats.both)]
     ];
     const table = box.querySelector('table');
-    table.style.minWidth = (80 + scenarios.length * 86) + 'px';
+    table.style.minWidth = (74 + scenarios.length * 62) + 'px';
     table.tHead.innerHTML = `<tr><th scope="col">Metric</th>${scenarios.map((_, i) =>
-      `<th scope="col">Scenario ${LETTERS[i]}</th>`).join('')}</tr>`;
+      `<th scope="col" aria-label="Scenario ${LETTERS[i]}">${LETTERS[i]}</th>`).join('')}</tr>`;
     table.tBodies[0].innerHTML = rows.map(([label, value]) =>
       `<tr><th scope="row">${label}</th>${scenarios.map((s, i) => `<td>${value(s, i)}</td>`).join('')}</tr>`
     ).join('');
@@ -604,7 +609,7 @@
     scenarios.forEach((s, i) => renderScenario(s, i));
     updateScenarioPicker();
     renderTimeControls();
-    renderCompare();
+    renderMissionSummary();
     renderTopPlugins();
     document.getElementById('addBtn').disabled = scenarios.length >= MAX_SCENARIOS;
     saveHash();
@@ -612,7 +617,7 @@
 
   function renderScenarioChange(s) {
     renderScenario(s, scenarios.indexOf(s));
-    renderCompare();
+    renderMissionSummary();
     renderTimeControls();
     renderTopPlugins();
     saveHash();
@@ -686,6 +691,7 @@
   const panelButtons = sitePanel.querySelectorAll('[data-panel-view]');
   const scenarioPicker = document.getElementById('scenarioPicker');
   const timeLabel = document.getElementById('timeLabel');
+  const timeReadout = document.getElementById('timeReadout');
   const timeInput = document.getElementById('scenarioTime');
   const timeScrub = document.getElementById('timeScrub');
   const closedTime = document.getElementById('closedTime');
@@ -698,6 +704,9 @@
     const label = scenarios.length > 1 ? 'Scenario ' + LETTERS[scenarios.indexOf(s)] : '';
     const isoTime = new Date(s.t).toISOString();
     timeLabel.textContent = label ? label + ' time (UTC)' : 'Date and time (UTC)';
+    timeReadout.dateTime = isoTime;
+    timeReadout.textContent = (label ? LETTERS[scenarios.indexOf(s)] + ' · ' : '') + fmtUTC(s.t);
+    $(timeSteps, 'summary').setAttribute('aria-label', 'Change date and time. ' + timeReadout.textContent);
     if (document.activeElement !== timeInput || closedTime.dateTime !== isoTime) timeInput.value = isoTime.slice(0, 16);
     timeScrub.value = Math.round((s.t - s.anchor) / HOUR);
     timeScrub.setAttribute('aria-valuetext', fmtFull(s.t));
@@ -712,7 +721,7 @@
     }
     scenarioPicker.value = scenarios.indexOf(inspectedScenario);
     scenarioPicker.parentElement.hidden = scenarios.length < 2;
-    for (const scenario of scenarios) scenario.el.hidden = scenario !== inspectedScenario;
+    for (const scenario of scenarios) scenario.el.hidden = sitePanel.dataset.view !== 'mission' && scenario !== inspectedScenario;
   }
 
   function setPanel(view) {
@@ -730,6 +739,7 @@
       renderTimeControls();
       renderTopPlugins();
     }
+    updateScenarioPicker();
     for (const button of panelButtons) {
       button.setAttribute('aria-pressed', String(button.dataset.panelView === view));
     }
@@ -740,15 +750,15 @@
     if (sitePanel.hidden) setPanel(sitePanel.dataset.view);
   }
 
-  function loadSiteComparison(points, time) {
+  function loadSiteComparison(points) {
     if (points.length < 2 || points.length > MAX_SCENARIOS) return;
     stopPlayback();
     scenarios.forEach(s => s.unmount());
     scenarios = [];
-    for (const { lat, lon } of points) addScenario(lat, lon, time);
+    for (const { lat, lon, t } of points) addScenario(lat, lon, t);
     setTerrain(true);
-    setPanel('compare');
-    sitePanel.querySelector('[data-panel-view="compare"]').focus();
+    setPanel('mission');
+    sitePanel.querySelector('[data-panel-view="mission"]').focus();
   }
 
   panelToggle.addEventListener('click', () => setPanel(sitePanel.hidden ? sitePanel.dataset.view : null));
@@ -761,6 +771,11 @@
   });
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && !sitePanel.hidden && !document.querySelector('dialog[open]')) {
+      if (timeSteps.open) {
+        timeSteps.open = false;
+        $(timeSteps, 'summary').focus();
+        return;
+      }
       setPanel(null);
       panelToggle.focus();
     }
@@ -772,8 +787,8 @@
     if (!s) return;
     inspectedScenario = s;
     renderAll();
-    setPanel('site');
-    timeInput.focus();
+    setPanel('mission');
+    $(timeSteps, 'summary').focus();
   });
 
   timeInput.addEventListener('focus', stopPlayback);
@@ -790,6 +805,9 @@
   }
   timeInput.addEventListener('change', commitTimeInput);
   timeInput.addEventListener('blur', commitTimeInput);
+  document.addEventListener('click', event => {
+    if (timeSteps.open && !timeSteps.contains(event.target)) timeSteps.open = false;
+  });
   let timeScrubFrame = null;
   function previewSharedTime() {
     timeScrubFrame = null;
@@ -853,10 +871,18 @@
     activeScenario: () => inspectedScenario,
     openSitePanel,
     loadSiteComparison,
+    renderMissionSummary,
     siteProfile: (lat, lon) => profileFor({ lat, lon, siteId: matchSite(lat, lon) }),
     skylineAt,
     setSite(i, lat, lon) { const s = scenarios[i]; if (!s) return; s.lat = lat; s.lon = lon; s.siteId = matchSite(lat, lon); ensureSamples(s, true); renderAll(); },
-    setTime(i, t) { const s = scenarios[i]; if (!s) return; s.t = t; ensureSamples(s, false); renderAll(); },
+    setTime(i, t, { inspect = false } = {}) {
+      const s = scenarios[i];
+      if (!s) return;
+      if (inspect) inspectedScenario = s;
+      s.t = t;
+      ensureSamples(s, inspect);
+      renderAll();
+    },
     addScenario(lat, lon, t) { const s = addScenario(lat, lon, t); renderAll(); return s; },
     render: () => renderAll(),
     fmt: { deg: fmtDeg, dur: fmtDur, utc: fmtUTC, full: fmtFull, date: fmtDate, pct, hours: fmtHours, esc },

@@ -14,7 +14,7 @@ NASA Space Apps Challenge 2026 project for the lunar landing site challenge (Sun
 - **Sunlight and Earth cards:** elevation and direction, and a countdown to sunset/sunrise and Earthset/Earthrise (to the minute).
 - **30-day timeline:** sunlight, Earth in view, and both together. Click to jump to a time.
 - **Next-30-days numbers:** % sunlight, % Earth in view, % both, longest night, longest time without Earth, and how long Sun and Earth stay up together from the chosen moment.
-- **Compare up to 3 scenarios** side by side, for example the same site after a one-week launch slip.
+- **Mission** compares up to three scenarios using one set of solar-panel settings and one mission duration. It shows power, energy, and Sun–Earth overlap together, with a scrubbable timeline and a landing-date finder for each scenario.
 - **Play time** animation, **shareable links** (the URL stores the scenarios), and an **About** panel with explanations for non-experts.
 - **Check in NASA JPL Horizons:** every scenario links to the same query in JPL Horizons so anyone can verify the numbers.
 
@@ -96,7 +96,9 @@ python3 tools/make_horizons.py && node tools/terrain_report.js && python3 build.
 
 ## Best landing spots in NASA's Artemis III regions
 
-The **Find sites** tab defaults to a **160 km radius** around the lunar south pole, sampling a 5 km grid and spacing shortlisted points at least 12 km apart. It can also search the original region picks and additional points on a 1 km grid within 5 km of each Artemis region reference coordinate, with a 2 km shortlist buffer. Sampled points use the bundled 240 m or 960 m LOLA terrain, and each result shows its resolution. Coverage filters use 2027 samples at two-hour intervals. After choosing up to three points, check the selected UTC time and a one-week delay for continuous Sun and Earth visibility, or load two or three picks into Compare. The window check samples hourly and searches the next year for the earliest qualifying start.
+The **Find sites** tab defaults to a **160 km radius** around the lunar south pole, sampling a 5 km grid and spacing shortlisted points at least 12 km apart. It can also search the original region picks and additional points on a 1 km grid within 5 km of each Artemis region reference coordinate, with a 2 km shortlist buffer. Sampled points use the bundled 240 m or 960 m LOLA terrain, and each result shows its resolution. Coverage filters use 2027 samples at two-hour intervals. After choosing up to three points, check the selected UTC time and a one-week delay for continuous Sun and Earth visibility, or load two or three picks into Mission. The window check samples hourly and searches the next year for the earliest qualifying start.
+
+Use **Compare at selected time** for a common reference date, or **Compare earliest starts** after checking two or three picks that each have a qualifying window. Mission starts each chart at the time used for that scenario. The playhead shows the currently selected time as you scrub.
 
 To regenerate the offline shortlist from the existing terrain assets, run `node tools/make_site_candidates.js > src/site-candidates.js` and then `python3 build.py`. The grid provides preliminary screening and can miss terrain between sampled points.
 
