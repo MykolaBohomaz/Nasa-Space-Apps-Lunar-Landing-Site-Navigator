@@ -19,10 +19,6 @@
     return [direction(0, lon + 90), direction(lat + 90, lon), direction(lat, lon)];
   }
 
-  function projection(width, height) {
-    return [focalLength * Math.min(1, height / width), focalLength * Math.min(1, width / height)];
-  }
-
   function surfaceCoordinates([right, up, forward], distance, x, y) {
     // Intersect the view ray with the reference sphere used for lunar coordinates.
     const ray = [x, y, -1];
@@ -231,6 +227,7 @@
       layout(location = 1) in vec3 normal;
       uniform mat3 camera;
       uniform vec3 view;
+      uniform vec2 viewCenter;
       out vec3 surfaceNormal;
       out float elevation;
       out vec3 surfacePosition;
@@ -240,7 +237,8 @@
         elevation = vertex.w;
         surfacePosition = vertex.xyz;
         float depth = view.x - position.z;
-        gl_Position = vec4(position.x * view.y, position.y * view.z, 1.001 * depth - 0.04, depth);
+        vec2 screen = position.xy * view.yz + viewCenter * depth;
+        gl_Position = vec4(screen, 1.001 * depth - 0.04, depth);
       }`);
     const fragment = compile(gl.FRAGMENT_SHADER, `#version 300 es
       precision highp float;
@@ -352,6 +350,7 @@
         in vec2 screen;
         uniform mat3 axes;
         uniform vec2 projection;
+        uniform vec2 viewCenter;
         uniform sampler2D sky;
         out vec4 color;
 
@@ -362,7 +361,7 @@
 
         void main() {
           // Use direction only: the sky has no distance or zoom parallax.
-          vec3 ray = normalize(axes * vec3(screen / projection, -1.0));
+          vec3 ray = normalize(axes * vec3((screen - viewCenter) / projection, -1.0));
           // Frame the Milky Way near the initial orbit as a visual backdrop.
           ray = vec3(ray.y, -ray.x, ray.z);
           vec2 uv = panorama(ray);
@@ -376,9 +375,11 @@
     );
     const skyAxes = gl.getUniformLocation(skyProgram, 'axes');
     const skyProjection = gl.getUniformLocation(skyProgram, 'projection');
+    const skyCenter = gl.getUniformLocation(skyProgram, 'viewCenter');
+    const globeCenter = gl.getUniformLocation(program, 'viewCenter');
     const skyVao = gl.createVertexArray();
 
-    return (surface, axes, distance, xScale, yScale) => {
+    return (surface, axes, distance, { xScale, yScale, centerX, centerY }) => {
       gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -387,6 +388,7 @@
         gl.useProgram(skyProgram);
         gl.uniformMatrix3fv(skyAxes, false, axes.flat());
         gl.uniform2f(skyProjection, xScale, yScale);
+        gl.uniform2f(skyCenter, centerX, centerY);
         gl.bindTexture(gl.TEXTURE_2D, stars.texture);
         gl.bindVertexArray(skyVao);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -407,6 +409,7 @@
         right[0], up[0], forward[0], right[1], up[1], forward[1], right[2], up[2], forward[2]
       ]);
       gl.uniform3f(view, distance, xScale, yScale);
+      gl.uniform2f(globeCenter, centerX, centerY);
       gl.bindBuffer(gl.ARRAY_BUFFER, surface.vertexBuffer);
       gl.enableVertexAttribArray(0);
       const stride = floatsPerVertex * Float32Array.BYTES_PER_ELEMENT;
@@ -422,27 +425,28 @@
     slot.innerHTML = `
       <section class="mw-globe" aria-label="Lunar globe">
         <div class="mw-globe-header">
-          <div><h2>Lunar globe</h2><p id="mw-globe-help">Click or tap the Moon to select and center scenario A · Drag to orbit · Scroll or pinch to zoom</p></div>
-          <div class="mw-globe-controls">
+          <h1>MoonWindow</h1>
+          <select aria-label="Select landing site for scenario A"></select>
+          <p id="mw-globe-help">Pick a site on the Moon or from the list. Drag to orbit and scroll or pinch to zoom.</p>
+          <div role="status" class="mw-globe-status"></div>
+        </div>
+        <div class="mw-globe-controls" role="group" aria-label="Globe controls">
             <button type="button" data-action="pole">South pole</button>
             <button type="button" data-action="reset">Reset view</button>
             <button type="button" data-action="in" aria-label="Zoom in">+</button>
             <button type="button" data-action="out" aria-label="Zoom out">−</button>
-          </div>
         </div>
         <div class="mw-globe-viewport">
           <canvas tabindex="0" aria-label="Moon terrain. Use arrow keys to orbit, plus or minus to zoom, and Enter to select the center."
             aria-describedby="mw-globe-help"></canvas>
           <div class="mw-globe-pins"></div>
         </div>
-        <div class="mw-globe-footer">
-          <label>Set scenario A site <select aria-label="Set scenario A site"></select></label>
           <span class="mw-globe-credit"><a target="_blank" rel="noopener"></a><span></span> · <a href="https://svs.gsfc.nasa.gov/4720/" target="_blank" rel="noopener">NASA SVS / LROC imagery</a> · <a href="https://svs.gsfc.nasa.gov/4851/" target="_blank" rel="noopener">NASA SVS star map</a></span>
-        </div>
-        <div role="status" class="mw-globe-status"></div>
       </section>`;
     const canvas = slot.querySelector('canvas');
     const viewport = canvas.parentElement;
+    const panel = document.getElementById('sitePanel');
+    const sheetLayout = window.matchMedia('(max-width: 900px)');
     if (window.MW_POLAR_MAP?.credit) {
       const polarCredit = document.createElement('span');
       polarCredit.textContent = ' · South pole relief: NASA LOLA';
@@ -454,10 +458,22 @@
     const status = slot.querySelector('[role="status"]');
     const credit = slot.querySelector('.mw-globe-credit a');
     const detail = credit.nextElementSibling;
-    select.add(new Option('Custom coordinates', 'custom'));
-    for (const site of api.SITES) select.add(new Option(site.name, site.id));
+    const prompt = new Option('Choose a saved site', '');
+    prompt.disabled = true;
+    select.add(prompt);
+    const groups = new Map();
+    for (const site of api.SITES) {
+      if (!groups.has(site.group)) {
+        const group = document.createElement('optgroup');
+        group.label = site.group;
+        groups.set(site.group, group);
+        select.append(group);
+      }
+      groups.get(site.group).append(new Option(site.name, site.id));
+    }
     select.addEventListener('change', () => {
       const site = api.SITES.find(item => item.id === select.value);
+      select.value = '';
       if (site) selectSite(site);
     });
 
@@ -474,6 +490,7 @@
 
     function selectSite(site) {
       api.setSite(0, site.lat, site.lon);
+      api.openSitePanel();
       const move = flightTo(camera, direction(site.lat, site.lon));
       if (reducedMotion.matches || move.angle < 0.001) {
         camera = orbitCamera(camera, move.horizontal, move.vertical);
@@ -505,6 +522,23 @@
       return element;
     });
 
+    function viewFor(width, height) {
+      let visibleWidth = width;
+      let visibleHeight = height;
+      if (!panel.hidden) {
+        if (!sheetLayout.matches) visibleWidth = panel.offsetLeft;
+        else if (panel.dataset.view === 'site') visibleHeight = panel.offsetTop;
+      }
+      const shortSide = Math.max(1, Math.min(visibleWidth, visibleHeight));
+      return {
+        shortSide,
+        xScale: focalLength * shortSide / width,
+        yScale: focalLength * shortSide / height,
+        centerX: visibleWidth / width - 1,
+        centerY: 1 - visibleHeight / height
+      };
+    }
+
     function draw(now) {
       frame = null;
       if (!gl || gl.isContextLost()) return;
@@ -525,15 +559,16 @@
       if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
       if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
       const [right, up, forward] = camera;
-      const [xScale, yScale] = projection(width, height);
-      render(surface, camera, distance, xScale, yScale);
+      const view = viewFor(width, height);
+      const { xScale, yScale, centerX, centerY } = view;
+      render(surface, camera, distance, view);
 
       for (const pin of [...sitePins, ...scenarioPins]) {
         const normal = direction(pin.lat, pin.lon);
         const point = surface ? surface.point(pin.lat, pin.lon) : normal;
         const depth = distance - dot(point, forward);
-        const x = dot(point, right) * xScale / depth;
-        const y = dot(point, up) * yScale / depth;
+        const x = dot(point, right) * xScale / depth + centerX;
+        const y = dot(point, up) * yScale / depth + centerY;
         pin.element.hidden = !surface || dot(normal, forward) <= Math.hypot(...point) / distance ||
           Math.abs(x) >= 0.98 || Math.abs(y) >= 0.98;
         if (pin.element.hidden) continue;
@@ -554,16 +589,19 @@
 
     function orbit(dx, dy) {
       flight = null;
-      const shortSide = Math.max(1, Math.min(viewport.clientWidth, viewport.clientHeight));
+      const { shortSide } = viewFor(viewport.clientWidth, viewport.clientHeight);
       const radiansPerPixel = 2 * (distance - 1) / (focalLength * shortSide);
       camera = orbitCamera(camera, -dx * radiansPerPixel, dy * radiansPerPixel);
       schedule();
     }
 
     function pick(x, y) {
-      if (!surface || Math.abs(x) > 1 || Math.abs(y) > 1) return;
-      const [xScale, yScale] = projection(viewport.clientWidth, viewport.clientHeight);
-      const point = surfaceCoordinates(camera, distance, x / xScale, y / yScale);
+      const width = viewport.clientWidth;
+      const height = viewport.clientHeight;
+      if (!surface || !width || !height || Math.abs(x) > 1 || Math.abs(y) > 1) return;
+      const { xScale, yScale, centerX, centerY } = viewFor(width, height);
+      const point = surfaceCoordinates(camera, distance, ((x ?? centerX) - centerX) / xScale,
+        ((y ?? centerY) - centerY) / yScale);
       if (point) selectSite(point);
     }
 
@@ -633,13 +671,15 @@
         ArrowLeft: () => orbit(-40, 0), ArrowRight: () => orbit(40, 0),
         ArrowUp: () => orbit(0, -40), ArrowDown: () => orbit(0, 40),
         '+': controls.in, '=': controls.in, '-': controls.out, Home: controls.reset,
-        Enter: () => pick(0, 0)
+        Enter: () => pick()
       };
       if (!Object.hasOwn(actions, event.key)) return;
       event.preventDefault();
       actions[event.key]();
     });
-    new ResizeObserver(schedule).observe(viewport);
+    const resize = new ResizeObserver(schedule);
+    resize.observe(viewport);
+    resize.observe(panel);
 
     const terrain = window.MoonWindowTerrain;
     async function load(provider) {
@@ -673,7 +713,7 @@
         render = makeRenderer(gl, schedule);
         load(provider).catch(() => {});
       } catch (error) {
-        status.textContent = error.message + ' Site selection is available below.';
+        status.textContent = error.message + ' Use the saved-site picker to explore.';
       }
     }
     terrain.setProvider = async next => {
@@ -694,7 +734,6 @@
 
     return () => {
       const scenarios = api.scenarios();
-      select.value = scenarios[0]?.siteId || 'custom';
       scenarioPins = scenarios.map((scenario, index) => ({ ...scenario, element: markers[index] }));
       markers.slice(scenarios.length).forEach(marker => { marker.hidden = true; });
       schedule();

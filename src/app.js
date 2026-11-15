@@ -143,7 +143,7 @@
     return slot;
   }
   function topSlotFor(p) {
-    const box = document.getElementById('extTop');
+    const box = document.getElementById(p.name === 'map' ? 'globeStage' : 'extTop');
     let slot = box.querySelector(`[data-plugin="${p.name}"]`);
     if (!slot) { slot = document.createElement('div'); slot.dataset.plugin = p.name; slot.className = 'ext-slot'; box.appendChild(slot); }
     return slot;
@@ -330,6 +330,29 @@
     const ends = [s.nextSun.at, s.nextEarth.at].filter(v => v);
     return ends.length ? Math.min(...ends) - s.t : Infinity;
   }
+
+  function renderSiteSummary(s, el) {
+    const sun = isUp(s, s.cur.sun);
+    const earth = isUp(s, s.cur.earth);
+    const both = bothWindow(s);
+    let windowText;
+    if (both !== null) {
+      windowText = both === Infinity ? 'Both remain visible for days.' : `Both visible for ${fmtDur(both)}.`;
+    } else {
+      const start = Math.floor((s.t - s.anchor) / HOUR) + 1;
+      const end = Math.min(SAMPLE_H, start + WINDOW_H - 1);
+      const index = s.samples.findIndex((p, i) =>
+        i >= start && i <= end && isUp(s, p.sun) && isUp(s, p.earth));
+      windowText = index >= 0 ? `Next both visible around ${fmtUTC(s.anchor + index * HOUR)}.`
+        : 'No shared visibility in the upcoming hourly samples.';
+    }
+    $(el, '.summary-name').textContent = siteName(s);
+    $(el, '.summary-status').innerHTML = `<div class="visibility">
+      <span class="chip ${sun ? 'ok' : 'no'}">Sun ${sun ? 'visible' : 'hidden'}</span>
+      <span class="chip ${earth ? 'ok' : 'no'}">Earth ${earth ? 'visible' : 'hidden'}</span>
+    </div><p>${esc(windowText)}</p>
+    <p class="muted">${terrainOn(s) ? `LOLA skyline · ${s.profInfo.resM} m grid` : 'Flat horizon · 0°'}</p>`;
+  }
   function changeText(s, nc, up, setWord, riseWord) {
     const w = up ? setWord : riseWord;
     return nc.at ? `${w} in ${fmtDur(nc.at - s.t)}` : `Stays ${up ? 'up' : 'down'} for ${nc.days}+ d`;
@@ -431,6 +454,7 @@
     renderSky(s, el, cur);
     s.nextSun = nextChange(s, 'sun', isUp(s, cur.sun));
     s.nextEarth = nextChange(s, 'earth', isUp(s, cur.earth));
+    renderSiteSummary(s, el);
     $(el, '.power').innerHTML = bodyCard('sun', s, cur);
     $(el, '.comms').innerHTML = bodyCard('earth', s, cur);
     $(el, '.month').innerHTML = monthCard(s);
@@ -443,6 +467,7 @@
   function renderCompare() {
     const box = document.getElementById('compare');
     box.hidden = scenarios.length < 2;
+    document.getElementById('compareEmpty').hidden = !box.hidden;
     if (box.hidden) return;
     box.tabIndex = 0; // the table can scroll sideways on small screens; this lets keyboard users scroll it
     const bw = scenarios.map(s => bothWindow(s));
@@ -462,6 +487,7 @@
 
   function renderAll() {
     scenarios.forEach((s, i) => renderScenario(s, i));
+    updateScenarioPicker();
     renderCompare();
     runPlugins('renderTop', p => [topSlotFor(p), API]);
     document.getElementById('addBtn').disabled = scenarios.length >= MAX_SCENARIOS;
@@ -544,11 +570,66 @@
     return ok;
   }
 
+  const sitePanel = document.getElementById('sitePanel');
+  const panelToggle = document.getElementById('panelToggle');
+  const panelContent = sitePanel.querySelector('.panel-content');
+  const panelButtons = sitePanel.querySelectorAll('[data-panel-view]');
+  const scenarioPicker = document.getElementById('scenarioPicker');
+  let inspectedScenario;
+
+  function updateScenarioPicker() {
+    if (!scenarios.includes(inspectedScenario)) inspectedScenario = scenarios[0];
+    if (scenarioPicker.options.length !== scenarios.length) {
+      scenarioPicker.replaceChildren(...scenarios.map((_, i) => new Option(LETTERS[i], i)));
+    }
+    scenarioPicker.value = scenarios.indexOf(inspectedScenario);
+    scenarioPicker.parentElement.hidden = scenarios.length < 2;
+    for (const scenario of scenarios) scenario.el.hidden = scenario !== inspectedScenario;
+  }
+
+  function setPanel(view) {
+    sitePanel.hidden = !view;
+    panelToggle.setAttribute('aria-expanded', String(!!view));
+    panelToggle.textContent = view ? 'Hide details' : 'Site details';
+    document.body.classList.toggle('panel-open', !!view);
+    document.body.dataset.panelView = view || '';
+    if (!view) return;
+    sitePanel.dataset.view = view;
+    for (const button of panelButtons) {
+      button.setAttribute('aria-pressed', String(button.dataset.panelView === view));
+    }
+    panelContent.scrollTop = 0;
+  }
+
+  function openSitePanel() {
+    inspectedScenario = scenarios[0];
+    updateScenarioPicker();
+    setPanel('site');
+  }
+
+  panelToggle.addEventListener('click', () => setPanel(sitePanel.hidden ? sitePanel.dataset.view : null));
+  for (const button of panelButtons) {
+    button.addEventListener('click', () => setPanel(button.dataset.panelView));
+  }
+  scenarioPicker.addEventListener('change', () => {
+    inspectedScenario = scenarios[Number(scenarioPicker.value)];
+    updateScenarioPicker();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !sitePanel.hidden && !document.querySelector('dialog[open]')) {
+      setPanel(null);
+      panelToggle.focus();
+    }
+  });
+
   document.getElementById('addBtn').addEventListener('click', () => {
     const last = scenarios[scenarios.length - 1];
     const s = addScenario(last.lat, last.lon, last.t + 7 * DAY);
+    if (!s) return;
+    inspectedScenario = s;
     renderAll();
-    if (s) s.el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    setPanel('analysis');
+    $(s.el, '.dt').focus();
   });
   document.getElementById('playBtn').addEventListener('click', e => {
     const btn = e.currentTarget;
@@ -572,6 +653,7 @@
   const API = {
     engine: E, HOUR, DAY, WINDOW_H, SAMPLE_H, SITES,
     scenarios: () => scenarios.slice(),          // each: {lat, lon, t, siteId, anchor, samples[], stats, cur, nextSun, nextEarth, el}
+    openSitePanel,
     setSite(i, lat, lon) { const s = scenarios[i]; if (!s) return; s.lat = lat; s.lon = lon; s.siteId = matchSite(lat, lon); ensureSamples(s, true); renderAll(); },
     setTime(i, t) { const s = scenarios[i]; if (!s) return; s.t = t; ensureSamples(s, false); renderAll(); },
     addScenario(lat, lon, t) { const s = addScenario(lat, lon, t); renderAll(); return s; },

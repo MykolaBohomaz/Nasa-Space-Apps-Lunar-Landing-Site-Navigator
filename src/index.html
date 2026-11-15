@@ -23,14 +23,16 @@
 html{background:var(--bg);color:var(--text);font-family:var(--font);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
 body{margin:0}
 button,input,select{font:inherit;color:inherit}
-.mw-globe{margin:16px 0;padding:14px;background:#101925;border:1px solid #344459;border-radius:12px;color:#ece9e2}
-.mw-globe-header,.mw-globe-footer,.mw-globe-controls{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
-.mw-globe-header,.mw-globe-footer{justify-content:space-between}
-.mw-globe h2{font-size:1.15rem;margin:0}
-.mw-globe p{margin:3px 0;color:#c2cbd8;font-size:.875rem}
+.mw-globe{position:fixed;inset:0;background:#070a0f;color:#ece9e2}
+.mw-globe-header{position:absolute;z-index:1;inset:16px auto auto 16px;width:min(320px,calc(100% - 148px))}
+.mw-globe-header h1{font-size:1.2rem;margin:0 0 7px}
+.mw-globe-header p{margin:7px 0;color:#dbe4ee;font-size:.8rem}
+.mw-globe-header h1,.mw-globe-header p,.mw-globe-credit{text-shadow:0 1px 4px #000,0 1px 6px #000}
+.mw-globe-controls{position:absolute;z-index:1;left:16px;bottom:46px;display:flex;gap:6px;flex-wrap:wrap}
+.mw-globe-controls button,.mw-globe-header select,#panelToggle{color-scheme:dark}
 .mw-globe-controls button,.mw-globe select{min-height:44px;padding:6px 10px;border:1px solid #667991;border-radius:6px;background:#152233;color:#ece9e2}
 .mw-globe-controls button{min-width:44px;cursor:pointer}
-.mw-globe-viewport{position:relative;height:clamp(280px,52vh,510px);margin:10px 0;overflow:hidden;border-radius:8px;background:#070a0f}
+.mw-globe-viewport{position:absolute;inset:0;overflow:hidden}
 .mw-globe canvas,.mw-globe-pins{position:absolute;inset:0;width:100%;height:100%}
 .mw-globe canvas{touch-action:none;cursor:crosshair}
 .mw-globe canvas.is-dragging{cursor:grabbing}
@@ -41,8 +43,9 @@ button,input,select{font:inherit;color:inherit}
 .mw-globe-pin:hover,.mw-globe-pin:focus-visible{z-index:1;outline:2px solid #fff}
 .mw-globe-scenario{position:absolute;transform:translate(-50%,calc(-100% - 5px));padding:0 4px;border:1px solid #e4edf8;border-radius:4px;background:#152233;color:#fff;font-weight:700;font-size:.8rem}
 .mw-globe-scenario::after{content:'';position:absolute;top:calc(100% + 1px);left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#e4edf8;border-bottom:0}
-.mw-globe-footer label{display:flex;align-items:center;flex-wrap:wrap;gap:6px;max-width:100%;font-size:.875rem}
 .mw-globe select{max-width:100%}
+.mw-globe-credit,.mw-globe-status{position:absolute;left:16px;bottom:12px;max-width:calc(100% - 32px)}
+.mw-globe-status{bottom:auto;top:100%;background:#101925}
 .mw-globe-credit,.mw-globe-status{color:#c2cbd8;font-size:.8rem}
 .mw-globe-credit a{color:#a9d1ff}
 .mw-globe-status:empty{display:none}
@@ -68,13 +71,6 @@ a{color:var(--earth)}
 :focus-visible{outline:2px solid var(--sun);outline-offset:2px}
 .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
 
-/* Header */
-.top{border-bottom:1px solid var(--line)}
-.top .wrap{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;padding-top:22px;padding-bottom:18px}
-.brand{display:flex;gap:14px;align-items:center;min-width:0}
-.brand svg{flex:none}
-.brand h1{margin:0;font-size:1.9rem;line-height:1.1;font-weight:700;letter-spacing:-.01em}
-.brand p{margin:2px 0 0;color:var(--muted);max-width:60ch}
 .actions{display:flex;flex-wrap:wrap;gap:8px}
 .btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 14px;cursor:pointer;white-space:nowrap}
 .btn:hover{border-color:var(--muted)}
@@ -83,7 +79,47 @@ a{color:var(--earth)}
 .btn[aria-pressed="true"]{background:var(--text);color:var(--bg);border-color:var(--text)}
 .btn.small{padding:5px 10px;font-size:.88rem}
 
-main.wrap{padding-top:20px;padding-bottom:40px}
+#panelToggle{position:fixed;z-index:3;top:16px;right:16px;min-height:44px;background:#152233;border-color:#667991}
+#sitePanel{position:fixed;z-index:2;top:70px;right:16px;bottom:16px;width:min(410px,calc(100% - 32px));display:flex;flex-direction:column;border:1px solid #48566b;border-radius:16px;background:#101925;box-shadow:0 16px 52px #000a}
+#sitePanel[hidden]{display:none}
+#sitePanel:not([data-view="site"]){width:min(920px,72vw)}
+.panel-nav{display:flex;gap:6px;padding:10px;border-bottom:1px solid #344459}
+.panel-nav button{flex:1;min-height:40px}
+.panel-content{min-height:0;overflow:auto;overscroll-behavior:contain;padding:12px;scrollbar-gutter:stable}
+.panel-content > .actions{margin-bottom:12px}
+.panel-scenario{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.panel-scenario[hidden]{display:none}
+.panel-scenario select{width:auto}
+.site-summary{padding:14px 16px}
+.site-summary h2{margin:0 0 8px;font-size:1.1rem}
+.site-summary p{margin:5px 0 0;font-size:.9rem}
+.visibility{display:flex;gap:8px;flex-wrap:wrap}
+.analysis-details{display:grid;gap:14px}
+.analysis-details .sky,.analysis-details .tl{overflow-x:auto}
+.analysis-details .sky svg{min-width:700px}
+.analysis-details .tl svg{min-width:640px}
+#sitePanel[data-view="site"] .analysis-only,
+#sitePanel[data-view="compare"] #scenarioView,
+#sitePanel:not([data-view="compare"]) #compareView{display:none}
+#sitePanel[data-view="site"] .sc-head{display:block;padding:0 16px 14px}
+#sitePanel[data-view="site"] .sc-head .analysis-only{display:none}
+#sitePanel[data-view="site"] .scenario{margin-bottom:0}
+#sitePanel[data-view="site"] .sc-time input{max-width:100%}
+.compare-empty{color:var(--muted)}
+@media (max-width:900px){
+  #sitePanel{top:auto;left:8px;right:8px;bottom:8px;width:auto;height:46dvh}
+  #sitePanel:not([data-view="site"]){width:auto;height:calc(100dvh - 102px)}
+  body.panel-open .mw-globe-controls{bottom:calc(46dvh + 20px)}
+  body.panel-open .mw-globe-credit{display:none}
+  body.panel-open:not([data-panel-view="site"]) .mw-globe-controls{visibility:hidden}
+}
+@media (max-width:520px){
+  .mw-globe-header{inset:12px auto auto 12px}
+  #panelToggle{right:12px;top:12px}
+  .mw-globe-header p{font-size:.75rem}
+  .mw-globe-controls{left:12px;bottom:66px}
+  .mw-globe-credit{left:12px;bottom:10px}
+}
 
 /* Compare table */
 #compare{margin-bottom:22px;overflow-x:auto}
@@ -184,7 +220,6 @@ footer p{margin:4px 0;max-width:100ch}
   .mw-globe-pin{width:44px;height:44px}
 }
 @media (max-width:520px){
-  .brand h1{font-size:1.5rem}
   .state .big{font-size:1.8rem}
   .wrap{padding:0 12px}
   .sc-head,.cards{padding-left:12px;padding-right:12px}
@@ -193,49 +228,46 @@ footer p{margin:4px 0;max-width:100ch}
 </style>
 </head>
 <body>
-<header class="top">
-  <div class="wrap">
-    <div class="brand">
-      <svg width="46" height="46" viewBox="0 0 46 46" aria-hidden="true">
-        <rect width="46" height="46" rx="10" fill="#000"/>
-        <circle cx="16" cy="29" r="7" fill="#F4B942"/>
-        <circle cx="33" cy="17" r="4.5" fill="#5DA9E9"/>
-        <path d="M0 30 L9 27 L15 31 L24 26 L33 30 L40 28 L46 30 V46 H0Z" fill="#3C434A"/>
-      </svg>
-      <div>
-        <h1>MoonWindow</h1>
-        <p>Pick a spot on the Moon and a date. See whether it has sunlight for power and a line of sight to Earth for radio, and for how long.</p>
+<main>
+  <div id="globeStage"></div>
+  <button class="btn" id="panelToggle" type="button" aria-controls="sitePanel" aria-expanded="false">Site details</button>
+  <aside id="sitePanel" data-view="site" aria-label="Landing site details" hidden>
+    <nav class="panel-nav" aria-label="Site views">
+      <button class="btn small" type="button" data-panel-view="site" aria-pressed="true" aria-controls="scenarioView">Site</button>
+      <button class="btn small" type="button" data-panel-view="analysis" aria-pressed="false" aria-controls="scenarioView">Analysis</button>
+      <button class="btn small" type="button" data-panel-view="compare" aria-pressed="false" aria-controls="compareView">Compare</button>
+    </nav>
+    <div class="panel-content">
+      <div id="scenarioView">
+        <label class="panel-scenario">Scenario <select id="scenarioPicker"></select></label>
+        <div class="actions analysis-only" aria-label="Analysis actions">
+          <button class="btn small" id="terrainBtn" type="button" aria-pressed="true">Terrain: real (NASA LOLA)</button>
+          <button class="btn small" id="playBtn" type="button" aria-pressed="false">Play time</button>
+          <button class="btn small" id="linkBtn" type="button">Copy link</button>
+          <button class="btn small" id="aboutBtn" type="button">About and data</button>
+        </div>
+        <div id="scenarios"></div>
+        <section id="extTop" class="analysis-only"></section>
+        <footer class="analysis-only">
+          <p>Positions are calculated in your browser from Astronomy Engine and the IAU model of the Moon's orientation. <span id="valNote">Each scenario links to the same query in NASA JPL Horizons.</span> Polar horizons come from NASA LRO LOLA. Site coordinates come from LROC, the USGS Gazetteer of Planetary Nomenclature and NASA NSSDC.</p>
+          <p>Built for the NASA Space Apps Challenge 2026. Development assisted by Anthropic Claude and OpenAI Codex. Independent project.</p>
+        </footer>
+      </div>
+      <div id="compareView">
+        <div class="actions"><button class="btn primary" id="addBtn" type="button">Add comparison</button></div>
+        <p class="compare-empty" id="compareEmpty">Add a scenario to compare sites or landing times.</p>
+        <section id="compare" hidden aria-labelledby="cmpTitle">
+          <h2 id="cmpTitle">Side-by-side summary</h2>
+          <p>“Sun and Earth both up for” measures how long a lander can keep solar power and direct radio after landing.</p>
+          <table><thead><tr>
+            <th>Scenario</th><th>Site</th><th>Time (UTC)</th><th>Sun now</th><th>Earth now</th>
+            <th class="num">Sun and Earth both up for</th><th class="num">Sunlight, 30 d</th><th class="num">Earth in view, 30 d</th><th class="num">Both, 30 d</th><th class="num">Longest night</th>
+          </tr></thead><tbody></tbody></table>
+        </section>
       </div>
     </div>
-    <nav class="actions" aria-label="App actions">
-      <button class="btn primary" id="addBtn" type="button">Add comparison</button>
-      <button class="btn" id="terrainBtn" type="button" aria-pressed="true">Terrain: real (NASA LOLA)</button>
-      <button class="btn" id="playBtn" type="button" aria-pressed="false">Play time</button>
-      <button class="btn" id="linkBtn" type="button">Copy link</button>
-      <button class="btn" id="aboutBtn" type="button">About and data</button>
-    </nav>
-  </div>
-</header>
-
-<main class="wrap">
-  <section id="extTop"></section>
-  <section id="compare" hidden aria-labelledby="cmpTitle">
-    <h2 id="cmpTitle">Side-by-side summary</h2>
-    <p>"Both up for" is how long a solar lander that lands at that moment keeps sunlight and direct radio together. It is the number that changes most when a landing date slips.</p>
-    <table><thead><tr>
-      <th>Scenario</th><th>Site</th><th>Time (UTC)</th><th>Sun now</th><th>Earth now</th>
-      <th class="num">Sun and Earth both up for</th><th class="num">Sunlight, 30 d</th><th class="num">Earth in view, 30 d</th><th class="num">Both, 30 d</th><th class="num">Longest night</th>
-    </tr></thead><tbody></tbody></table>
-  </section>
-  <div id="scenarios"></div>
+  </aside>
 </main>
-
-<footer>
-  <div class="wrap">
-    <p>Positions are calculated in your browser from the Astronomy Engine library and the IAU model of the Moon's orientation. <span id="valNote">Each scenario links to the same query in NASA JPL Horizons.</span> Polar horizons come from NASA LRO LOLA laser-altimeter topography. Site coordinates come from LROC, the USGS Gazetteer of Planetary Nomenclature and NASA NSSDC.</p>
-    <p>Built for the NASA Space Apps Challenge 2026. Development assisted by Anthropic Claude and OpenAI Codex. Independent project.</p>
-  </div>
-</footer>
 
 <dialog id="about" aria-labelledby="aboutTitle">
   <div class="dlg">
@@ -286,9 +318,10 @@ footer p{margin:4px 0;max-width:100ch}
 
 <template id="tplScenario">
   <section class="scenario">
+    <div class="site-summary"><h2 class="summary-name"></h2><div class="summary-status"></div></div>
     <div class="sc-head">
-      <div class="sc-tag" aria-hidden="true"></div>
-      <div class="sc-place">
+      <div class="sc-tag analysis-only" aria-hidden="true"></div>
+      <div class="sc-place analysis-only">
         <label class="field"><span>Landing site</span><select class="site"></select></label>
         <div class="coords">
           <label class="field"><span>Latitude (°, south is negative)</span><input class="lat" type="number" step="0.001" min="-90" max="90" inputmode="decimal"></label>
@@ -297,7 +330,7 @@ footer p{margin:4px 0;max-width:100ch}
       </div>
       <div class="sc-time">
         <label class="field"><span>Date and time (UTC)</span><input class="dt" type="datetime-local" step="60"></label>
-        <div class="steps" role="group" aria-label="Move time">
+        <div class="steps analysis-only" role="group" aria-label="Move time">
           <button class="btn small" type="button" data-step="-24">−1 day</button>
           <button class="btn small" type="button" data-step="-1">−1 hour</button>
           <button class="btn small" type="button" data-now="1">Now</button>
@@ -306,8 +339,9 @@ footer p{margin:4px 0;max-width:100ch}
           <button class="btn small" type="button" data-step="168">Slip 1 week</button>
         </div>
       </div>
-      <button class="btn small remove" type="button">Remove</button>
+      <button class="btn small remove analysis-only" type="button">Remove</button>
     </div>
+    <div class="analysis-details analysis-only">
     <p class="insight"></p>
     <figure class="sky">
       <svg class="skysvg" viewBox="0 0 1000 300" role="img"></svg>
@@ -327,6 +361,7 @@ footer p{margin:4px 0;max-width:100ch}
       <span>Check this moment in NASA JPL Horizons:</span>
       <a class="hz-sun" target="_blank" rel="noopener">Sun position</a>
       <a class="hz-earth" target="_blank" rel="noopener">Earth position</a>
+    </div>
     </div>
   </section>
 </template>

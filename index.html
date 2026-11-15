@@ -23,14 +23,16 @@
 html{background:var(--bg);color:var(--text);font-family:var(--font);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
 body{margin:0}
 button,input,select{font:inherit;color:inherit}
-.mw-globe{margin:16px 0;padding:14px;background:#101925;border:1px solid #344459;border-radius:12px;color:#ece9e2}
-.mw-globe-header,.mw-globe-footer,.mw-globe-controls{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
-.mw-globe-header,.mw-globe-footer{justify-content:space-between}
-.mw-globe h2{font-size:1.15rem;margin:0}
-.mw-globe p{margin:3px 0;color:#c2cbd8;font-size:.875rem}
+.mw-globe{position:fixed;inset:0;background:#070a0f;color:#ece9e2}
+.mw-globe-header{position:absolute;z-index:1;inset:16px auto auto 16px;width:min(320px,calc(100% - 148px))}
+.mw-globe-header h1{font-size:1.2rem;margin:0 0 7px}
+.mw-globe-header p{margin:7px 0;color:#dbe4ee;font-size:.8rem}
+.mw-globe-header h1,.mw-globe-header p,.mw-globe-credit{text-shadow:0 1px 4px #000,0 1px 6px #000}
+.mw-globe-controls{position:absolute;z-index:1;left:16px;bottom:46px;display:flex;gap:6px;flex-wrap:wrap}
+.mw-globe-controls button,.mw-globe-header select,#panelToggle{color-scheme:dark}
 .mw-globe-controls button,.mw-globe select{min-height:44px;padding:6px 10px;border:1px solid #667991;border-radius:6px;background:#152233;color:#ece9e2}
 .mw-globe-controls button{min-width:44px;cursor:pointer}
-.mw-globe-viewport{position:relative;height:clamp(280px,52vh,510px);margin:10px 0;overflow:hidden;border-radius:8px;background:#070a0f}
+.mw-globe-viewport{position:absolute;inset:0;overflow:hidden}
 .mw-globe canvas,.mw-globe-pins{position:absolute;inset:0;width:100%;height:100%}
 .mw-globe canvas{touch-action:none;cursor:crosshair}
 .mw-globe canvas.is-dragging{cursor:grabbing}
@@ -41,8 +43,9 @@ button,input,select{font:inherit;color:inherit}
 .mw-globe-pin:hover,.mw-globe-pin:focus-visible{z-index:1;outline:2px solid #fff}
 .mw-globe-scenario{position:absolute;transform:translate(-50%,calc(-100% - 5px));padding:0 4px;border:1px solid #e4edf8;border-radius:4px;background:#152233;color:#fff;font-weight:700;font-size:.8rem}
 .mw-globe-scenario::after{content:'';position:absolute;top:calc(100% + 1px);left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#e4edf8;border-bottom:0}
-.mw-globe-footer label{display:flex;align-items:center;flex-wrap:wrap;gap:6px;max-width:100%;font-size:.875rem}
 .mw-globe select{max-width:100%}
+.mw-globe-credit,.mw-globe-status{position:absolute;left:16px;bottom:12px;max-width:calc(100% - 32px)}
+.mw-globe-status{bottom:auto;top:100%;background:#101925}
 .mw-globe-credit,.mw-globe-status{color:#c2cbd8;font-size:.8rem}
 .mw-globe-credit a{color:#a9d1ff}
 .mw-globe-status:empty{display:none}
@@ -68,13 +71,6 @@ a{color:var(--earth)}
 :focus-visible{outline:2px solid var(--sun);outline-offset:2px}
 .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
 
-/* Header */
-.top{border-bottom:1px solid var(--line)}
-.top .wrap{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;padding-top:22px;padding-bottom:18px}
-.brand{display:flex;gap:14px;align-items:center;min-width:0}
-.brand svg{flex:none}
-.brand h1{margin:0;font-size:1.9rem;line-height:1.1;font-weight:700;letter-spacing:-.01em}
-.brand p{margin:2px 0 0;color:var(--muted);max-width:60ch}
 .actions{display:flex;flex-wrap:wrap;gap:8px}
 .btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 14px;cursor:pointer;white-space:nowrap}
 .btn:hover{border-color:var(--muted)}
@@ -83,7 +79,47 @@ a{color:var(--earth)}
 .btn[aria-pressed="true"]{background:var(--text);color:var(--bg);border-color:var(--text)}
 .btn.small{padding:5px 10px;font-size:.88rem}
 
-main.wrap{padding-top:20px;padding-bottom:40px}
+#panelToggle{position:fixed;z-index:3;top:16px;right:16px;min-height:44px;background:#152233;border-color:#667991}
+#sitePanel{position:fixed;z-index:2;top:70px;right:16px;bottom:16px;width:min(410px,calc(100% - 32px));display:flex;flex-direction:column;border:1px solid #48566b;border-radius:16px;background:#101925;box-shadow:0 16px 52px #000a}
+#sitePanel[hidden]{display:none}
+#sitePanel:not([data-view="site"]){width:min(920px,72vw)}
+.panel-nav{display:flex;gap:6px;padding:10px;border-bottom:1px solid #344459}
+.panel-nav button{flex:1;min-height:40px}
+.panel-content{min-height:0;overflow:auto;overscroll-behavior:contain;padding:12px;scrollbar-gutter:stable}
+.panel-content > .actions{margin-bottom:12px}
+.panel-scenario{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.panel-scenario[hidden]{display:none}
+.panel-scenario select{width:auto}
+.site-summary{padding:14px 16px}
+.site-summary h2{margin:0 0 8px;font-size:1.1rem}
+.site-summary p{margin:5px 0 0;font-size:.9rem}
+.visibility{display:flex;gap:8px;flex-wrap:wrap}
+.analysis-details{display:grid;gap:14px}
+.analysis-details .sky,.analysis-details .tl{overflow-x:auto}
+.analysis-details .sky svg{min-width:700px}
+.analysis-details .tl svg{min-width:640px}
+#sitePanel[data-view="site"] .analysis-only,
+#sitePanel[data-view="compare"] #scenarioView,
+#sitePanel:not([data-view="compare"]) #compareView{display:none}
+#sitePanel[data-view="site"] .sc-head{display:block;padding:0 16px 14px}
+#sitePanel[data-view="site"] .sc-head .analysis-only{display:none}
+#sitePanel[data-view="site"] .scenario{margin-bottom:0}
+#sitePanel[data-view="site"] .sc-time input{max-width:100%}
+.compare-empty{color:var(--muted)}
+@media (max-width:900px){
+  #sitePanel{top:auto;left:8px;right:8px;bottom:8px;width:auto;height:46dvh}
+  #sitePanel:not([data-view="site"]){width:auto;height:calc(100dvh - 102px)}
+  body.panel-open .mw-globe-controls{bottom:calc(46dvh + 20px)}
+  body.panel-open .mw-globe-credit{display:none}
+  body.panel-open:not([data-panel-view="site"]) .mw-globe-controls{visibility:hidden}
+}
+@media (max-width:520px){
+  .mw-globe-header{inset:12px auto auto 12px}
+  #panelToggle{right:12px;top:12px}
+  .mw-globe-header p{font-size:.75rem}
+  .mw-globe-controls{left:12px;bottom:66px}
+  .mw-globe-credit{left:12px;bottom:10px}
+}
 
 /* Compare table */
 #compare{margin-bottom:22px;overflow-x:auto}
@@ -184,7 +220,6 @@ footer p{margin:4px 0;max-width:100ch}
   .mw-globe-pin{width:44px;height:44px}
 }
 @media (max-width:520px){
-  .brand h1{font-size:1.5rem}
   .state .big{font-size:1.8rem}
   .wrap{padding:0 12px}
   .sc-head,.cards{padding-left:12px;padding-right:12px}
@@ -193,49 +228,46 @@ footer p{margin:4px 0;max-width:100ch}
 </style>
 </head>
 <body>
-<header class="top">
-  <div class="wrap">
-    <div class="brand">
-      <svg width="46" height="46" viewBox="0 0 46 46" aria-hidden="true">
-        <rect width="46" height="46" rx="10" fill="#000"/>
-        <circle cx="16" cy="29" r="7" fill="#F4B942"/>
-        <circle cx="33" cy="17" r="4.5" fill="#5DA9E9"/>
-        <path d="M0 30 L9 27 L15 31 L24 26 L33 30 L40 28 L46 30 V46 H0Z" fill="#3C434A"/>
-      </svg>
-      <div>
-        <h1>MoonWindow</h1>
-        <p>Pick a spot on the Moon and a date. See whether it has sunlight for power and a line of sight to Earth for radio, and for how long.</p>
+<main>
+  <div id="globeStage"></div>
+  <button class="btn" id="panelToggle" type="button" aria-controls="sitePanel" aria-expanded="false">Site details</button>
+  <aside id="sitePanel" data-view="site" aria-label="Landing site details" hidden>
+    <nav class="panel-nav" aria-label="Site views">
+      <button class="btn small" type="button" data-panel-view="site" aria-pressed="true" aria-controls="scenarioView">Site</button>
+      <button class="btn small" type="button" data-panel-view="analysis" aria-pressed="false" aria-controls="scenarioView">Analysis</button>
+      <button class="btn small" type="button" data-panel-view="compare" aria-pressed="false" aria-controls="compareView">Compare</button>
+    </nav>
+    <div class="panel-content">
+      <div id="scenarioView">
+        <label class="panel-scenario">Scenario <select id="scenarioPicker"></select></label>
+        <div class="actions analysis-only" aria-label="Analysis actions">
+          <button class="btn small" id="terrainBtn" type="button" aria-pressed="true">Terrain: real (NASA LOLA)</button>
+          <button class="btn small" id="playBtn" type="button" aria-pressed="false">Play time</button>
+          <button class="btn small" id="linkBtn" type="button">Copy link</button>
+          <button class="btn small" id="aboutBtn" type="button">About and data</button>
+        </div>
+        <div id="scenarios"></div>
+        <section id="extTop" class="analysis-only"></section>
+        <footer class="analysis-only">
+          <p>Positions are calculated in your browser from Astronomy Engine and the IAU model of the Moon's orientation. <span id="valNote">Each scenario links to the same query in NASA JPL Horizons.</span> Polar horizons come from NASA LRO LOLA. Site coordinates come from LROC, the USGS Gazetteer of Planetary Nomenclature and NASA NSSDC.</p>
+          <p>Built for the NASA Space Apps Challenge 2026. Development assisted by Anthropic Claude and OpenAI Codex. Independent project.</p>
+        </footer>
+      </div>
+      <div id="compareView">
+        <div class="actions"><button class="btn primary" id="addBtn" type="button">Add comparison</button></div>
+        <p class="compare-empty" id="compareEmpty">Add a scenario to compare sites or landing times.</p>
+        <section id="compare" hidden aria-labelledby="cmpTitle">
+          <h2 id="cmpTitle">Side-by-side summary</h2>
+          <p>“Sun and Earth both up for” measures how long a lander can keep solar power and direct radio after landing.</p>
+          <table><thead><tr>
+            <th>Scenario</th><th>Site</th><th>Time (UTC)</th><th>Sun now</th><th>Earth now</th>
+            <th class="num">Sun and Earth both up for</th><th class="num">Sunlight, 30 d</th><th class="num">Earth in view, 30 d</th><th class="num">Both, 30 d</th><th class="num">Longest night</th>
+          </tr></thead><tbody></tbody></table>
+        </section>
       </div>
     </div>
-    <nav class="actions" aria-label="App actions">
-      <button class="btn primary" id="addBtn" type="button">Add comparison</button>
-      <button class="btn" id="terrainBtn" type="button" aria-pressed="true">Terrain: real (NASA LOLA)</button>
-      <button class="btn" id="playBtn" type="button" aria-pressed="false">Play time</button>
-      <button class="btn" id="linkBtn" type="button">Copy link</button>
-      <button class="btn" id="aboutBtn" type="button">About and data</button>
-    </nav>
-  </div>
-</header>
-
-<main class="wrap">
-  <section id="extTop"></section>
-  <section id="compare" hidden aria-labelledby="cmpTitle">
-    <h2 id="cmpTitle">Side-by-side summary</h2>
-    <p>"Both up for" is how long a solar lander that lands at that moment keeps sunlight and direct radio together. It is the number that changes most when a landing date slips.</p>
-    <table><thead><tr>
-      <th>Scenario</th><th>Site</th><th>Time (UTC)</th><th>Sun now</th><th>Earth now</th>
-      <th class="num">Sun and Earth both up for</th><th class="num">Sunlight, 30 d</th><th class="num">Earth in view, 30 d</th><th class="num">Both, 30 d</th><th class="num">Longest night</th>
-    </tr></thead><tbody></tbody></table>
-  </section>
-  <div id="scenarios"></div>
+  </aside>
 </main>
-
-<footer>
-  <div class="wrap">
-    <p>Positions are calculated in your browser from the Astronomy Engine library and the IAU model of the Moon's orientation. <span id="valNote">Each scenario links to the same query in NASA JPL Horizons.</span> Polar horizons come from NASA LRO LOLA laser-altimeter topography. Site coordinates come from LROC, the USGS Gazetteer of Planetary Nomenclature and NASA NSSDC.</p>
-    <p>Built for the NASA Space Apps Challenge 2026. Development assisted by Anthropic Claude and OpenAI Codex. Independent project.</p>
-  </div>
-</footer>
 
 <dialog id="about" aria-labelledby="aboutTitle">
   <div class="dlg">
@@ -286,9 +318,10 @@ footer p{margin:4px 0;max-width:100ch}
 
 <template id="tplScenario">
   <section class="scenario">
+    <div class="site-summary"><h2 class="summary-name"></h2><div class="summary-status"></div></div>
     <div class="sc-head">
-      <div class="sc-tag" aria-hidden="true"></div>
-      <div class="sc-place">
+      <div class="sc-tag analysis-only" aria-hidden="true"></div>
+      <div class="sc-place analysis-only">
         <label class="field"><span>Landing site</span><select class="site"></select></label>
         <div class="coords">
           <label class="field"><span>Latitude (°, south is negative)</span><input class="lat" type="number" step="0.001" min="-90" max="90" inputmode="decimal"></label>
@@ -297,7 +330,7 @@ footer p{margin:4px 0;max-width:100ch}
       </div>
       <div class="sc-time">
         <label class="field"><span>Date and time (UTC)</span><input class="dt" type="datetime-local" step="60"></label>
-        <div class="steps" role="group" aria-label="Move time">
+        <div class="steps analysis-only" role="group" aria-label="Move time">
           <button class="btn small" type="button" data-step="-24">−1 day</button>
           <button class="btn small" type="button" data-step="-1">−1 hour</button>
           <button class="btn small" type="button" data-now="1">Now</button>
@@ -306,8 +339,9 @@ footer p{margin:4px 0;max-width:100ch}
           <button class="btn small" type="button" data-step="168">Slip 1 week</button>
         </div>
       </div>
-      <button class="btn small remove" type="button">Remove</button>
+      <button class="btn small remove analysis-only" type="button">Remove</button>
     </div>
+    <div class="analysis-details analysis-only">
     <p class="insight"></p>
     <figure class="sky">
       <svg class="skysvg" viewBox="0 0 1000 300" role="img"></svg>
@@ -327,6 +361,7 @@ footer p{margin:4px 0;max-width:100ch}
       <span>Check this moment in NASA JPL Horizons:</span>
       <a class="hz-sun" target="_blank" rel="noopener">Sun position</a>
       <a class="hz-earth" target="_blank" rel="noopener">Earth position</a>
+    </div>
     </div>
   </section>
 </template>
@@ -958,10 +993,6 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
     return [direction(0, lon + 90), direction(lat + 90, lon), direction(lat, lon)];
   }
 
-  function projection(width, height) {
-    return [focalLength * Math.min(1, height / width), focalLength * Math.min(1, width / height)];
-  }
-
   function surfaceCoordinates([right, up, forward], distance, x, y) {
     // Intersect the view ray with the reference sphere used for lunar coordinates.
     const ray = [x, y, -1];
@@ -1170,6 +1201,7 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
       layout(location = 1) in vec3 normal;
       uniform mat3 camera;
       uniform vec3 view;
+      uniform vec2 viewCenter;
       out vec3 surfaceNormal;
       out float elevation;
       out vec3 surfacePosition;
@@ -1179,7 +1211,8 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
         elevation = vertex.w;
         surfacePosition = vertex.xyz;
         float depth = view.x - position.z;
-        gl_Position = vec4(position.x * view.y, position.y * view.z, 1.001 * depth - 0.04, depth);
+        vec2 screen = position.xy * view.yz + viewCenter * depth;
+        gl_Position = vec4(screen, 1.001 * depth - 0.04, depth);
       }`);
     const fragment = compile(gl.FRAGMENT_SHADER, `#version 300 es
       precision highp float;
@@ -1291,6 +1324,7 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
         in vec2 screen;
         uniform mat3 axes;
         uniform vec2 projection;
+        uniform vec2 viewCenter;
         uniform sampler2D sky;
         out vec4 color;
 
@@ -1301,7 +1335,7 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
 
         void main() {
           // Use direction only: the sky has no distance or zoom parallax.
-          vec3 ray = normalize(axes * vec3(screen / projection, -1.0));
+          vec3 ray = normalize(axes * vec3((screen - viewCenter) / projection, -1.0));
           // Frame the Milky Way near the initial orbit as a visual backdrop.
           ray = vec3(ray.y, -ray.x, ray.z);
           vec2 uv = panorama(ray);
@@ -1315,9 +1349,11 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
     );
     const skyAxes = gl.getUniformLocation(skyProgram, 'axes');
     const skyProjection = gl.getUniformLocation(skyProgram, 'projection');
+    const skyCenter = gl.getUniformLocation(skyProgram, 'viewCenter');
+    const globeCenter = gl.getUniformLocation(program, 'viewCenter');
     const skyVao = gl.createVertexArray();
 
-    return (surface, axes, distance, xScale, yScale) => {
+    return (surface, axes, distance, { xScale, yScale, centerX, centerY }) => {
       gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -1326,6 +1362,7 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
         gl.useProgram(skyProgram);
         gl.uniformMatrix3fv(skyAxes, false, axes.flat());
         gl.uniform2f(skyProjection, xScale, yScale);
+        gl.uniform2f(skyCenter, centerX, centerY);
         gl.bindTexture(gl.TEXTURE_2D, stars.texture);
         gl.bindVertexArray(skyVao);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -1346,6 +1383,7 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
         right[0], up[0], forward[0], right[1], up[1], forward[1], right[2], up[2], forward[2]
       ]);
       gl.uniform3f(view, distance, xScale, yScale);
+      gl.uniform2f(globeCenter, centerX, centerY);
       gl.bindBuffer(gl.ARRAY_BUFFER, surface.vertexBuffer);
       gl.enableVertexAttribArray(0);
       const stride = floatsPerVertex * Float32Array.BYTES_PER_ELEMENT;
@@ -1361,27 +1399,28 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
     slot.innerHTML = `
       <section class="mw-globe" aria-label="Lunar globe">
         <div class="mw-globe-header">
-          <div><h2>Lunar globe</h2><p id="mw-globe-help">Click or tap the Moon to select and center scenario A · Drag to orbit · Scroll or pinch to zoom</p></div>
-          <div class="mw-globe-controls">
+          <h1>MoonWindow</h1>
+          <select aria-label="Select landing site for scenario A"></select>
+          <p id="mw-globe-help">Pick a site on the Moon or from the list. Drag to orbit and scroll or pinch to zoom.</p>
+          <div role="status" class="mw-globe-status"></div>
+        </div>
+        <div class="mw-globe-controls" role="group" aria-label="Globe controls">
             <button type="button" data-action="pole">South pole</button>
             <button type="button" data-action="reset">Reset view</button>
             <button type="button" data-action="in" aria-label="Zoom in">+</button>
             <button type="button" data-action="out" aria-label="Zoom out">−</button>
-          </div>
         </div>
         <div class="mw-globe-viewport">
           <canvas tabindex="0" aria-label="Moon terrain. Use arrow keys to orbit, plus or minus to zoom, and Enter to select the center."
             aria-describedby="mw-globe-help"></canvas>
           <div class="mw-globe-pins"></div>
         </div>
-        <div class="mw-globe-footer">
-          <label>Set scenario A site <select aria-label="Set scenario A site"></select></label>
           <span class="mw-globe-credit"><a target="_blank" rel="noopener"></a><span></span> · <a href="https://svs.gsfc.nasa.gov/4720/" target="_blank" rel="noopener">NASA SVS / LROC imagery</a> · <a href="https://svs.gsfc.nasa.gov/4851/" target="_blank" rel="noopener">NASA SVS star map</a></span>
-        </div>
-        <div role="status" class="mw-globe-status"></div>
       </section>`;
     const canvas = slot.querySelector('canvas');
     const viewport = canvas.parentElement;
+    const panel = document.getElementById('sitePanel');
+    const sheetLayout = window.matchMedia('(max-width: 900px)');
     if (window.MW_POLAR_MAP?.credit) {
       const polarCredit = document.createElement('span');
       polarCredit.textContent = ' · South pole relief: NASA LOLA';
@@ -1393,10 +1432,22 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
     const status = slot.querySelector('[role="status"]');
     const credit = slot.querySelector('.mw-globe-credit a');
     const detail = credit.nextElementSibling;
-    select.add(new Option('Custom coordinates', 'custom'));
-    for (const site of api.SITES) select.add(new Option(site.name, site.id));
+    const prompt = new Option('Choose a saved site', '');
+    prompt.disabled = true;
+    select.add(prompt);
+    const groups = new Map();
+    for (const site of api.SITES) {
+      if (!groups.has(site.group)) {
+        const group = document.createElement('optgroup');
+        group.label = site.group;
+        groups.set(site.group, group);
+        select.append(group);
+      }
+      groups.get(site.group).append(new Option(site.name, site.id));
+    }
     select.addEventListener('change', () => {
       const site = api.SITES.find(item => item.id === select.value);
+      select.value = '';
       if (site) selectSite(site);
     });
 
@@ -1413,6 +1464,7 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
 
     function selectSite(site) {
       api.setSite(0, site.lat, site.lon);
+      api.openSitePanel();
       const move = flightTo(camera, direction(site.lat, site.lon));
       if (reducedMotion.matches || move.angle < 0.001) {
         camera = orbitCamera(camera, move.horizontal, move.vertical);
@@ -1444,6 +1496,23 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
       return element;
     });
 
+    function viewFor(width, height) {
+      let visibleWidth = width;
+      let visibleHeight = height;
+      if (!panel.hidden) {
+        if (!sheetLayout.matches) visibleWidth = panel.offsetLeft;
+        else if (panel.dataset.view === 'site') visibleHeight = panel.offsetTop;
+      }
+      const shortSide = Math.max(1, Math.min(visibleWidth, visibleHeight));
+      return {
+        shortSide,
+        xScale: focalLength * shortSide / width,
+        yScale: focalLength * shortSide / height,
+        centerX: visibleWidth / width - 1,
+        centerY: 1 - visibleHeight / height
+      };
+    }
+
     function draw(now) {
       frame = null;
       if (!gl || gl.isContextLost()) return;
@@ -1464,15 +1533,16 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
       if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
       if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
       const [right, up, forward] = camera;
-      const [xScale, yScale] = projection(width, height);
-      render(surface, camera, distance, xScale, yScale);
+      const view = viewFor(width, height);
+      const { xScale, yScale, centerX, centerY } = view;
+      render(surface, camera, distance, view);
 
       for (const pin of [...sitePins, ...scenarioPins]) {
         const normal = direction(pin.lat, pin.lon);
         const point = surface ? surface.point(pin.lat, pin.lon) : normal;
         const depth = distance - dot(point, forward);
-        const x = dot(point, right) * xScale / depth;
-        const y = dot(point, up) * yScale / depth;
+        const x = dot(point, right) * xScale / depth + centerX;
+        const y = dot(point, up) * yScale / depth + centerY;
         pin.element.hidden = !surface || dot(normal, forward) <= Math.hypot(...point) / distance ||
           Math.abs(x) >= 0.98 || Math.abs(y) >= 0.98;
         if (pin.element.hidden) continue;
@@ -1493,16 +1563,19 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
 
     function orbit(dx, dy) {
       flight = null;
-      const shortSide = Math.max(1, Math.min(viewport.clientWidth, viewport.clientHeight));
+      const { shortSide } = viewFor(viewport.clientWidth, viewport.clientHeight);
       const radiansPerPixel = 2 * (distance - 1) / (focalLength * shortSide);
       camera = orbitCamera(camera, -dx * radiansPerPixel, dy * radiansPerPixel);
       schedule();
     }
 
     function pick(x, y) {
-      if (!surface || Math.abs(x) > 1 || Math.abs(y) > 1) return;
-      const [xScale, yScale] = projection(viewport.clientWidth, viewport.clientHeight);
-      const point = surfaceCoordinates(camera, distance, x / xScale, y / yScale);
+      const width = viewport.clientWidth;
+      const height = viewport.clientHeight;
+      if (!surface || !width || !height || Math.abs(x) > 1 || Math.abs(y) > 1) return;
+      const { xScale, yScale, centerX, centerY } = viewFor(width, height);
+      const point = surfaceCoordinates(camera, distance, ((x ?? centerX) - centerX) / xScale,
+        ((y ?? centerY) - centerY) / yScale);
       if (point) selectSite(point);
     }
 
@@ -1572,13 +1645,15 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
         ArrowLeft: () => orbit(-40, 0), ArrowRight: () => orbit(40, 0),
         ArrowUp: () => orbit(0, -40), ArrowDown: () => orbit(0, 40),
         '+': controls.in, '=': controls.in, '-': controls.out, Home: controls.reset,
-        Enter: () => pick(0, 0)
+        Enter: () => pick()
       };
       if (!Object.hasOwn(actions, event.key)) return;
       event.preventDefault();
       actions[event.key]();
     });
-    new ResizeObserver(schedule).observe(viewport);
+    const resize = new ResizeObserver(schedule);
+    resize.observe(viewport);
+    resize.observe(panel);
 
     const terrain = window.MoonWindowTerrain;
     async function load(provider) {
@@ -1612,7 +1687,7 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
         render = makeRenderer(gl, schedule);
         load(provider).catch(() => {});
       } catch (error) {
-        status.textContent = error.message + ' Site selection is available below.';
+        status.textContent = error.message + ' Use the saved-site picker to explore.';
       }
     }
     terrain.setProvider = async next => {
@@ -1633,7 +1708,6 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
 
     return () => {
       const scenarios = api.scenarios();
-      select.value = scenarios[0]?.siteId || 'custom';
       scenarioPins = scenarios.map((scenario, index) => ({ ...scenario, element: markers[index] }));
       markers.slice(scenarios.length).forEach(marker => { marker.hidden = true; });
       schedule();
@@ -2192,7 +2266,7 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
     return slot;
   }
   function topSlotFor(p) {
-    const box = document.getElementById('extTop');
+    const box = document.getElementById(p.name === 'map' ? 'globeStage' : 'extTop');
     let slot = box.querySelector(`[data-plugin="${p.name}"]`);
     if (!slot) { slot = document.createElement('div'); slot.dataset.plugin = p.name; slot.className = 'ext-slot'; box.appendChild(slot); }
     return slot;
@@ -2379,6 +2453,29 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
     const ends = [s.nextSun.at, s.nextEarth.at].filter(v => v);
     return ends.length ? Math.min(...ends) - s.t : Infinity;
   }
+
+  function renderSiteSummary(s, el) {
+    const sun = isUp(s, s.cur.sun);
+    const earth = isUp(s, s.cur.earth);
+    const both = bothWindow(s);
+    let windowText;
+    if (both !== null) {
+      windowText = both === Infinity ? 'Both remain visible for days.' : `Both visible for ${fmtDur(both)}.`;
+    } else {
+      const start = Math.floor((s.t - s.anchor) / HOUR) + 1;
+      const end = Math.min(SAMPLE_H, start + WINDOW_H - 1);
+      const index = s.samples.findIndex((p, i) =>
+        i >= start && i <= end && isUp(s, p.sun) && isUp(s, p.earth));
+      windowText = index >= 0 ? `Next both visible around ${fmtUTC(s.anchor + index * HOUR)}.`
+        : 'No shared visibility in the upcoming hourly samples.';
+    }
+    $(el, '.summary-name').textContent = siteName(s);
+    $(el, '.summary-status').innerHTML = `<div class="visibility">
+      <span class="chip ${sun ? 'ok' : 'no'}">Sun ${sun ? 'visible' : 'hidden'}</span>
+      <span class="chip ${earth ? 'ok' : 'no'}">Earth ${earth ? 'visible' : 'hidden'}</span>
+    </div><p>${esc(windowText)}</p>
+    <p class="muted">${terrainOn(s) ? `LOLA skyline · ${s.profInfo.resM} m grid` : 'Flat horizon · 0°'}</p>`;
+  }
   function changeText(s, nc, up, setWord, riseWord) {
     const w = up ? setWord : riseWord;
     return nc.at ? `${w} in ${fmtDur(nc.at - s.t)}` : `Stays ${up ? 'up' : 'down'} for ${nc.days}+ d`;
@@ -2480,6 +2577,7 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
     renderSky(s, el, cur);
     s.nextSun = nextChange(s, 'sun', isUp(s, cur.sun));
     s.nextEarth = nextChange(s, 'earth', isUp(s, cur.earth));
+    renderSiteSummary(s, el);
     $(el, '.power').innerHTML = bodyCard('sun', s, cur);
     $(el, '.comms').innerHTML = bodyCard('earth', s, cur);
     $(el, '.month').innerHTML = monthCard(s);
@@ -2492,6 +2590,7 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
   function renderCompare() {
     const box = document.getElementById('compare');
     box.hidden = scenarios.length < 2;
+    document.getElementById('compareEmpty').hidden = !box.hidden;
     if (box.hidden) return;
     box.tabIndex = 0; // the table can scroll sideways on small screens; this lets keyboard users scroll it
     const bw = scenarios.map(s => bothWindow(s));
@@ -2511,6 +2610,7 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
 
   function renderAll() {
     scenarios.forEach((s, i) => renderScenario(s, i));
+    updateScenarioPicker();
     renderCompare();
     runPlugins('renderTop', p => [topSlotFor(p), API]);
     document.getElementById('addBtn').disabled = scenarios.length >= MAX_SCENARIOS;
@@ -2593,11 +2693,66 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
     return ok;
   }
 
+  const sitePanel = document.getElementById('sitePanel');
+  const panelToggle = document.getElementById('panelToggle');
+  const panelContent = sitePanel.querySelector('.panel-content');
+  const panelButtons = sitePanel.querySelectorAll('[data-panel-view]');
+  const scenarioPicker = document.getElementById('scenarioPicker');
+  let inspectedScenario;
+
+  function updateScenarioPicker() {
+    if (!scenarios.includes(inspectedScenario)) inspectedScenario = scenarios[0];
+    if (scenarioPicker.options.length !== scenarios.length) {
+      scenarioPicker.replaceChildren(...scenarios.map((_, i) => new Option(LETTERS[i], i)));
+    }
+    scenarioPicker.value = scenarios.indexOf(inspectedScenario);
+    scenarioPicker.parentElement.hidden = scenarios.length < 2;
+    for (const scenario of scenarios) scenario.el.hidden = scenario !== inspectedScenario;
+  }
+
+  function setPanel(view) {
+    sitePanel.hidden = !view;
+    panelToggle.setAttribute('aria-expanded', String(!!view));
+    panelToggle.textContent = view ? 'Hide details' : 'Site details';
+    document.body.classList.toggle('panel-open', !!view);
+    document.body.dataset.panelView = view || '';
+    if (!view) return;
+    sitePanel.dataset.view = view;
+    for (const button of panelButtons) {
+      button.setAttribute('aria-pressed', String(button.dataset.panelView === view));
+    }
+    panelContent.scrollTop = 0;
+  }
+
+  function openSitePanel() {
+    inspectedScenario = scenarios[0];
+    updateScenarioPicker();
+    setPanel('site');
+  }
+
+  panelToggle.addEventListener('click', () => setPanel(sitePanel.hidden ? sitePanel.dataset.view : null));
+  for (const button of panelButtons) {
+    button.addEventListener('click', () => setPanel(button.dataset.panelView));
+  }
+  scenarioPicker.addEventListener('change', () => {
+    inspectedScenario = scenarios[Number(scenarioPicker.value)];
+    updateScenarioPicker();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !sitePanel.hidden && !document.querySelector('dialog[open]')) {
+      setPanel(null);
+      panelToggle.focus();
+    }
+  });
+
   document.getElementById('addBtn').addEventListener('click', () => {
     const last = scenarios[scenarios.length - 1];
     const s = addScenario(last.lat, last.lon, last.t + 7 * DAY);
+    if (!s) return;
+    inspectedScenario = s;
     renderAll();
-    if (s) s.el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    setPanel('analysis');
+    $(s.el, '.dt').focus();
   });
   document.getElementById('playBtn').addEventListener('click', e => {
     const btn = e.currentTarget;
@@ -2621,6 +2776,7 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
   const API = {
     engine: E, HOUR, DAY, WINDOW_H, SAMPLE_H, SITES,
     scenarios: () => scenarios.slice(),          // each: {lat, lon, t, siteId, anchor, samples[], stats, cur, nextSun, nextEarth, el}
+    openSitePanel,
     setSite(i, lat, lon) { const s = scenarios[i]; if (!s) return; s.lat = lat; s.lon = lon; s.siteId = matchSite(lat, lon); ensureSamples(s, true); renderAll(); },
     setTime(i, t) { const s = scenarios[i]; if (!s) return; s.t = t; ensureSamples(s, false); renderAll(); },
     addScenario(lat, lon, t) { const s = addScenario(lat, lon, t); renderAll(); return s; },
