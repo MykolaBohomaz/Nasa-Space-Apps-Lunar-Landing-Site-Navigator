@@ -477,7 +477,7 @@
       <section class="mw-globe" aria-label="Lunar globe">
         <div class="mw-globe-header">
           <h1>MoonWindow</h1>
-          <select aria-label="Select landing site for scenario A"></select>
+          <select aria-label="Select landing site"></select>
           <p id="mw-globe-help">Pick a site · Drag to orbit · Scroll or pinch to zoom</p>
           <div role="status" class="mw-globe-status"></div>
         </div>
@@ -521,6 +521,7 @@
     }
     const pins = slot.querySelector('.mw-globe-pins');
     const select = slot.querySelector('select');
+    const help = slot.querySelector('#mw-globe-help');
     const status = slot.querySelector('[role="status"]');
     const credit = slot.querySelector('.mw-globe-credit a');
     const detail = credit.nextElementSibling;
@@ -559,7 +560,9 @@
 
     function selectSite(site) {
       api.openSitePanel();
-      api.setSite(0, site.lat, site.lon);
+      const index = api.scenarios().indexOf(api.activeScenario());
+      if (index < 0) return;
+      api.setSite(index, site.lat, site.lon);
       flyTo(direction(site.lat, site.lon));
     }
 
@@ -584,7 +587,7 @@
       button.type = 'button';
       button.className = 'mw-globe-pin';
       button.title = site.name;
-      button.setAttribute('aria-label', 'Select ' + site.name + ' for scenario A');
+      button.setAttribute('aria-label', 'Select ' + site.name + ' for the active scenario');
       button.addEventListener('click', () => selectSite(site));
       pins.append(button);
       return { ...site, element: button };
@@ -860,7 +863,12 @@
 
     return () => {
       const scenarios = api.scenarios();
-      const time = api.activeScenario()?.t;
+      const activeScenario = api.activeScenario();
+      const letter = scenarios.length > 1 ? letters[scenarios.indexOf(activeScenario)] : '';
+      const target = letter ? ' for scenario ' + letter : '';
+      select.setAttribute('aria-label', 'Select landing site' + target);
+      help.textContent = 'Pick a site' + target + ' · Drag to orbit · Scroll or pinch to zoom';
+      const time = activeScenario?.t;
       if (time !== undefined && time !== skyTime) {
         skyTime = time;
         const vectors = api.engine.moonSkyVectors(new Date(time));

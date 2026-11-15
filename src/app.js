@@ -699,8 +699,6 @@
   }
 
   function openSitePanel() {
-    inspectedScenario = scenarios[0];
-    updateScenarioPicker();
     if (sitePanel.hidden) setPanel(sitePanel.dataset.view);
   }
 
