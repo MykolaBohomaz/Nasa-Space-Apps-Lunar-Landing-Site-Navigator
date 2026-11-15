@@ -96,6 +96,12 @@ python3 tools/make_horizons.py && node tools/terrain_report.js && python3 build.
 
 ## Best landing spots in NASA's Artemis III regions
 
+The **Find sites** tab filters and ranks the original region picks and additional points on a 1 km search grid within 5 km of each region reference coordinate. The added points use the bundled 240 m or 960 m LOLA terrain, and each result shows its resolution. Coverage filters use 2027 samples at two-hour intervals. After choosing up to three points, check the selected UTC time and a one-week delay for continuous Sun and Earth visibility, or load two or three picks into Compare. The window check samples hourly and searches the next year for the earliest qualifying start.
+
+To regenerate the offline shortlist from the existing terrain assets, run `node tools/make_site_candidates.js > src/site-candidates.js` and then `python3 build.py`. The points are preliminary screening results from areas around region reference coordinates.
+
+Demo example. Filter **Mons Mouton Plateau**, rank by **Most Sun and Earth together**, and set January 15, 2027 at 06:00 UTC. At 84.1652°S, 28.9528°E the hourly model gives **13 days 18 hours** of shared visibility from that time and **6 days 18 hours** from a week later. A seven-day requirement passes at the original time and falls short after the delay.
+
 NASA's Artemis III candidate regions are each about 15 × 15 km; the lander needs a spot about 100 m across inside one. A single "region" coordinate can land on a steep slope or in shadow. The published coordinate for Slater Plain, for example, gets 4% sunlight over a year. So for each region, `tools/find_artemis_spots.py` searches the LOLA 80 m map within 5 km of the published coordinate and applies NASA's landing rules ([Artemis HLS Overview, Space Apps 2025](https://ntrs.nasa.gov/citations/20250009323)):
 
 1. Every point on a 100 m grid (7,845 per region) gets its ground slope across a 100 m-radius site, from a plane fitted to the terrain. Points at 9° or steeper are dropped: NASA's limit is 10°, and an 80 m map smooths small bumps, so we keep a margin.

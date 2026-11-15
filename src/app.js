@@ -43,6 +43,14 @@
   const toInput = t => new Date(t).toISOString().slice(0, 16);
   const fromInput = v => { const t = Date.parse(v + ':00Z'); return isNaN(t) ? null : t; };
   const lonE360 = lon => ((lon % 360) + 360) % 360;
+  const candidateKey = (lat, lon) => lat.toFixed(4) + ',' + (Number(lonE360(lon).toFixed(4)) % 360).toFixed(4);
+  const candidateRegions = new Map();
+  for (const region of window.MW_SITE_CANDIDATES || []) {
+    for (const site of region.sites) {
+      const key = candidateKey(site.lat, site.lon);
+      if (!candidateRegions.has(key)) candidateRegions.set(key, region.name);
+    }
+  }
   const siteById = id => SITES.find(s => s.id === id);
   function matchSite(lat, lon) {
     const s = SITES.find(s => Math.abs(s.lat - lat) < 1e-6 && Math.abs(lonE360(s.lon) - lonE360(lon)) < 1e-6);
@@ -74,11 +82,13 @@
     return null;
   }
   function terrainOn(s) { return useTerrain && !!s.prof; }
-  function horizonAt(s, az, flat) {
-    if (flat || !terrainOn(s)) return 0;
-    const v = s.prof, n = v.length, f = (((az % 360) + 360) % 360) / 360 * n;
+  function skylineAt(v, az) {
+    const n = v.length, f = (((az % 360) + 360) % 360) / 360 * n;
     const i = Math.floor(f) % n, j = (i + 1) % n, w = f - Math.floor(f);
     return v[i] * (1 - w) + v[j] * w;
+  }
+  function horizonAt(s, az, flat) {
+    return flat || !terrainOn(s) ? 0 : skylineAt(s.prof, az);
   }
   const isUp = (s, b, flat) => b.el > horizonAt(s, b.az, flat);
 
@@ -144,7 +154,7 @@
     return slot;
   }
   function topSlotFor(p) {
-    const box = document.getElementById(p.name === 'map' ? 'globeStage' : 'extTop');
+    const box = document.querySelector(`[data-top-slot="${p.name}"]`) || document.getElementById('extTop');
     let slot = box.querySelector(`[data-plugin="${p.name}"]`);
     if (!slot) { slot = document.createElement('div'); slot.dataset.plugin = p.name; slot.className = 'ext-slot'; box.appendChild(slot); }
     return slot;
@@ -167,7 +177,10 @@
 
   function siteName(s) {
     const site = siteById(s.siteId);
-    return site ? site.name.replace(/ \(.*\)$/, '') : `Custom (${s.lat.toFixed(2)}°, ${lonE360(s.lon).toFixed(2)}°E)`;
+    if (site) return site.name.replace(/ \(.*\)$/, '');
+    const region = candidateRegions.get(candidateKey(s.lat, s.lon));
+    return region ? `${region} (${s.lat.toFixed(4)}°, ${lonE360(s.lon).toFixed(4)}°E)`
+      : `Custom (${s.lat.toFixed(2)}°, ${lonE360(s.lon).toFixed(2)}°E)`;
   }
 
   function renderSky(s, el, cur) {
@@ -632,9 +645,10 @@
     $(el, '.lat').addEventListener('blur', restore);
     $(el, '.lon').addEventListener('blur', restore);
     const stopObservingTimeline = mountTimeline(s, $(el, '.tlsvg'), rerender);
+    s.unmount = () => { stopObservingTimeline(); el.remove(); };
     $(el, '.remove').addEventListener('click', () => {
-      stopObservingTimeline();
-      scenarios = scenarios.filter(x => x !== s); el.remove(); renderAll();
+      s.unmount();
+      scenarios = scenarios.filter(x => x !== s); renderAll();
     });
     document.getElementById('scenarios').appendChild(el);
   }
@@ -726,6 +740,17 @@
     if (sitePanel.hidden) setPanel(sitePanel.dataset.view);
   }
 
+  function loadSiteComparison(points, time) {
+    if (points.length < 2 || points.length > MAX_SCENARIOS) return;
+    stopPlayback();
+    scenarios.forEach(s => s.unmount());
+    scenarios = [];
+    for (const { lat, lon } of points) addScenario(lat, lon, time);
+    setTerrain(true);
+    setPanel('compare');
+    sitePanel.querySelector('[data-panel-view="compare"]').focus();
+  }
+
   panelToggle.addEventListener('click', () => setPanel(sitePanel.hidden ? sitePanel.dataset.view : null));
   for (const button of panelButtons) {
     button.addEventListener('click', () => setPanel(button.dataset.panelView));
@@ -752,13 +777,19 @@
   });
 
   timeInput.addEventListener('focus', stopPlayback);
-  timeInput.addEventListener('change', () => {
+  function commitTimeInput(event) {
+    const s = inspectedScenario;
     const time = fromInput(timeInput.value);
-    if (time === null || !timeInput.validity.valid) return;
-    inspectedScenario.t = time;
-    renderScenarioChange(inspectedScenario);
-  });
-  timeInput.addEventListener('blur', () => { timeInput.value = toInput(inspectedScenario.t); });
+    if (time === null || !timeInput.validity.valid) {
+      if (event.type === 'blur') timeInput.value = toInput(s.t);
+      return;
+    }
+    if (time === s.t) return;
+    s.t = time;
+    renderScenarioChange(s);
+  }
+  timeInput.addEventListener('change', commitTimeInput);
+  timeInput.addEventListener('blur', commitTimeInput);
   let timeScrubFrame = null;
   function previewSharedTime() {
     timeScrubFrame = null;
@@ -821,6 +852,9 @@
     scenarios: () => scenarios.slice(),          // each: {lat, lon, t, siteId, anchor, samples[], stats, cur, nextSun, nextEarth, el}
     activeScenario: () => inspectedScenario,
     openSitePanel,
+    loadSiteComparison,
+    siteProfile: (lat, lon) => profileFor({ lat, lon, siteId: matchSite(lat, lon) }),
+    skylineAt,
     setSite(i, lat, lon) { const s = scenarios[i]; if (!s) return; s.lat = lat; s.lon = lon; s.siteId = matchSite(lat, lon); ensureSamples(s, true); renderAll(); },
     setTime(i, t) { const s = scenarios[i]; if (!s) return; s.t = t; ensureSamples(s, false); renderAll(); },
     addScenario(lat, lon, t) { const s = addScenario(lat, lon, t); renderAll(); return s; },
@@ -837,12 +871,13 @@
 
   const terrainBtn = document.getElementById('terrainBtn');
   if (!Object.keys(HZ).length && !TG) terrainBtn.hidden = true;
-  terrainBtn.addEventListener('click', () => {
-    useTerrain = !useTerrain;
+  function setTerrain(enabled) {
+    useTerrain = enabled;
     terrainBtn.setAttribute('aria-pressed', String(useTerrain));
     terrainBtn.textContent = useTerrain ? 'LOLA terrain' : 'Flat horizon';
     renderAll();
-  });
+  }
+  terrainBtn.addEventListener('click', () => setTerrain(!useTerrain));
   if (VAL) {
     const t = `Checked against NASA JPL Horizons: ${VAL.comparisons} comparisons, largest difference ${VAL.maxElDiffDeg.toFixed(3)}° in elevation.`;
     document.getElementById('aboutVal').textContent = t + ' Full table in docs/validation.md.';

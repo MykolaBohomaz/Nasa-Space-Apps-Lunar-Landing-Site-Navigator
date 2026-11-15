@@ -110,11 +110,11 @@ a{color:var(--earth)}
 body.panel-open #closedTime{display:none}
 body.panel-open:not([data-panel-view="site"]){--panel-width:min(920px,72vw)}
 body.panel-open .mw-globe-dock{right:calc(var(--panel-width) + var(--edge) + 12px)}
-.panel-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:10px;border-bottom:1px solid #344459}
-.panel-nav button{min-height:40px}
+.panel-nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:10px;border-bottom:1px solid #344459}
+.panel-nav button{min-height:40px;padding-inline:4px;font-size:.82rem}
 .panel-nav .btn[aria-pressed="true"]{background:#233a52;color:#e7f2ff;border-color:#688fb7}
-@container site-panel (min-width:540px){
-  .panel-nav{grid-template-columns:repeat(6,minmax(0,1fr))}
+@container site-panel (min-width:630px){
+  .panel-nav{grid-template-columns:repeat(7,minmax(0,1fr))}
 }
 .panel-content{min-height:0;overflow:auto;overscroll-behavior:contain;padding:var(--section-gap);scrollbar-gutter:stable}
 .panel-content .actions,.panel-scenario{margin:0 0 12px}
@@ -137,10 +137,27 @@ body.panel-open .mw-globe-dock{right:calc(var(--panel-width) + var(--edge) + 12p
 #sitePanel:is([data-view="site"],[data-view="learn"]) .science-actions,
 #sitePanel:not([data-view="site"],[data-view="learn"]) .site-summary,
 #sitePanel[data-view="learn"] .panel-scenario,
-#sitePanel[data-view="compare"] #scenarioView,
+#sitePanel:is([data-view="compare"],[data-view="finder"]) #scenarioView,
+#sitePanel:not([data-view="finder"]) #finderView,
 #sitePanel:not([data-view="compare"]) #compareView{display:none}
 .view-power,.view-planning{padding-bottom:16px}
 .compare-empty{color:var(--muted)}
+.mw-finder h2{margin:0;font-size:1.15rem}
+.mw-finder p{margin:6px 0 12px;font-size:.9rem}
+.mw-finder-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(135px,100%),1fr));gap:10px;align-items:end}
+.mw-finder-fields button{min-height:40px}
+.mw-finder .mw-finder-count{margin-top:14px}
+.mw-finder-picks{min-width:0;margin:0;padding:0;border:0}
+.mw-finder-picks legend{font-size:.875rem;color:var(--muted);padding:0 0 6px}
+.mw-finder ol{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.mw-finder li{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:8px 10px;font-size:.88rem}
+.mw-finder-picks label{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
+.mw-finder-picks input{width:16px;height:16px;min-height:0;margin:3px 0 0;accent-color:var(--earth);flex:none}
+.mw-finder li small{display:block;color:var(--muted);font-size:.8rem}
+.mw-finder-window{margin-top:14px}
+.mw-finder-window .field{max-width:265px;margin-bottom:10px}
+.mw-finder-window .actions{margin-bottom:8px}
+.mw-finder button:disabled{opacity:.5;cursor:default}
 @media (min-width:901px){
   #sitePanel[data-view="site"]{bottom:auto;max-height:calc(100dvh - 86px)}
 }
@@ -262,7 +279,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 .dlg-close{flex:none}
 
 @media (max-width:700px){
-  .btn,select,input,.mw-globe-credit summary{min-height:44px}
+  .btn,select,input:not([type="checkbox"]),.mw-globe-credit summary{min-height:44px}
   .mw-globe-credit summary{align-content:center}
   .mw-globe-pin{width:44px;height:44px}
 }
@@ -276,7 +293,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 </head>
 <body>
 <main>
-  <div id="globeStage"></div>
+  <div id="globeStage" data-top-slot="map"></div>
   <button class="btn" id="panelToggle" type="button" aria-controls="sitePanel" aria-expanded="false">Site details</button>
   <time id="closedTime"></time>
   <aside id="sitePanel" data-view="site" aria-label="Landing site details" hidden>
@@ -304,6 +321,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       <button class="btn small" type="button" data-panel-view="sky" aria-pressed="false" aria-controls="scenarioView">Sky</button>
       <button class="btn small" type="button" data-panel-view="power" aria-pressed="false" aria-controls="scenarioView">Power</button>
       <button class="btn small" type="button" data-panel-view="planning" aria-pressed="false" aria-controls="scenarioView">Planning</button>
+      <button class="btn small" type="button" data-panel-view="finder" aria-pressed="false" aria-controls="finderView">Find sites</button>
       <button class="btn small" type="button" data-panel-view="compare" aria-pressed="false" aria-controls="compareView">Compare</button>
       <button class="btn small" type="button" data-panel-view="learn" aria-pressed="false" aria-controls="scenarioView">Learn</button>
     </nav>
@@ -322,6 +340,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
         </div>
         <div id="extTop" class="view-learn"></div>
       </div>
+      <div id="finderView" data-top-slot="finder"></div>
       <div id="compareView">
         <div class="actions"><button class="btn primary" id="addBtn" type="button">Add comparison</button></div>
         <p class="compare-empty" id="compareEmpty">Add a scenario to compare sites or landing times.</p>
@@ -440,6 +459,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 <script src="validation-data.js"></script>
 <script src="terrain-grid.js"></script>
 <script src="terrain.js"></script>
+<script src="site-candidates.js"></script>
 <!-- Plugins: one file each, listed here. Order does not matter. -->
 <script id="moonwindow-dem" type="application/octet-stream"></script>
 <script id="moonwindow-albedo" type="application/octet-stream"></script>
@@ -452,6 +472,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 <script src="plugins/learn.js"></script>
 <!-- <script src="plugins/export.js"></script> -->
 <script src="plugins/planner.js"></script>
+<script src="plugins/finder.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
