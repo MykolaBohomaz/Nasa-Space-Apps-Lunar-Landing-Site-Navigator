@@ -6,17 +6,33 @@ NASA Space Apps Challenge 2026 project for the lunar landing site challenge (Sun
 
 ## What it does
 
-- **Landing sites:** 9 real landing sites (IM-2 Athena, IM-1 Odysseus, two points on the Shackleton connecting ridge, Chandrayaan-3, Chang'e 6, SLIM, Blue Ghost 1, Apollo 11), the best landing spot in each of NASA's 9 Artemis III candidate regions, or any custom latitude/longitude.
-- **NASA Artemis III landing rules:** every scenario is checked against the rules NASA set for the crewed lander: near the pole like NASA's candidate regions, ground slope under 10° across the 100 m landing site, Earth in view at least 25% of the year, and unbroken sunlight for the 6.5-day surface stay.
-- **Real terrain from NASA LOLA:** at south polar sites, the skyline (mountains and crater rims) decides when the Sun and Earth are visible. A button compares with flat ground.
-- **Any date and time (UTC):** buttons for ±1 hour, ±1 day, "Now" and "Slip 1 week".
-- **Sky view:** a 360° picture of the sky from the site with the horizon, the Sun and Earth, and their tracks over the next 30 days.
-- **Sunlight and Earth cards:** elevation and direction, and a countdown to sunset/sunrise and Earthset/Earthrise (to the minute).
-- **30-day timeline:** sunlight, Earth in view, and both together. Click to jump to a time.
-- **Next-30-days numbers:** % sunlight, % Earth in view, % both, longest night, longest time without Earth, and how long Sun and Earth stay up together from the chosen moment.
-- **Mission** compares up to three scenarios using one set of solar-panel settings and one mission duration. It shows power, energy, and Sun–Earth overlap together, with a scrubbable timeline and a landing-date finder for each scenario.
-- **Play time** animation, **shareable links** (the URL stores the scenarios), and an **About** panel with explanations for non-experts.
-- **Check in NASA JPL Horizons:** every scenario links to the same query in JPL Horizons so anyone can verify the numbers.
+### Explore the 3D Moon and pick a site
+
+Drag to orbit, scroll or pinch to zoom, and use **South Pole** or **Reset** to reorient the view. The WebGL globe uses NASA LOLA elevation and LROC imagery. At the selected UTC time, MoonWindow projects the calculated Moon-relative positions of the **Sun** and **Earth** into the scene and uses the Sun’s direction to light the Moon. The **Sun** and **Earth** buttons turn the view toward each body. The globe enlarges their rendered disks for readability.
+
+Choose a saved landmark from the globe dropdown, click its pin, enter precise coordinates in **Site**, or click the lunar surface. A surface click fills the next available scenario up to A, B, and C. With all three slots filled, it moves the selected scenario. Use **Copy link** to share the site and time for each scenario.
+
+### See the local skyline and solar and Earth tracks
+
+**Sky** is a 360° SVG chart from the selected landing site. Azimuth runs left to right and elevation runs vertically. The chart overlays the Sun and Earth’s current positions and their **next 30 days of tracks** on the NASA LOLA skyline, including ridges and crater rims. Switch between **LOLA terrain** and **Flat horizon** to see what the local terrain blocks. The cards show each body’s direction, clearance above or below the skyline, and time until the next rise or set when one is found. They also link to NASA JPL Horizons for the selected site and time.
+
+![MoonWindow globe and the Sky chart showing the Sun behind the local ridge at IM-1 Odysseus](docs/moonwindow-globe-sky.webp)
+
+### Plan dates, compare sites, and estimate solar power
+
+**Mission** puts up to three site-and-date scenarios side by side. Each 30-day timeline shows when the **Sun**, **Earth**, and **both together** clear the horizon. Drag a track or use the shared UTC scrubber above the sidebar. You can also enter a date, step by an hour, day or week, jump to **Now**, or press **Play**. The globe and analysis update as time changes.
+
+Open **Dates** on a scenario to search the next year for windows with continuous sunlight and direct Earth line of sight. Choose a minimum duration and jump to a result. The same section shows visibility percentages and the longest gaps in sunlight or Earth view within the chart window.
+
+Open **Power settings and figures** to compare power now and average power in watts, total solar energy in kWh, and shared visibility. All scenarios use the same panel area, efficiency, fixed or Sun-tracking vertical mount, and mission duration. Earth visibility represents geometric line of sight. The solar estimates omit dust, temperature and equipment shadow losses.
+
+![Mission compares three landing sites with separate Sun, Earth and overlap tracks and shared solar settings](docs/moonwindow-mission.webp)
+
+### Find candidate sites and try the learning challenges
+
+**Find sites** searches the south-pole grid or the archived Artemis candidate regions. Filter by slope and minimum Sun and Earth coverage. Rank by sunlight, Earth visibility, overlap, or slope, then shortlist up to three spaced-apart points. Check for joint visibility at the selected time and after a one-week delay. Send two or three picks to Mission at one common time or at their earliest qualifying starts. [Finder method and demo](#best-landing-spots-in-nasas-artemis-iii-regions)
+
+**Learn** uses scenario A for three hands-on challenges. Find a time when IM-2 has both sunlight and Earth in view, identify a far-side landing site with no direct Earth view, or find when IM-1 is shaded by its crater wall. **Check my answer** gives a ✓ or ✕ and explains correct answers.
 
 ## How to run it
 
