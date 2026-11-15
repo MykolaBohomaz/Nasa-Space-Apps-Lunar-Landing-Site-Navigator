@@ -3,7 +3,8 @@
 //
 // Rules from NASA's "Artemis Human Landing System Overview" for the Space Apps Challenge
 // (ntrs.nasa.gov/citations/20250009323) and the Artemis HLS update (ntrs.nasa.gov/citations/20240009596):
-// land within 6 deg of the pole, ground slope under 10 deg across the 100 m landing site, Earth in view
+// land near the pole (NASA's 2022 rule said within 6 deg; its 2024 regions reach 6.4 deg, Peak near Cabeus B,
+// per LROC's Artemis III site mosaics, data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_CABEUSPKLO2), ground slope under 10 deg across the 100 m landing site, Earth in view
 // for direct radio (areas with Earth visible under 25% of the time are ruled out), and sunlight for the
 // whole planned 6.5-day surface stay (NASA, Aug 2022 region announcement).
 (() => {
@@ -76,10 +77,10 @@
     renderScenario(s, slot, api) {
       style();
       const f = api.fmt, y = year(s, api), sl = slopeOf(s, api);
-      const polar = s.lat <= -84;
+      const polar = s.lat <= -83.5;
       const slopeOk = sl ? sl.deg < 10 : null, earthOk = y.earth >= 0.25, sunOk = y.longestSunH >= 6.5 * 24;
       const rows = [
-        [polar, 'Within 6° of the south pole', `${Math.abs(s.lat).toFixed(2)}°${s.lat < 0 ? 'S' : 'N'}, ${(90 + s.lat).toFixed(2)}° from the pole`],
+        [polar, 'Near the south pole, like NASA\'s candidate regions', `${Math.abs(s.lat).toFixed(2)}°${s.lat < 0 ? 'S' : 'N'}, ${(90 + s.lat).toFixed(2)}° from the pole (NASA\'s regions reach 6.4°)`],
         [slopeOk, 'Ground slope under 10° across the 100 m landing site',
           sl ? `${sl.deg.toFixed(1)}° from the ${sl.resM} m NASA LOLA map${sl.resM > 100 ? ' (it smooths small bumps, so the real slope may be steeper)' : ''}`
             : 'No polar terrain data here (LOLA maps cover 77°S to the pole)'],

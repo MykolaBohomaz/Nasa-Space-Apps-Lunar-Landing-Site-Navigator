@@ -7,7 +7,7 @@ NASA Space Apps Challenge 2026 project for the lunar landing site challenge (Sun
 ## What it does
 
 - **Landing sites:** 9 real landing sites (IM-2 Athena, IM-1 Odysseus, two points on the Shackleton connecting ridge, Chandrayaan-3, Chang'e 6, SLIM, Blue Ghost 1, Apollo 11), the best landing spot in each of NASA's 9 Artemis III candidate regions, or any custom latitude/longitude.
-- **NASA Artemis III landing rules:** every scenario is checked against the rules NASA set for the crewed lander: within 6° of the pole, ground slope under 10° across the 100 m landing site, Earth in view at least 25% of the year, and unbroken sunlight for the 6.5-day surface stay.
+- **NASA Artemis III landing rules:** every scenario is checked against the rules NASA set for the crewed lander: near the pole like NASA's candidate regions, ground slope under 10° across the 100 m landing site, Earth in view at least 25% of the year, and unbroken sunlight for the 6.5-day surface stay.
 - **Real terrain from NASA LOLA:** at south polar sites, the skyline (mountains and crater rims) decides when the Sun and Earth are visible. A button compares with flat ground.
 - **Any date and time (UTC):** buttons for ±1 hour, ±1 day, "Now" and "Slip 1 week".
 - **Sky view:** a 360° picture of the sky from the site with the horizon, the Sun and Earth, and their tracks over the next 30 days.
@@ -114,7 +114,7 @@ NASA's Artemis III candidate regions are each about 15 × 15 km; the lander need
 | de Gerlache Rim 2 | -88.225, 294.579 | 8.8° | 36% / 50% | -88.287, 289.5575 | 5.0 km | 6.9° | 54% / 56% |
 | Slater Plain | -87.149, 126.134 | 6.5° | 4% / 37% | -87.2813, 127.9327 | 4.81 km | 1.3° | 66% / 43% |
 
-The published coordinate for Peak near Cabeus B is at 83.66°S, just outside NASA's 6° limit, so its best spot fails that one rule. The region coordinates come from Table 4 of [this preprint](https://www.preprints.org/manuscript/202511.1488) (`tools/artemis_regions.json`) and should be checked against NASA's official region outlines.
+The region coordinates come from Table 4 of [this preprint](https://www.preprints.org/manuscript/202511.1488) (`tools/artemis_regions.json`). We checked them against the centers of LROC's official mosaics of the Artemis III candidate sites ([LROC NAC ROI products](https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_CABEUSPKLO2)). Peak near Cabeus B, Haworth, Malapert Massif, Mons Mouton Plateau and Nobile Rim 2 all match within 3 km, which is about the rounding of LROC's 0.1° centers. LROC also shows that Peak near Cabeus B (83.6°S) and Nobile Rim 2 (83.9°S) lie more than 6° from the pole. NASA's 6° rule comes from its 2022 announcement, so the app's pole check uses the reach of the 2024 regions instead (6.4°).
 
 **Checking the slope method against a real landing:** NASA estimated from LRO images that IM-1 Odysseus came to rest on a 12° slope, and the lander tipped over. Our LOLA slope at the IM-1 site is 11.6°. The app shows it failing NASA's 10° rule.
 

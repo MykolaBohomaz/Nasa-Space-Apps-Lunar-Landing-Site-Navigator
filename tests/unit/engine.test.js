@@ -196,15 +196,14 @@ test('every script in src/ parses', () => {
 
 // 15. NASA Artemis III landing rules at our best landing spots (tools/find_artemis_spots.py):
 // slope under 10 deg, Earth in view at least 25% of the year, at least 6.5 days of unbroken sunlight,
-// within 6 deg of the pole. Peak near Cabeus B is the exception to the last rule: the published
-// coordinate for that region is itself at 83.66S (see docs/sites.md).
+// and as close to the pole as NASA's regions (LROC puts Peak near Cabeus B's center at 83.6S, 6.4 deg away).
 test('Artemis III best spots meet NASA landing rules over 2027', () => {
   const up = (v, b) => b.el > skyline(v, b.az);
   for (const s of SITES.filter(s => s.id.startsWith('artemis'))) {
     const h = HZ.sites[s.id];
     assert.ok(h && h.resM === 80, `${s.id} needs an 80 m precomputed skyline`);
     assert.ok(h.slopeDeg < 10, `${s.id} slope ${h.slopeDeg}`);
-    if (s.id !== 'artemis-peak-cabeus-b') assert.ok(s.lat <= -84, `${s.id} not within 6 deg of the pole`);
+    assert.ok(s.lat <= -83.5, `${s.id} farther from the pole than NASA's regions`);
     let earth = 0, run = 0, best = 0; const n = 365 * 12;
     for (let i = 0; i < n; i++) {
       const k = E.skyAt(new Date(Date.UTC(2027, 0, 1) + i * 2 * 3600e3), s.lat, s.lon);
