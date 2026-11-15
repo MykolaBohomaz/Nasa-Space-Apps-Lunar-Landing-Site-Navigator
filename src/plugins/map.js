@@ -5,6 +5,7 @@
   const reliefScale = 2.5;
   const floatsPerVertex = 7;
   const focalLength = 2.6;
+  const tapSlop = 6;
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
   const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 
@@ -16,6 +17,26 @@
 
   function cameraAt(lat, lon) {
     return [direction(0, lon + 90), direction(lat + 90, lon), direction(lat, lon)];
+  }
+
+  function projection(width, height) {
+    return [focalLength * Math.min(1, height / width), focalLength * Math.min(1, width / height)];
+  }
+
+  function surfaceCoordinates([right, up, forward], distance, x, y) {
+    // Intersect the view ray with the reference sphere used for lunar coordinates.
+    const ray = [x, y, -1];
+    const rayLengthSquared = dot(ray, ray);
+    const discriminant = distance ** 2 - rayLengthSquared * (distance ** 2 - 1);
+    if (discriminant < 0) return null;
+    const depth = (distance - Math.sqrt(discriminant)) / rayLengthSquared;
+    const [px, py, pz] = forward.map((value, i) =>
+      value * (distance - depth) + depth * (x * right[i] + y * up[i]));
+    const horizontal = Math.hypot(px, pz);
+    return {
+      lat: Math.atan2(py, horizontal) / radians,
+      lon: horizontal < 1e-12 ? 0 : Math.atan2(px, pz) / radians
+    };
   }
 
   function orbitCamera([right, up, forward], horizontal, vertical) {
@@ -401,7 +422,7 @@
     slot.innerHTML = `
       <section class="mw-globe" aria-label="Lunar globe">
         <div class="mw-globe-header">
-          <div><h2>Lunar globe</h2><p id="mw-globe-help">Drag to orbit · Scroll or pinch to zoom</p></div>
+          <div><h2>Lunar globe</h2><p id="mw-globe-help">Click or tap the Moon to select and center scenario A · Drag to orbit · Scroll or pinch to zoom</p></div>
           <div class="mw-globe-controls">
             <button type="button" data-action="pole">South pole</button>
             <button type="button" data-action="reset">Reset view</button>
@@ -410,7 +431,7 @@
           </div>
         </div>
         <div class="mw-globe-viewport">
-          <canvas tabindex="0" aria-label="Moon terrain. Use arrow keys to orbit and plus or minus to zoom."
+          <canvas tabindex="0" aria-label="Moon terrain. Use arrow keys to orbit, plus or minus to zoom, and Enter to select the center."
             aria-describedby="mw-globe-help"></canvas>
           <div class="mw-globe-pins"></div>
         </div>
@@ -433,7 +454,7 @@
     const status = slot.querySelector('[role="status"]');
     const credit = slot.querySelector('.mw-globe-credit a');
     const detail = credit.nextElementSibling;
-    select.add(new Option('Custom coordinates', ''));
+    select.add(new Option('Custom coordinates', 'custom'));
     for (const site of api.SITES) select.add(new Option(site.name, site.id));
     select.addEventListener('change', () => {
       const site = api.SITES.find(item => item.id === select.value);
@@ -504,8 +525,7 @@
       if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
       if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
       const [right, up, forward] = camera;
-      const xScale = focalLength * Math.min(1, height / width);
-      const yScale = focalLength * Math.min(1, width / height);
+      const [xScale, yScale] = projection(width, height);
       render(surface, camera, distance, xScale, yScale);
 
       for (const pin of [...sitePins, ...scenarioPins]) {
@@ -540,6 +560,13 @@
       schedule();
     }
 
+    function pick(x, y) {
+      if (!surface || Math.abs(x) > 1 || Math.abs(y) > 1) return;
+      const [xScale, yScale] = projection(viewport.clientWidth, viewport.clientHeight);
+      const point = surfaceCoordinates(camera, distance, x / xScale, y / yScale);
+      if (point) selectSite(point);
+    }
+
     const pointers = new Map();
     const separation = () => {
       const [a, b] = pointers.values();
@@ -549,18 +576,43 @@
       if (event.button !== 0 || pointers.size === 2) return;
       flight = null;
       canvas.setPointerCapture(event.pointerId);
-      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      for (const pointer of pointers.values()) pointer.tap = false;
+      pointers.set(event.pointerId, {
+        x: event.clientX, y: event.clientY,
+        startX: event.clientX, startY: event.clientY,
+        tap: pointers.size === 0
+      });
     });
     canvas.addEventListener('pointermove', event => {
-      const previous = pointers.get(event.pointerId);
-      if (!previous) return;
+      const pointer = pointers.get(event.pointerId);
+      if (!pointer) return;
+      if (pointer.tap && Math.hypot(event.clientX - pointer.startX, event.clientY - pointer.startY) < tapSlop) return;
+      pointer.tap = false;
+      canvas.classList.add('is-dragging');
       const before = pointers.size === 2 ? separation() : 0;
-      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      const dx = event.clientX - pointer.x;
+      const dy = event.clientY - pointer.y;
+      pointer.x = event.clientX;
+      pointer.y = event.clientY;
       if (before) zoom(before / Math.max(1, separation()));
-      else orbit(event.clientX - previous.x, event.clientY - previous.y);
+      else orbit(dx, dy);
     });
-    for (const type of ['lostpointercapture', 'pointerup', 'pointercancel']) {
-      canvas.addEventListener(type, event => pointers.delete(event.pointerId));
+    function releasePointer(event) {
+      const pointer = pointers.get(event.pointerId);
+      pointers.delete(event.pointerId);
+      if (!pointers.size) canvas.classList.remove('is-dragging');
+      return pointer;
+    }
+    canvas.addEventListener('pointerup', event => {
+      const pointer = releasePointer(event);
+      if (!pointer?.tap || Math.hypot(event.clientX - pointer.startX, event.clientY - pointer.startY) >= tapSlop) return;
+      const bounds = canvas.getBoundingClientRect();
+      if (!bounds.width || !bounds.height) return;
+      pick(2 * (event.clientX - bounds.left) / bounds.width - 1,
+        1 - 2 * (event.clientY - bounds.top) / bounds.height);
+    });
+    for (const type of ['lostpointercapture', 'pointercancel']) {
+      canvas.addEventListener(type, releasePointer);
     }
     canvas.addEventListener('wheel', event => {
       event.preventDefault();
@@ -580,7 +632,8 @@
       const actions = {
         ArrowLeft: () => orbit(-40, 0), ArrowRight: () => orbit(40, 0),
         ArrowUp: () => orbit(0, -40), ArrowDown: () => orbit(0, 40),
-        '+': controls.in, '=': controls.in, '-': controls.out, Home: controls.reset
+        '+': controls.in, '=': controls.in, '-': controls.out, Home: controls.reset,
+        Enter: () => pick(0, 0)
       };
       if (!Object.hasOwn(actions, event.key)) return;
       event.preventDefault();
@@ -641,7 +694,7 @@
 
     return () => {
       const scenarios = api.scenarios();
-      select.value = scenarios[0]?.siteId || '';
+      select.value = scenarios[0]?.siteId || 'custom';
       scenarioPins = scenarios.map((scenario, index) => ({ ...scenario, element: markers[index] }));
       markers.slice(scenarios.length).forEach(marker => { marker.hidden = true; });
       schedule();
