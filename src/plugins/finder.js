@@ -31,13 +31,12 @@
             <option value="earth">Most Earth visibility</option>
             <option value="slope">Lowest slope</option>
           </select></label>
-          <label class="field"><span>Maximum slope (°)</span><input name="slope" type="number" min="0" max="90" step="0.1" value="9" required></label>
-          <label class="field"><span>Minimum sunlight (%)</span><input name="sun" type="number" min="0" max="100" value="35" required></label>
-          <label class="field"><span>Minimum Earth view (%)</span><input name="earth" type="number" min="0" max="100" value="25" required></label>
+          <label class="field"><span>Max slope (°)</span><input name="slope" type="number" min="0" max="90" step="0.1" value="9" required></label>
+          <label class="field"><span>Min sunlight (%)</span><input name="sun" type="number" min="0" max="100" value="35" required></label>
+          <label class="field"><span>Min Earth view (%)</span><input name="earth" type="number" min="0" max="100" value="25" required></label>
           <button class="btn small" type="submit">Filter sites</button>
         </form>
         <p class="mw-finder-count" role="status"></p>
-        <fieldset class="mw-finder-picks"><legend>Pick up to three sites</legend><ol></ol></fieldset>
         <div class="mw-finder-window">
           <label class="field"><span>Required continuous days with Sun and Earth</span><input class="mw-finder-days" type="number" min="1" max="30" value="7" required></label>
           <p class="mw-finder-start muted"></p>
@@ -48,6 +47,7 @@
           </div>
           <div class="mw-finder-report" aria-live="polite"></div>
         </div>
+        <fieldset class="mw-finder-picks"><legend>Pin up to three sites on the globe or in the list</legend><ol></ol></fieldset>
         <p class="muted">Grid-based slope and visibility estimates. Local rocks and small terrain features can matter, especially near ridges.</p>
       </section>`;
 
@@ -70,6 +70,7 @@
     const startLabel = slot.querySelector('.mw-finder-start');
     const f = api.fmt;
     let results = [];
+    let layer;
     let picked = new Set();
     let request = 0;
     let checking = false;
@@ -85,6 +86,12 @@
       for (const input of list.querySelectorAll('input')) {
         input.disabled = !input.checked && picked.size >= MAX_PICKS;
       }
+      api.finderLayer = { ...layer, pins: results.map((site, i) => ({
+        lat: site.lat, lon: site.lon, name: site.region, number: i + 1, picked: picked.has(site),
+        disabled: !picked.has(site) && picked.size >= MAX_PICKS,
+        toggle() { list.querySelector(`[data-rank="${i}"]`)?.click(); }
+      })) };
+      api.refreshGlobe();
     }
 
     function clearReport() {
@@ -104,12 +111,21 @@
       scope.textContent = (wide
         ? `Search points on a ${polar.stepKm} km grid within ${polar.radiusKm} km of the south pole.`
         : 'Search points within 5 km of the selected Artemis region reference points.') +
-        ' Coverage filters use modeled 2027 Sun-centre and Earth-centre visibility.';
+        ' Brighter cells rank higher. Coverage filters use modeled 2027 Sun-centre and Earth-centre visibility.';
       const searchRegions = wide ? [polar] : artemis.filter(r => !regionId || r.id === regionId);
       const matches = searchRegions
         .flatMap(r => r.sites.map(s => ({ ...s, region: r.name })))
         .filter(s => s.slope <= number('slope') && s.sun * 100 >= number('sun') && s.earth * 100 >= number('earth'))
         .sort((a, b) => (rank === 'slope' ? a.slope - b.slope : b[rank] - a[rank]) || b.both - a.both || a.slope - b.slope);
+      const metric = s => rank === 'slope' ? -s.slope : s[rank];
+      const min = matches.length ? metric(matches.at(-1)) : 0;
+      const max = matches.length ? metric(matches[0]) : 0;
+      layer = {
+        cells: matches.map(s => ({ lat: s.lat, lon: s.lon, strength: max > min ? (metric(s) - min) / (max - min) : 1 })),
+        cellKm: wide ? polar.stepKm : 1,
+        focus: regionId && !wide && matches.length ? { lat: matches[0].lat, lon: matches[0].lon, distance: 1.115 }
+          : { lat: -90, lon: 0, distance: 1.27 }
+      };
       results = [];
       for (const site of matches) {
         if (results.some(other => surfaceDistanceKm(site, other, api.engine.MOON_RADIUS_KM) < spacing)) continue;
@@ -118,13 +134,13 @@
       }
       picked = new Set(results.slice(0, MAX_PICKS));
       count.textContent = matches.length
-        ? `${matches.length} matching points · ${results.length} shortlisted · minimum ${spacing} km spacing`
+        ? `${matches.length} matching cells on the globe · ${results.length} numbered candidates · ${spacing} km spacing`
         : 'No points match. Try a different region or relax a filter.';
       choices.hidden = !results.length;
       slot.querySelector('.mw-finder-window').hidden = !results.length;
       list.innerHTML = results.map((s, i) => `<li><label>
         <input type="checkbox" data-rank="${i}" ${picked.has(s) ? 'checked' : ''}>
-        <span><strong>${f.esc(s.region)}</strong> · ${coordinates(s)}
+        <span><strong>${i + 1}. ${f.esc(s.region)}</strong> · ${coordinates(s)}
           <small>${s.slope.toFixed(1)}° slope · ${s.resM} m LOLA · ${s.original ? 'original candidate' : s.distanceKm.toFixed(1) + (wide ? ' km from pole' : ' km from reference point')}</small>
           <small>Sun ${f.pct(s.sun)} · Earth ${f.pct(s.earth)} · Both ${f.pct(s.both)}</small>
         </span>
@@ -210,10 +226,13 @@
         return;
       }
       const t = api.activeScenario().t;
-      api.loadSiteComparison(sites.map(({ lat, lon }) => ({ lat, lon, t })));
+      if (!daysInput.reportValidity()) return;
+      api.loadSiteComparison(sites.map(({ lat, lon }) => ({ lat, lon, t })), { shared: true, days: daysInput.valueAsNumber });
     });
     compareEarliest.addEventListener('click', () => {
-      if (checkedStarts?.length === picked.size) api.loadSiteComparison(checkedStarts);
+      if (checkedStarts?.length === picked.size && daysInput.reportValidity()) {
+        api.loadSiteComparison(checkedStarts, { days: daysInput.valueAsNumber });
+      }
     });
     filter();
     return updateSearchStart;

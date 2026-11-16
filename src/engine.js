@@ -52,7 +52,10 @@
 
     // Returns {sun:{el,az,distKm}, earth:{el,az,distKm}} for a Date (UTC) at a site.
     function skyAt(date, latDeg, lonDeg, altKm) {
-      const { sun, earth } = moonSkyVectors(date);
+      return skyAtFromVectors(moonSkyVectors(date), latDeg, lonDeg, altKm);
+    }
+
+    function skyAtFromVectors({ sun, earth }, latDeg, lonDeg, altKm) {
       const f = siteFrame(latDeg, lonDeg);
       const sitePos = scale(f.up, MOON_RADIUS_KM + (altKm || 0));
       const look = (v, kind) => {
@@ -85,7 +88,7 @@
     const earthVisible = (earth, horizonDeg) => visibleFraction(earth.el, horizonDeg || 0, earth.distKm, EARTH_RADIUS_KM);
     const angularRadiusDeg = (distKm, radiusKm) => Math.asin(Math.min(1, radiusKm / distKm)) * R2D;
 
-    return { skyAt, moonSkyVectors, visibleFraction, sunVisible, earthVisible, angularRadiusDeg, SUN_RADIUS_KM, EARTH_RADIUS_KM, MOON_RADIUS_KM };
+    return { skyAt, skyAtFromVectors, moonSkyVectors, visibleFraction, sunVisible, earthVisible, angularRadiusDeg, SUN_RADIUS_KM, EARTH_RADIUS_KM, MOON_RADIUS_KM };
   }
 
   if (typeof module !== 'undefined' && module.exports) module.exports = engine;

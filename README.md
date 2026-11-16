@@ -34,6 +34,10 @@ Open **Power settings and figures** to compare power now and average power in wa
 
 ### Find candidate sites and try the learning challenges
 
+**First visit:** Open **Find sites**, set the maximum slope and minimum Sun and Earth coverage, then click **Filter sites**. The globe shades matching grid cells, with brighter cells ranked higher. Click numbered candidates on the globe or in the list to pin up to three. Use **Compare at selected time** to bring them into Mission on a **Shared UTC timeline**. Drag any track to move all playheads together, open **Dates** to rank alternative starts, and read the one-week delay check under each track. Turn off the shared clock to test different start dates.
+
+Toggle **Polar shadows** on the globe to see where terrain blocks direct sunlight around the south pole. The overlay traces rays through the bundled LOLA terrain as the selected time changes. Use **Sky** to inspect the more detailed site-specific skyline used in mission analysis.
+
 **Find sites** searches the south-pole grid or the archived Artemis candidate regions. Filter by slope and minimum Sun and Earth coverage. Rank by sunlight, Earth visibility, overlap, or slope, then shortlist up to three spaced-apart points. Check for joint visibility at the selected time and after a one-week delay. Send two or three picks to Mission at one common time or at their earliest qualifying starts. [Finder method and demo](#best-landing-spots-in-nasas-artemis-iii-regions)
 
 **Learn** uses scenario A for three hands-on challenges. Find a time when IM-2 has both sunlight and Earth in view, identify a far-side landing site with no direct Earth view, or find when IM-1 is shaded by its crater wall. **Check my answer** gives a ✓ or ✕ and explains correct answers.
@@ -71,6 +75,8 @@ Sanity checks we ran:
 Across 72 comparisons (9 sites × 4 dates × Sun and Earth), the app matches NASA JPL Horizons within **0.003° in elevation** and 0.005° in azimuth, with identical up/down status in all 72 cases. Full table: [docs/validation.md](docs/validation.md). Re-run with `python3 tools/fetch_horizons.py` (needs internet) and then `node tools/compare_horizons.js`.
 
 ### Terrain validation and how to check it in Sky
+
+**Long-term Sun and Earth coverage:** Across 96 polar locations, agreement with NASA’s published coverage maps improved to **2.79 percentage points RMS for sunlight** and **1.95 for Earth visibility** with terrain. At one of our two ridge pins, changing the terrain grid from 80 m to 240 m increased the predicted longest darkness by **7 days 22 hours**. [Coverage and ridge sensitivity study](docs/pgda-coverage-validation.md)
 
 **Does terrain change a seven-day landing decision?** We screened 1,600 historical site/start combinations and checked approved starts against LRO camera observations. With a flat horizon, **150 of 217** approved starts had an observed shadow. With the LOLA skyline and the same Sun-centre rule, **zero of 34** approved starts had an observed shadow. The cameras sample at intervals, so they can reveal a false pass while leaving gaps between observations. [Seven-day study and in-app replay](docs/lroc-mission-window-validation.md)
 

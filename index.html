@@ -38,6 +38,7 @@ button,input,select{font:inherit;color:inherit}
 .mw-globe-controls button,.mw-globe-header select,#panelToggle{color-scheme:dark}
 .mw-globe-controls button,.mw-globe select{min-height:44px;padding:6px 10px;border:1px solid #667991;border-radius:6px;background:#152233;color:#ece9e2}
 .mw-globe-controls button{min-width:44px;cursor:pointer}
+.mw-globe-controls button[aria-pressed="true"]{border-color:var(--both);color:var(--both)}
 .mw-globe-viewport{position:absolute;inset:0;overflow:hidden}
 .mw-globe canvas,.mw-globe-pins{position:absolute;inset:0;width:100%;height:100%}
 .mw-globe canvas{touch-action:none;cursor:crosshair}
@@ -49,6 +50,10 @@ button,input,select{font:inherit;color:inherit}
 .mw-globe-pin{position:absolute;transform:translate(-50%,-50%);width:24px;height:24px;padding:0;border:0;border-radius:50%;background:transparent;pointer-events:auto;cursor:pointer}
 .mw-globe-pin::before{content:'';display:block;width:9px;height:9px;margin:auto;border:2px solid #101925;border-radius:50%;background:#ffc573;box-sizing:content-box}
 .mw-globe-pin:hover,.mw-globe-pin:focus-visible{z-index:1;outline:2px solid #fff}
+.mw-candidate-pin{background:#101925;color:#c2ffeb;border:1px solid #62dbbb;font-size:.72rem;font-weight:700}
+.mw-candidate-pin::before{display:none}
+.mw-candidate-pin[aria-pressed="true"]{background:#96f0d2;color:#102321}
+.mw-candidate-pin:disabled{cursor:default}
 .mw-globe-scenario{position:absolute;transform:translate(-50%,calc(-100% - 5px));padding:0 4px;border:1px solid #e4edf8;border-radius:4px;background:#152233;color:#fff;font-weight:700;font-size:.8rem;white-space:nowrap}
 .mw-globe-scenario::after{content:'';position:absolute;top:calc(100% + 1px);left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#e4edf8;border-bottom:0}
 .mw-globe select{max-width:100%}
@@ -102,6 +107,7 @@ a{color:var(--earth)}
 body.panel-open #closedTime{display:none}
 body.panel-open:not([data-panel-view="site"]){--panel-width:min(920px,72vw)}
 body.panel-open[data-panel-view="mission"]{--panel-width:430px}
+body.panel-open[data-panel-view="finder"]{--panel-width:min(530px,49vw)}
 body.panel-open .mw-globe-dock{right:calc(var(--panel-width) + var(--edge) + 12px)}
 .panel-nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;padding:7px;border-bottom:1px solid #344459}
 .panel-nav button{min-height:34px;padding-inline:3px;font-size:.82rem;white-space:normal;line-height:1.15}
@@ -139,6 +145,9 @@ body.panel-open .mw-globe-dock{right:calc(var(--panel-width) + var(--edge) + 12p
 .mission-options input{width:4.1em;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:3px 5px}
 .mission-target,.mission-readiness{margin:0 0 5px;color:var(--muted);font-size:.74rem}
 .mission-readiness{margin:4px 0}
+.shared-clock{display:block;margin:4px 0 6px;color:var(--muted);font-size:.77rem}
+.shared-clock[hidden]{display:none}
+.shared-clock input{vertical-align:middle;accent-color:var(--both)}
 .mission-pass{color:var(--both)}
 .mission-fail{color:#ffb1a5}
 .mission-legend{display:flex;align-items:center;flex-wrap:wrap;gap:3px 10px;margin:0 0 4px;color:var(--muted);font-size:.73rem}
@@ -183,7 +192,7 @@ body.panel-open .mw-globe-dock{right:calc(var(--panel-width) + var(--edge) + 12p
   :root{--sheet-height:min(62dvh,max(52dvh,390px));--section-gap:10px;--edge:12px}
   #sitePanel{top:auto;left:8px;right:8px;bottom:8px;width:auto;height:var(--sheet-height)}
   #sitePanel:not([data-view="site"]){height:calc(100dvh - 120px)}
-  #sitePanel[data-view="mission"]{height:min(64dvh,calc(100dvh - 110px))}
+  #sitePanel:is([data-view="mission"],[data-view="finder"]){height:min(64dvh,calc(100dvh - 110px))}
   body.panel-open .mw-globe-dock{right:var(--edge);bottom:calc(var(--sheet-height) + 16px)}
   body.panel-open .mw-globe-credit{display:none}
   body.panel-open:not([data-panel-view="site"]) .mw-globe-dock{display:none}
@@ -354,6 +363,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
             <button class="btn small" id="exportMission" type="button">Export CSV</button>
           </div>
           <p class="mission-target"></p>
+          <label class="shared-clock" hidden><input id="sharedClock" type="checkbox"> Shared UTC timeline</label>
           <div class="mission-legend" aria-label="Timeline and energy legend">
             <span>30-day visibility</span><span><i class="sun"></i>Sun</span><span><i class="earth"></i>Earth</span><span><i class="both"></i>Both</span>
             <span class="energy-label"></span>
@@ -837,7 +847,10 @@ window.MW_SITES = [
 
     // Returns {sun:{el,az,distKm}, earth:{el,az,distKm}} for a Date (UTC) at a site.
     function skyAt(date, latDeg, lonDeg, altKm) {
-      const { sun, earth } = moonSkyVectors(date);
+      return skyAtFromVectors(moonSkyVectors(date), latDeg, lonDeg, altKm);
+    }
+
+    function skyAtFromVectors({ sun, earth }, latDeg, lonDeg, altKm) {
       const f = siteFrame(latDeg, lonDeg);
       const sitePos = scale(f.up, MOON_RADIUS_KM + (altKm || 0));
       const look = (v, kind) => {
@@ -870,7 +883,7 @@ window.MW_SITES = [
     const earthVisible = (earth, horizonDeg) => visibleFraction(earth.el, horizonDeg || 0, earth.distKm, EARTH_RADIUS_KM);
     const angularRadiusDeg = (distKm, radiusKm) => Math.asin(Math.min(1, radiusKm / distKm)) * R2D;
 
-    return { skyAt, moonSkyVectors, visibleFraction, sunVisible, earthVisible, angularRadiusDeg, SUN_RADIUS_KM, EARTH_RADIUS_KM, MOON_RADIUS_KM };
+    return { skyAt, skyAtFromVectors, moonSkyVectors, visibleFraction, sunVisible, earthVisible, angularRadiusDeg, SUN_RADIUS_KM, EARTH_RADIUS_KM, MOON_RADIUS_KM };
   }
 
   if (typeof module !== 'undefined' && module.exports) module.exports = engine;
@@ -1040,7 +1053,7 @@ window.MW_TERRAIN_GRID = {"siteLatLimit":-77.0,"quantM":2.0,"convention":[1,1],"
       return { values: out, groundM: h0 };
     }
 
-    return { profile, heightAt, covers, resAt, meta };
+    return { profile, heightAt, covers, resAt, meta, rasters: [Znear, Zfar] };
   }
 
   const api = { loadBrowser, loadNode, create, decodeHeights };
@@ -1113,6 +1126,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
   const focalLength = 2.6;
   const tapSlop = 6;
   const bodySizeScale = 3;
+  const finderExtentKm = 220;
   function normalize(vector) {
     const length = Math.hypot(...vector);
     return vector.map(value => value / length);
@@ -1360,6 +1374,10 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       uniform bool hasMosaic;
       uniform sampler2D southRelief;
       uniform float polarScale;
+      uniform sampler2D finderMask;
+      uniform bool showFinder;
+      uniform sampler2D shadowMap;
+      uniform bool showShadows;
       uniform vec3 moonLight;
       out vec4 color;
       void main() {
@@ -1399,6 +1417,19 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
             litSurface *= 1.0 + detail * coverage * valid;
           }
         }
+        if ((showFinder || showShadows) && radial.y < 0.0) {
+          vec2 uv = vec2(0.5) + ${radius / (finderExtentKm * 1000)} * vec2(radial.x, -radial.z) / (1.0 - radial.y);
+          if (all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0)))) {
+            if (showShadows) {
+              float falloff = 1.0 - smoothstep(0.46, 0.5, max(abs(uv.x - 0.5), abs(uv.y - 0.5)));
+              litSurface = mix(litSurface, 0.12 * surface, texture(shadowMap, uv).r * falloff);
+            }
+            if (showFinder) {
+              vec4 match = texture(finderMask, uv);
+              litSurface = mix(litSurface, match.rgb, match.a);
+            }
+          }
+        }
         color = vec4(litSurface, 1.0);
       }`);
     function link(vertexShader, fragmentShader) {
@@ -1419,6 +1450,10 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     const hasMosaic = gl.getUniformLocation(program, 'hasMosaic');
     const polarSampler = gl.getUniformLocation(program, 'southRelief');
     const polarScale = gl.getUniformLocation(program, 'polarScale');
+    const finderMask = gl.getUniformLocation(program, 'finderMask');
+    const showFinder = gl.getUniformLocation(program, 'showFinder');
+    const shadowMap = gl.getUniformLocation(program, 'shadowMap');
+    const showShadows = gl.getUniformLocation(program, 'showShadows');
     function loadTexture(source) {
       const texture = gl.createTexture();
       gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -1453,6 +1488,115 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     const earth = loadTexture(embeddedJpeg('moonwindow-earth'));
     const polarMap = window.MW_POLAR_MAP;
     const polar = loadTexture(polarMap?.image);
+    const finder = loadTexture(null);
+    let finderCells;
+    const mapSize = 1024;
+    const mapCanvas = document.createElement('canvas');
+    mapCanvas.width = mapCanvas.height = mapSize;
+    const mapContext = mapCanvas.getContext('2d');
+    function uploadFinder(layer) {
+      finderCells = layer.cells;
+      const pixelsPerKm = mapSize / (2 * finderExtentKm);
+      const side = Math.max(2, layer.cellKm * pixelsPerKm);
+      mapContext.clearRect(0, 0, mapSize, mapSize);
+      for (const point of layer.cells) {
+        const [x, y, z] = direction(point.lat, point.lon);
+        const scale = 2 * radius * pixelsPerKm / (1000 * (1 - y));
+        mapContext.fillStyle = `rgba(71,228,188,${0.37 + 0.43 * point.strength})`;
+        mapContext.fillRect(mapSize / 2 + x * scale - side / 2, mapSize / 2 - z * scale - side / 2, side, side);
+      }
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, mapCanvas);
+    }
+    const shadowProgram = link(compile(gl.VERTEX_SHADER, `#version 300 es
+      out vec2 screen;
+      void main() {
+        screen = vec2(gl_VertexID == 1 ? 3.0 : -1.0, gl_VertexID == 2 ? 3.0 : -1.0);
+        gl_Position = vec4(screen, 0.0, 1.0);
+      }`), compile(gl.FRAGMENT_SHADER, `#version 300 es
+      precision highp float;
+      precision highp sampler2D;
+      in vec2 screen;
+      out vec4 color;
+      uniform sampler2D nearTerrain;
+      uniform sampler2D farTerrain;
+      uniform vec2 cells;
+      uniform vec3 light;
+      const float R = ${radius.toFixed(1)};
+      float sampleHeight(sampler2D grid, float cell, vec2 xy) {
+        vec2 size = vec2(textureSize(grid, 0));
+        vec2 pixel = xy / cell + size * 0.5 - 0.5;
+        if (any(lessThan(pixel, vec2(0.0))) || any(greaterThanEqual(pixel, size - 1.0))) return -1e8;
+        ivec2 p = ivec2(floor(pixel));
+        vec2 f = fract(pixel);
+        float a = mix(texelFetch(grid, p, 0).r, texelFetch(grid, p + ivec2(1, 0), 0).r, f.x);
+        float b = mix(texelFetch(grid, p + ivec2(0, 1), 0).r, texelFetch(grid, p + ivec2(1, 1), 0).r, f.x);
+        return mix(a, b, f.y);
+      }
+      float heightAt(vec2 xy) {
+        float h = sampleHeight(nearTerrain, cells.x, xy);
+        return h > -1e7 ? h : sampleHeight(farTerrain, cells.y, xy);
+      }
+      void main() {
+        vec2 xy = screen * ${(finderExtentKm * 1000).toFixed(1)};
+        vec2 q = xy / (2.0 * R);
+        float k = dot(q, q);
+        vec3 up = vec3(2.0 * q.x, k - 1.0, -2.0 * q.y) / (k + 1.0);
+        vec3 origin = (R + heightAt(xy) + 8.0) * up;
+        float distanceM = cells.x * 0.5;
+        float shadow = 0.0;
+        for (int step = 0; step < 68; step++) {
+          vec3 ray = origin + distanceM * light;
+          float r = length(ray);
+          vec3 n = ray / r;
+          float ground = heightAt(2.0 * R * vec2(n.x, -n.z) / (1.0 - n.y));
+          if (ground < -1e7) break;
+          if (r < R + ground) { shadow = 1.0; break; }
+          if ((r > R + 15000.0 && dot(n, light) > 0.0) || distanceM >= 400000.0) break;
+          distanceM += max(120.0, distanceM * 0.17);
+        }
+        color = vec4(shadow, 0.0, 0.0, 1.0);
+      }`));
+    const shadowFbo = gl.createFramebuffer();
+    const shadow = loadTexture(null);
+    const shadowSize = 640;
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, shadowSize, shadowSize, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, shadowFbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, shadow.texture, 0);
+    const shadowReady = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    const shadowTextures = [gl.createTexture(), gl.createTexture()];
+    const sourceUniforms = ['nearTerrain', 'farTerrain'].map(name => gl.getUniformLocation(shadowProgram, name));
+    const lightUniform = gl.getUniformLocation(shadowProgram, 'light');
+    const cellsUniform = gl.getUniformLocation(shadowProgram, 'cells');
+    let shadowGrid, shadowLight;
+
+    function bakeShadows(grid, light) {
+      if (light === shadowLight && shadowGrid === grid) return;
+      const grids = [grid.meta.near, grid.meta.far];
+      gl.useProgram(shadowProgram);
+      for (let i = 0; i < grids.length; i++) {
+        gl.activeTexture(gl.TEXTURE3 + i);
+        gl.bindTexture(gl.TEXTURE_2D, shadowTextures[i]);
+        gl.uniform1i(sourceUniforms[i], 3 + i);
+        if (grid === shadowGrid) continue;
+        const n = grids[i].size;
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, n, n, 0, gl.RED, gl.FLOAT, grid.rasters[i]);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      }
+      gl.uniform2f(cellsUniform, ...grids.map(g => g.cellM));
+      gl.uniform3fv(lightUniform, light);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, shadowFbo);
+      gl.viewport(0, 0, shadowSize, shadowSize);
+      gl.disable(gl.DEPTH_TEST);
+      gl.bindVertexArray(skyVao);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.bindVertexArray(null);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.activeTexture(gl.TEXTURE0);
+      shadowGrid = grid;
+      shadowLight = light;
+    }
     const skyProgram = link(
       compile(gl.VERTEX_SHADER, `#version 300 es
         out vec2 screen;
@@ -1527,7 +1671,9 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     const globeCenter = gl.getUniformLocation(program, 'viewCenter');
     const skyVao = gl.createVertexArray();
 
-    return (surface, axes, distance, { xScale, yScale, centerX, centerY }, bodies, lighting) => {
+    return (surface, axes, distance, { xScale, yScale, centerX, centerY }, bodies, lighting, layer, localGrid) => {
+      const cast = !!(shadowReady && localGrid && lighting);
+      if (cast) bakeShadows(localGrid, lighting.moon);
       gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -1560,6 +1706,15 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       gl.bindTexture(gl.TEXTURE_2D, polar.texture);
       gl.uniform1i(polarSampler, 1);
       gl.uniform1f(polarScale, polar.ready ? radius / (polarMap.radiusKm * 1000) : 0);
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, finder.texture);
+      if (layer?.cells && layer.cells !== finderCells) uploadFinder(layer);
+      gl.uniform1i(finderMask, 2);
+      gl.uniform1i(showFinder, !!layer?.cells?.length);
+      gl.activeTexture(gl.TEXTURE5);
+      gl.bindTexture(gl.TEXTURE_2D, shadow.texture);
+      gl.uniform1i(shadowMap, 5);
+      gl.uniform1i(showShadows, cast);
       gl.activeTexture(gl.TEXTURE0);
       const [right, up, forward] = axes;
       gl.uniformMatrix3fv(camera, false, [
@@ -1599,6 +1754,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
               <button type="button" data-action="earth" aria-label="Find Earth" title="Find Earth at the selected scenario time">Earth</button>
               <button type="button" data-action="sun" aria-label="Find Sun" title="Find the Sun at the selected scenario time">Sun</button>
             </div>
+            <button type="button" data-action="shadows" aria-pressed="false" title="Show modeled terrain-cast shadows near the south pole">Polar shadows</button>
           </div>
           <details class="mw-globe-credit">
             <summary>Globe data</summary>
@@ -1659,6 +1815,10 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     let surface = null;
     let scenarioPins = [];
+    let candidatePins = [];
+    let finderLayer;
+    let finderFocus;
+    let showPolarShadows = false;
     let skyTime;
     let positions;
     let lighting;
@@ -1704,6 +1864,37 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       pins.append(button);
       return { ...site, element: button };
     });
+
+    function syncFinder() {
+      const layer = !panel.hidden && panel.dataset.view === 'finder' ? api.finderLayer : null;
+      if (layer === finderLayer) return;
+      const focus = layer?.focus;
+      if (focus && finderFocus !== focus) flyTo(direction(focus.lat, focus.lon), focus.distance);
+      finderFocus = focus;
+      finderLayer = layer;
+      // Reuse buttons so map focus survives a pick or unpick.
+      for (let i = 0; i < (layer?.pins.length ?? 0); i++) {
+        const site = layer.pins[i];
+        if (!candidatePins[i]) {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'mw-globe-pin mw-candidate-pin';
+          button.addEventListener('click', () => finderLayer?.pins[i]?.toggle());
+          pins.append(button);
+          candidatePins[i] = { element: button };
+        }
+        const candidate = candidatePins[i];
+        candidate.lat = site.lat;
+        candidate.lon = site.lon;
+        const button = candidate.element;
+        button.textContent = site.number;
+        button.title = `${site.number}. ${site.name}`;
+        button.setAttribute('aria-label', `Candidate ${site.number}, ${site.name}`);
+        button.setAttribute('aria-pressed', String(site.picked));
+        button.disabled = site.disabled;
+      }
+      candidatePins.slice(layer?.pins.length ?? 0).forEach(pin => { pin.element.hidden = true; });
+    }
     const letters = ['A', 'B', 'C'];
     const markers = letters.map(letter => {
       const element = document.createElement('span');
@@ -1745,7 +1936,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       let top = 0;
       if (!panel.hidden) {
         if (!sheetLayout.matches) visibleWidth = panel.offsetLeft;
-        else if (panel.dataset.view === 'site') visibleHeight = panel.offsetTop;
+        else if (panel.dataset.view === 'site' || panel.dataset.view === 'finder') visibleHeight = Math.max(110, panel.offsetTop);
         else if (panel.dataset.view === 'mission') {
           visibleHeight = panel.offsetTop;
           top = Math.min(globeHeader.offsetTop + globeHeader.offsetHeight + 8, visibleHeight * 0.55);
@@ -1791,7 +1982,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
           size: bodySizeScale * bodyRadii[name] / Math.hypot(...relative)
         }];
       }));
-      render(surface, camera, distance, view, bodies, lighting);
+      render(surface, camera, distance, view, bodies, lighting, finderLayer, showPolarShadows ? api.terrainGrid : null);
 
       if (bodies) for (const [name, body] of Object.entries(bodies)) {
         const label = bodyMarkers[name];
@@ -1806,7 +1997,9 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
         label.style.top = ((1 - y) * height / 2 + margin) + 'px';
       }
 
-      for (const pin of [...sitePins, ...scenarioPins]) {
+      const visiblePins = finderLayer ? candidatePins.slice(0, finderLayer.pins.length) : [...sitePins, ...scenarioPins];
+      if (finderLayer) for (const pin of [...sitePins, ...scenarioPins]) pin.element.hidden = true;
+      for (const pin of visiblePins) {
         const normal = direction(pin.lat, pin.lon);
         const point = surface ? surface.point(pin.lat, pin.lon) : normal;
         const depth = distance - dot(point, forward);
@@ -1839,6 +2032,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     }
 
     function pick(x, y) {
+      if (finderLayer) return;
       const width = viewport.clientWidth;
       const height = viewport.clientHeight;
       if (!surface || !width || !height || Math.abs(x) > 1 || Math.abs(y) > 1) return;
@@ -1906,7 +2100,13 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       in() { zoom(0.7); },
       out() { zoom(1 / 0.7); },
       earth() { findBody('earth'); },
-      sun() { findBody('sun'); }
+      sun() { findBody('sun'); },
+      shadows(event) {
+        showPolarShadows = !showPolarShadows;
+        event.currentTarget.setAttribute('aria-pressed', String(showPolarShadows));
+        if (showPolarShadows && camera[2][1] > -0.96) flyTo(direction(-90, 0), 1.27);
+        schedule();
+      }
     };
     slot.querySelectorAll('[data-action]').forEach(button => {
       button.addEventListener('click', controls[button.dataset.action]);
@@ -1972,6 +2172,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       surface = null;
       status.textContent = 'The globe paused while the graphics context recovers.';
       sitePins.forEach(pin => { pin.element.hidden = true; });
+      candidatePins.forEach(pin => { pin.element.hidden = true; });
       markers.forEach(marker => { marker.hidden = true; });
       Object.values(bodyMarkers).forEach(marker => { marker.hidden = true; });
     });
@@ -1979,6 +2180,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     startRenderer();
 
     return () => {
+      syncFinder();
       const scenarios = api.scenarios();
       const activeScenario = api.activeScenario();
       const letter = scenarios.length > 1 ? letters[scenarios.indexOf(activeScenario)] : '';
@@ -1986,7 +2188,8 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       select.setAttribute('aria-label', 'Select landing site' + target);
       const nextLetter = letters[scenarios.length];
       const pickHelp = nextLetter ? 'Pick a point to add ' + nextLetter : 'Pick a point' + target;
-      help.textContent = pickHelp + ' · Drag to orbit · Scroll or pinch to zoom';
+      help.textContent = (finderLayer ? 'Click a numbered candidate to pin it' : pickHelp) +
+        ' · Drag to orbit · Scroll or pinch to zoom';
       const time = activeScenario?.t;
       if (time !== undefined && time !== skyTime) {
         skyTime = time;
@@ -2484,13 +2687,12 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
             <option value="earth">Most Earth visibility</option>
             <option value="slope">Lowest slope</option>
           </select></label>
-          <label class="field"><span>Maximum slope (°)</span><input name="slope" type="number" min="0" max="90" step="0.1" value="9" required></label>
-          <label class="field"><span>Minimum sunlight (%)</span><input name="sun" type="number" min="0" max="100" value="35" required></label>
-          <label class="field"><span>Minimum Earth view (%)</span><input name="earth" type="number" min="0" max="100" value="25" required></label>
+          <label class="field"><span>Max slope (°)</span><input name="slope" type="number" min="0" max="90" step="0.1" value="9" required></label>
+          <label class="field"><span>Min sunlight (%)</span><input name="sun" type="number" min="0" max="100" value="35" required></label>
+          <label class="field"><span>Min Earth view (%)</span><input name="earth" type="number" min="0" max="100" value="25" required></label>
           <button class="btn small" type="submit">Filter sites</button>
         </form>
         <p class="mw-finder-count" role="status"></p>
-        <fieldset class="mw-finder-picks"><legend>Pick up to three sites</legend><ol></ol></fieldset>
         <div class="mw-finder-window">
           <label class="field"><span>Required continuous days with Sun and Earth</span><input class="mw-finder-days" type="number" min="1" max="30" value="7" required></label>
           <p class="mw-finder-start muted"></p>
@@ -2501,6 +2703,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
           </div>
           <div class="mw-finder-report" aria-live="polite"></div>
         </div>
+        <fieldset class="mw-finder-picks"><legend>Pin up to three sites on the globe or in the list</legend><ol></ol></fieldset>
         <p class="muted">Grid-based slope and visibility estimates. Local rocks and small terrain features can matter, especially near ridges.</p>
       </section>`;
 
@@ -2523,6 +2726,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     const startLabel = slot.querySelector('.mw-finder-start');
     const f = api.fmt;
     let results = [];
+    let layer;
     let picked = new Set();
     let request = 0;
     let checking = false;
@@ -2538,6 +2742,12 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       for (const input of list.querySelectorAll('input')) {
         input.disabled = !input.checked && picked.size >= MAX_PICKS;
       }
+      api.finderLayer = { ...layer, pins: results.map((site, i) => ({
+        lat: site.lat, lon: site.lon, name: site.region, number: i + 1, picked: picked.has(site),
+        disabled: !picked.has(site) && picked.size >= MAX_PICKS,
+        toggle() { list.querySelector(`[data-rank="${i}"]`)?.click(); }
+      })) };
+      api.refreshGlobe();
     }
 
     function clearReport() {
@@ -2557,12 +2767,21 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       scope.textContent = (wide
         ? `Search points on a ${polar.stepKm} km grid within ${polar.radiusKm} km of the south pole.`
         : 'Search points within 5 km of the selected Artemis region reference points.') +
-        ' Coverage filters use modeled 2027 Sun-centre and Earth-centre visibility.';
+        ' Brighter cells rank higher. Coverage filters use modeled 2027 Sun-centre and Earth-centre visibility.';
       const searchRegions = wide ? [polar] : artemis.filter(r => !regionId || r.id === regionId);
       const matches = searchRegions
         .flatMap(r => r.sites.map(s => ({ ...s, region: r.name })))
         .filter(s => s.slope <= number('slope') && s.sun * 100 >= number('sun') && s.earth * 100 >= number('earth'))
         .sort((a, b) => (rank === 'slope' ? a.slope - b.slope : b[rank] - a[rank]) || b.both - a.both || a.slope - b.slope);
+      const metric = s => rank === 'slope' ? -s.slope : s[rank];
+      const min = matches.length ? metric(matches.at(-1)) : 0;
+      const max = matches.length ? metric(matches[0]) : 0;
+      layer = {
+        cells: matches.map(s => ({ lat: s.lat, lon: s.lon, strength: max > min ? (metric(s) - min) / (max - min) : 1 })),
+        cellKm: wide ? polar.stepKm : 1,
+        focus: regionId && !wide && matches.length ? { lat: matches[0].lat, lon: matches[0].lon, distance: 1.115 }
+          : { lat: -90, lon: 0, distance: 1.27 }
+      };
       results = [];
       for (const site of matches) {
         if (results.some(other => surfaceDistanceKm(site, other, api.engine.MOON_RADIUS_KM) < spacing)) continue;
@@ -2571,13 +2790,13 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       }
       picked = new Set(results.slice(0, MAX_PICKS));
       count.textContent = matches.length
-        ? `${matches.length} matching points · ${results.length} shortlisted · minimum ${spacing} km spacing`
+        ? `${matches.length} matching cells on the globe · ${results.length} numbered candidates · ${spacing} km spacing`
         : 'No points match. Try a different region or relax a filter.';
       choices.hidden = !results.length;
       slot.querySelector('.mw-finder-window').hidden = !results.length;
       list.innerHTML = results.map((s, i) => `<li><label>
         <input type="checkbox" data-rank="${i}" ${picked.has(s) ? 'checked' : ''}>
-        <span><strong>${f.esc(s.region)}</strong> · ${coordinates(s)}
+        <span><strong>${i + 1}. ${f.esc(s.region)}</strong> · ${coordinates(s)}
           <small>${s.slope.toFixed(1)}° slope · ${s.resM} m LOLA · ${s.original ? 'original candidate' : s.distanceKm.toFixed(1) + (wide ? ' km from pole' : ' km from reference point')}</small>
           <small>Sun ${f.pct(s.sun)} · Earth ${f.pct(s.earth)} · Both ${f.pct(s.both)}</small>
         </span>
@@ -2663,10 +2882,13 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
         return;
       }
       const t = api.activeScenario().t;
-      api.loadSiteComparison(sites.map(({ lat, lon }) => ({ lat, lon, t })));
+      if (!daysInput.reportValidity()) return;
+      api.loadSiteComparison(sites.map(({ lat, lon }) => ({ lat, lon, t })), { shared: true, days: daysInput.valueAsNumber });
     });
     compareEarliest.addEventListener('click', () => {
-      if (checkedStarts?.length === picked.size) api.loadSiteComparison(checkedStarts);
+      if (checkedStarts?.length === picked.size && daysInput.reportValidity()) {
+        api.loadSiteComparison(checkedStarts, { days: daysInput.valueAsNumber });
+      }
     });
     filter();
     return updateSearchStart;
@@ -2701,6 +2923,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
   let playTimer = null;
   let uid = 0;
   let useTerrain = true;
+  let sharedClock = false;
   const SUN_RULES = { edge: 1, centre: 0, full: -1 };
   const SUN_RULE_LABELS = { edge: 'Any visible part of the Sun', centre: 'Sun centre', full: 'Full solar disk' };
   let sunRule = 'centre';
@@ -2857,6 +3080,11 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
   }
   function renderTopPlugins() {
     runPlugins('renderTop', p => [topSlotFor(p), API]);
+  }
+
+  function refreshGlobe() {
+    const map = PLUGINS.find(p => p.name === 'map');
+    if (map) map.renderTop(topSlotFor(map), API);
   }
 
   // ---------- rendering ----------
@@ -3165,10 +3393,13 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     }
     const time = s.anchor + hour * HOUR;
     if (s.t === time && !switched) return;
-    s.t = time;
-    updatePlayhead(s, $(s.el, '.tlsvg'));
+    const affected = sharedClock ? scenarios : [s];
     const view = sitePanel.dataset.view;
-    renderScenarioTime(s, view);
+    for (const scenario of affected) {
+      scenario.t = time;
+      updatePlayhead(scenario, $(scenario.el, '.tlsvg'));
+      renderScenarioTime(scenario, view);
+    }
     if (view === 'mission') renderMissionSummary();
     renderTimeControls();
     renderTopPlugins();
@@ -3437,16 +3668,27 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
   }
 
   function renderAll() {
+    if (sharedClock && !scenarios.some(showingEvent) && scenarios.some(s => s.anchor !== scenarios[0]?.anchor)) {
+      for (const s of scenarios) ensureSamples(s, true);
+    }
     scenarios.forEach((s, i) => renderScenario(s, i));
     updateScenarioPicker();
     renderTimeControls();
     renderMissionSummary();
     renderTopPlugins();
+    const clock = document.getElementById('sharedClock');
+    clock.checked = sharedClock && scenarios.length > 1;
+    clock.parentElement.hidden = scenarios.length < 2;
     document.getElementById('addBtn').disabled = scenarios.length >= MAX_SCENARIOS;
     saveHash();
   }
 
   function renderScenarioChange(s) {
+    if (sharedClock) {
+      for (const other of scenarios) other.t = s.t;
+      renderAll();
+      return;
+    }
     renderScenario(s, scenarios.indexOf(s));
     renderMissionSummary();
     renderTimeControls();
@@ -3509,7 +3751,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     const days = missionDaysInput.validity.valid ? '&days=' + missionDaysInput.value : '';
     const mode = sunRule === 'centre' ? '' : '&sun=' + sunRule;
     const terrain = useTerrain ? '' : '&terrain=flat';
-    try { history.replaceState(null, '', '#s=' + enc + mode + days + terrain + mission); } catch (e) { /* sandboxed preview */ }
+    try { history.replaceState(null, '', '#s=' + enc + mode + days + terrain + mission + (sharedClock ? '&clock=shared' : '')); } catch (e) { /* sandboxed preview */ }
   }
   function loadHash() {
     const query = new URLSearchParams(location.hash.slice(1));
@@ -3529,6 +3771,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       const days = Number(query.get('days'));
       if (Number.isInteger(days) && days >= 1 && days <= 30) missionDaysInput.value = days;
       useTerrain = query.get('terrain') !== 'flat';
+      sharedClock = query.get('clock') === 'shared' && scenarios.length > 1 && scenarios.every(s => s.t === scenarios[0].t);
       if (query.get('view') === 'mission') setPanel('mission');
     }
     return ok;
@@ -3581,7 +3824,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     document.body.classList.toggle('panel-open', !!view);
     document.body.dataset.panelView = view || '';
     timeSteps.open = false;
-    if (!view) { if (restore) renderAll(); else saveHash(); return; }
+    if (!view) { if (restore) renderAll(); else { refreshGlobe(); saveHash(); } return; }
     sitePanel.dataset.view = view;
     if (view === 'learn' && inspectedScenario !== scenarios[0]) {
       inspectedScenario = scenarios[0];
@@ -3595,7 +3838,10 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     }
     panelContent.scrollTop = 0;
     if (restore) renderAll();
-    else saveHash();
+    else {
+      refreshGlobe();
+      saveHash();
+    }
   }
 
   function restoreCheckedEvent() {
@@ -3622,13 +3868,18 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     renderAll();
   }
 
-  function loadSiteComparison(points) {
+  function loadSiteComparison(points, { shared = false, days } = {}) {
     if (points.length < 2 || points.length > MAX_SCENARIOS) return;
     stopPlayback();
     scenarios.forEach(s => s.unmount());
     scenarios = [];
     for (const { lat, lon, t } of points) addScenario(lat, lon, t);
+    sharedClock = shared;
     setTerrain(true);
+    if (days !== undefined) {
+      missionDaysInput.value = days;
+      missionDaysInput.dispatchEvent(new Event('change'));
+    }
     setPanel('mission');
     sitePanel.querySelector('[data-panel-view="mission"]').focus();
   }
@@ -3636,6 +3887,17 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
   panelToggle.addEventListener('click', () => setPanel(sitePanel.hidden ? sitePanel.dataset.view : null));
   document.getElementById('exportMission').addEventListener('click', downloadMissionCsv);
   missionDaysInput.addEventListener('change', saveHash);
+  document.getElementById('sharedClock').addEventListener('change', event => {
+    sharedClock = event.target.checked;
+    if (sharedClock) {
+      const time = inspectedScenario.t;
+      for (const s of scenarios) {
+        s.t = time;
+        ensureSamples(s, true);
+      }
+    }
+    renderAll();
+  });
   document.getElementById('explainDecision').addEventListener('click', () => {
     if (missionDecision?.event.at == null) return;
     const { s, event, inspectDelay } = missionDecision;
@@ -3645,7 +3907,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       lat: s.lat, lon: s.lon, viewTime };
     $(s.el, '.decision-event-detail').textContent = `${inspectDelay ? 'After a one-week delay: ' : ''}${event.reason} at ${fmtFull(viewTime)}.`;
     setPanel('sky');
-    API.setTime(scenarios.indexOf(s), viewTime, { inspect: true });
+    API.setTime(scenarios.indexOf(s), viewTime, { inspect: true, preview: true });
     $(s.el, '.decision-event button').focus();
   });
   document.getElementById('scenarios').addEventListener('click', e => {
@@ -3691,6 +3953,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     const last = scenarios[scenarios.length - 1];
     const s = addScenario(last.lat, last.lon, last.t + 7 * DAY);
     if (!s) return;
+    sharedClock = false;
     inspectedScenario = s;
     renderAll();
     setPanel('mission');
@@ -3778,16 +4041,25 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     openSitePanel,
     pickSurfaceSite,
     loadSiteComparison,
+    refreshGlobe,
     renderMissionSummary,
     siteProfile: (lat, lon) => profileFor({ lat, lon, siteId: matchSite(lat, lon) }),
     skylineAt,
     sunRule: () => sunRule,
     clearsSkyline,
     setSite(i, lat, lon) { const s = scenarios[i]; if (!s) return; s.lat = lat; s.lon = lon; s.siteId = matchSite(lat, lon); ensureSamples(s, true); renderAll(); },
-    setTime(i, t, { inspect = false } = {}) {
+    setTime(i, t, { inspect = false, preview = false } = {}) {
       const s = scenarios[i];
       if (!s) return;
       if (inspect) inspectedScenario = s;
+      if (sharedClock && !preview) {
+        for (const other of scenarios) {
+          other.t = t;
+          ensureSamples(other, inspect);
+        }
+        renderAll();
+        return;
+      }
       s.t = t;
       ensureSamples(s, inspect);
       renderAll();

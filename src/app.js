@@ -14,6 +14,7 @@
   let playTimer = null;
   let uid = 0;
   let useTerrain = true;
+  let sharedClock = false;
   const SUN_RULES = { edge: 1, centre: 0, full: -1 };
   const SUN_RULE_LABELS = { edge: 'Any visible part of the Sun', centre: 'Sun centre', full: 'Full solar disk' };
   let sunRule = 'centre';
@@ -170,6 +171,11 @@
   }
   function renderTopPlugins() {
     runPlugins('renderTop', p => [topSlotFor(p), API]);
+  }
+
+  function refreshGlobe() {
+    const map = PLUGINS.find(p => p.name === 'map');
+    if (map) map.renderTop(topSlotFor(map), API);
   }
 
   // ---------- rendering ----------
@@ -478,10 +484,13 @@
     }
     const time = s.anchor + hour * HOUR;
     if (s.t === time && !switched) return;
-    s.t = time;
-    updatePlayhead(s, $(s.el, '.tlsvg'));
+    const affected = sharedClock ? scenarios : [s];
     const view = sitePanel.dataset.view;
-    renderScenarioTime(s, view);
+    for (const scenario of affected) {
+      scenario.t = time;
+      updatePlayhead(scenario, $(scenario.el, '.tlsvg'));
+      renderScenarioTime(scenario, view);
+    }
     if (view === 'mission') renderMissionSummary();
     renderTimeControls();
     renderTopPlugins();
@@ -750,16 +759,27 @@
   }
 
   function renderAll() {
+    if (sharedClock && !scenarios.some(showingEvent) && scenarios.some(s => s.anchor !== scenarios[0]?.anchor)) {
+      for (const s of scenarios) ensureSamples(s, true);
+    }
     scenarios.forEach((s, i) => renderScenario(s, i));
     updateScenarioPicker();
     renderTimeControls();
     renderMissionSummary();
     renderTopPlugins();
+    const clock = document.getElementById('sharedClock');
+    clock.checked = sharedClock && scenarios.length > 1;
+    clock.parentElement.hidden = scenarios.length < 2;
     document.getElementById('addBtn').disabled = scenarios.length >= MAX_SCENARIOS;
     saveHash();
   }
 
   function renderScenarioChange(s) {
+    if (sharedClock) {
+      for (const other of scenarios) other.t = s.t;
+      renderAll();
+      return;
+    }
     renderScenario(s, scenarios.indexOf(s));
     renderMissionSummary();
     renderTimeControls();
@@ -822,7 +842,7 @@
     const days = missionDaysInput.validity.valid ? '&days=' + missionDaysInput.value : '';
     const mode = sunRule === 'centre' ? '' : '&sun=' + sunRule;
     const terrain = useTerrain ? '' : '&terrain=flat';
-    try { history.replaceState(null, '', '#s=' + enc + mode + days + terrain + mission); } catch (e) { /* sandboxed preview */ }
+    try { history.replaceState(null, '', '#s=' + enc + mode + days + terrain + mission + (sharedClock ? '&clock=shared' : '')); } catch (e) { /* sandboxed preview */ }
   }
   function loadHash() {
     const query = new URLSearchParams(location.hash.slice(1));
@@ -842,6 +862,7 @@
       const days = Number(query.get('days'));
       if (Number.isInteger(days) && days >= 1 && days <= 30) missionDaysInput.value = days;
       useTerrain = query.get('terrain') !== 'flat';
+      sharedClock = query.get('clock') === 'shared' && scenarios.length > 1 && scenarios.every(s => s.t === scenarios[0].t);
       if (query.get('view') === 'mission') setPanel('mission');
     }
     return ok;
@@ -894,7 +915,7 @@
     document.body.classList.toggle('panel-open', !!view);
     document.body.dataset.panelView = view || '';
     timeSteps.open = false;
-    if (!view) { if (restore) renderAll(); else saveHash(); return; }
+    if (!view) { if (restore) renderAll(); else { refreshGlobe(); saveHash(); } return; }
     sitePanel.dataset.view = view;
     if (view === 'learn' && inspectedScenario !== scenarios[0]) {
       inspectedScenario = scenarios[0];
@@ -908,7 +929,10 @@
     }
     panelContent.scrollTop = 0;
     if (restore) renderAll();
-    else saveHash();
+    else {
+      refreshGlobe();
+      saveHash();
+    }
   }
 
   function restoreCheckedEvent() {
@@ -935,13 +959,18 @@
     renderAll();
   }
 
-  function loadSiteComparison(points) {
+  function loadSiteComparison(points, { shared = false, days } = {}) {
     if (points.length < 2 || points.length > MAX_SCENARIOS) return;
     stopPlayback();
     scenarios.forEach(s => s.unmount());
     scenarios = [];
     for (const { lat, lon, t } of points) addScenario(lat, lon, t);
+    sharedClock = shared;
     setTerrain(true);
+    if (days !== undefined) {
+      missionDaysInput.value = days;
+      missionDaysInput.dispatchEvent(new Event('change'));
+    }
     setPanel('mission');
     sitePanel.querySelector('[data-panel-view="mission"]').focus();
   }
@@ -949,6 +978,17 @@
   panelToggle.addEventListener('click', () => setPanel(sitePanel.hidden ? sitePanel.dataset.view : null));
   document.getElementById('exportMission').addEventListener('click', downloadMissionCsv);
   missionDaysInput.addEventListener('change', saveHash);
+  document.getElementById('sharedClock').addEventListener('change', event => {
+    sharedClock = event.target.checked;
+    if (sharedClock) {
+      const time = inspectedScenario.t;
+      for (const s of scenarios) {
+        s.t = time;
+        ensureSamples(s, true);
+      }
+    }
+    renderAll();
+  });
   document.getElementById('explainDecision').addEventListener('click', () => {
     if (missionDecision?.event.at == null) return;
     const { s, event, inspectDelay } = missionDecision;
@@ -958,7 +998,7 @@
       lat: s.lat, lon: s.lon, viewTime };
     $(s.el, '.decision-event-detail').textContent = `${inspectDelay ? 'After a one-week delay: ' : ''}${event.reason} at ${fmtFull(viewTime)}.`;
     setPanel('sky');
-    API.setTime(scenarios.indexOf(s), viewTime, { inspect: true });
+    API.setTime(scenarios.indexOf(s), viewTime, { inspect: true, preview: true });
     $(s.el, '.decision-event button').focus();
   });
   document.getElementById('scenarios').addEventListener('click', e => {
@@ -1004,6 +1044,7 @@
     const last = scenarios[scenarios.length - 1];
     const s = addScenario(last.lat, last.lon, last.t + 7 * DAY);
     if (!s) return;
+    sharedClock = false;
     inspectedScenario = s;
     renderAll();
     setPanel('mission');
@@ -1091,16 +1132,25 @@
     openSitePanel,
     pickSurfaceSite,
     loadSiteComparison,
+    refreshGlobe,
     renderMissionSummary,
     siteProfile: (lat, lon) => profileFor({ lat, lon, siteId: matchSite(lat, lon) }),
     skylineAt,
     sunRule: () => sunRule,
     clearsSkyline,
     setSite(i, lat, lon) { const s = scenarios[i]; if (!s) return; s.lat = lat; s.lon = lon; s.siteId = matchSite(lat, lon); ensureSamples(s, true); renderAll(); },
-    setTime(i, t, { inspect = false } = {}) {
+    setTime(i, t, { inspect = false, preview = false } = {}) {
       const s = scenarios[i];
       if (!s) return;
       if (inspect) inspectedScenario = s;
+      if (sharedClock && !preview) {
+        for (const other of scenarios) {
+          other.t = t;
+          ensureSamples(other, inspect);
+        }
+        renderAll();
+        return;
+      }
       s.t = t;
       ensureSamples(s, inspect);
       renderAll();

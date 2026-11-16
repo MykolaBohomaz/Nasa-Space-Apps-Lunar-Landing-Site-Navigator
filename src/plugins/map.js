@@ -7,6 +7,7 @@
   const focalLength = 2.6;
   const tapSlop = 6;
   const bodySizeScale = 3;
+  const finderExtentKm = 220;
   function normalize(vector) {
     const length = Math.hypot(...vector);
     return vector.map(value => value / length);
@@ -254,6 +255,10 @@
       uniform bool hasMosaic;
       uniform sampler2D southRelief;
       uniform float polarScale;
+      uniform sampler2D finderMask;
+      uniform bool showFinder;
+      uniform sampler2D shadowMap;
+      uniform bool showShadows;
       uniform vec3 moonLight;
       out vec4 color;
       void main() {
@@ -293,6 +298,19 @@
             litSurface *= 1.0 + detail * coverage * valid;
           }
         }
+        if ((showFinder || showShadows) && radial.y < 0.0) {
+          vec2 uv = vec2(0.5) + ${radius / (finderExtentKm * 1000)} * vec2(radial.x, -radial.z) / (1.0 - radial.y);
+          if (all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0)))) {
+            if (showShadows) {
+              float falloff = 1.0 - smoothstep(0.46, 0.5, max(abs(uv.x - 0.5), abs(uv.y - 0.5)));
+              litSurface = mix(litSurface, 0.12 * surface, texture(shadowMap, uv).r * falloff);
+            }
+            if (showFinder) {
+              vec4 match = texture(finderMask, uv);
+              litSurface = mix(litSurface, match.rgb, match.a);
+            }
+          }
+        }
         color = vec4(litSurface, 1.0);
       }`);
     function link(vertexShader, fragmentShader) {
@@ -313,6 +331,10 @@
     const hasMosaic = gl.getUniformLocation(program, 'hasMosaic');
     const polarSampler = gl.getUniformLocation(program, 'southRelief');
     const polarScale = gl.getUniformLocation(program, 'polarScale');
+    const finderMask = gl.getUniformLocation(program, 'finderMask');
+    const showFinder = gl.getUniformLocation(program, 'showFinder');
+    const shadowMap = gl.getUniformLocation(program, 'shadowMap');
+    const showShadows = gl.getUniformLocation(program, 'showShadows');
     function loadTexture(source) {
       const texture = gl.createTexture();
       gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -347,6 +369,115 @@
     const earth = loadTexture(embeddedJpeg('moonwindow-earth'));
     const polarMap = window.MW_POLAR_MAP;
     const polar = loadTexture(polarMap?.image);
+    const finder = loadTexture(null);
+    let finderCells;
+    const mapSize = 1024;
+    const mapCanvas = document.createElement('canvas');
+    mapCanvas.width = mapCanvas.height = mapSize;
+    const mapContext = mapCanvas.getContext('2d');
+    function uploadFinder(layer) {
+      finderCells = layer.cells;
+      const pixelsPerKm = mapSize / (2 * finderExtentKm);
+      const side = Math.max(2, layer.cellKm * pixelsPerKm);
+      mapContext.clearRect(0, 0, mapSize, mapSize);
+      for (const point of layer.cells) {
+        const [x, y, z] = direction(point.lat, point.lon);
+        const scale = 2 * radius * pixelsPerKm / (1000 * (1 - y));
+        mapContext.fillStyle = `rgba(71,228,188,${0.37 + 0.43 * point.strength})`;
+        mapContext.fillRect(mapSize / 2 + x * scale - side / 2, mapSize / 2 - z * scale - side / 2, side, side);
+      }
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, mapCanvas);
+    }
+    const shadowProgram = link(compile(gl.VERTEX_SHADER, `#version 300 es
+      out vec2 screen;
+      void main() {
+        screen = vec2(gl_VertexID == 1 ? 3.0 : -1.0, gl_VertexID == 2 ? 3.0 : -1.0);
+        gl_Position = vec4(screen, 0.0, 1.0);
+      }`), compile(gl.FRAGMENT_SHADER, `#version 300 es
+      precision highp float;
+      precision highp sampler2D;
+      in vec2 screen;
+      out vec4 color;
+      uniform sampler2D nearTerrain;
+      uniform sampler2D farTerrain;
+      uniform vec2 cells;
+      uniform vec3 light;
+      const float R = ${radius.toFixed(1)};
+      float sampleHeight(sampler2D grid, float cell, vec2 xy) {
+        vec2 size = vec2(textureSize(grid, 0));
+        vec2 pixel = xy / cell + size * 0.5 - 0.5;
+        if (any(lessThan(pixel, vec2(0.0))) || any(greaterThanEqual(pixel, size - 1.0))) return -1e8;
+        ivec2 p = ivec2(floor(pixel));
+        vec2 f = fract(pixel);
+        float a = mix(texelFetch(grid, p, 0).r, texelFetch(grid, p + ivec2(1, 0), 0).r, f.x);
+        float b = mix(texelFetch(grid, p + ivec2(0, 1), 0).r, texelFetch(grid, p + ivec2(1, 1), 0).r, f.x);
+        return mix(a, b, f.y);
+      }
+      float heightAt(vec2 xy) {
+        float h = sampleHeight(nearTerrain, cells.x, xy);
+        return h > -1e7 ? h : sampleHeight(farTerrain, cells.y, xy);
+      }
+      void main() {
+        vec2 xy = screen * ${(finderExtentKm * 1000).toFixed(1)};
+        vec2 q = xy / (2.0 * R);
+        float k = dot(q, q);
+        vec3 up = vec3(2.0 * q.x, k - 1.0, -2.0 * q.y) / (k + 1.0);
+        vec3 origin = (R + heightAt(xy) + 8.0) * up;
+        float distanceM = cells.x * 0.5;
+        float shadow = 0.0;
+        for (int step = 0; step < 68; step++) {
+          vec3 ray = origin + distanceM * light;
+          float r = length(ray);
+          vec3 n = ray / r;
+          float ground = heightAt(2.0 * R * vec2(n.x, -n.z) / (1.0 - n.y));
+          if (ground < -1e7) break;
+          if (r < R + ground) { shadow = 1.0; break; }
+          if ((r > R + 15000.0 && dot(n, light) > 0.0) || distanceM >= 400000.0) break;
+          distanceM += max(120.0, distanceM * 0.17);
+        }
+        color = vec4(shadow, 0.0, 0.0, 1.0);
+      }`));
+    const shadowFbo = gl.createFramebuffer();
+    const shadow = loadTexture(null);
+    const shadowSize = 640;
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, shadowSize, shadowSize, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, shadowFbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, shadow.texture, 0);
+    const shadowReady = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    const shadowTextures = [gl.createTexture(), gl.createTexture()];
+    const sourceUniforms = ['nearTerrain', 'farTerrain'].map(name => gl.getUniformLocation(shadowProgram, name));
+    const lightUniform = gl.getUniformLocation(shadowProgram, 'light');
+    const cellsUniform = gl.getUniformLocation(shadowProgram, 'cells');
+    let shadowGrid, shadowLight;
+
+    function bakeShadows(grid, light) {
+      if (light === shadowLight && shadowGrid === grid) return;
+      const grids = [grid.meta.near, grid.meta.far];
+      gl.useProgram(shadowProgram);
+      for (let i = 0; i < grids.length; i++) {
+        gl.activeTexture(gl.TEXTURE3 + i);
+        gl.bindTexture(gl.TEXTURE_2D, shadowTextures[i]);
+        gl.uniform1i(sourceUniforms[i], 3 + i);
+        if (grid === shadowGrid) continue;
+        const n = grids[i].size;
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, n, n, 0, gl.RED, gl.FLOAT, grid.rasters[i]);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      }
+      gl.uniform2f(cellsUniform, ...grids.map(g => g.cellM));
+      gl.uniform3fv(lightUniform, light);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, shadowFbo);
+      gl.viewport(0, 0, shadowSize, shadowSize);
+      gl.disable(gl.DEPTH_TEST);
+      gl.bindVertexArray(skyVao);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.bindVertexArray(null);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.activeTexture(gl.TEXTURE0);
+      shadowGrid = grid;
+      shadowLight = light;
+    }
     const skyProgram = link(
       compile(gl.VERTEX_SHADER, `#version 300 es
         out vec2 screen;
@@ -421,7 +552,9 @@
     const globeCenter = gl.getUniformLocation(program, 'viewCenter');
     const skyVao = gl.createVertexArray();
 
-    return (surface, axes, distance, { xScale, yScale, centerX, centerY }, bodies, lighting) => {
+    return (surface, axes, distance, { xScale, yScale, centerX, centerY }, bodies, lighting, layer, localGrid) => {
+      const cast = !!(shadowReady && localGrid && lighting);
+      if (cast) bakeShadows(localGrid, lighting.moon);
       gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -454,6 +587,15 @@
       gl.bindTexture(gl.TEXTURE_2D, polar.texture);
       gl.uniform1i(polarSampler, 1);
       gl.uniform1f(polarScale, polar.ready ? radius / (polarMap.radiusKm * 1000) : 0);
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, finder.texture);
+      if (layer?.cells && layer.cells !== finderCells) uploadFinder(layer);
+      gl.uniform1i(finderMask, 2);
+      gl.uniform1i(showFinder, !!layer?.cells?.length);
+      gl.activeTexture(gl.TEXTURE5);
+      gl.bindTexture(gl.TEXTURE_2D, shadow.texture);
+      gl.uniform1i(shadowMap, 5);
+      gl.uniform1i(showShadows, cast);
       gl.activeTexture(gl.TEXTURE0);
       const [right, up, forward] = axes;
       gl.uniformMatrix3fv(camera, false, [
@@ -493,6 +635,7 @@
               <button type="button" data-action="earth" aria-label="Find Earth" title="Find Earth at the selected scenario time">Earth</button>
               <button type="button" data-action="sun" aria-label="Find Sun" title="Find the Sun at the selected scenario time">Sun</button>
             </div>
+            <button type="button" data-action="shadows" aria-pressed="false" title="Show modeled terrain-cast shadows near the south pole">Polar shadows</button>
           </div>
           <details class="mw-globe-credit">
             <summary>Globe data</summary>
@@ -553,6 +696,10 @@
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     let surface = null;
     let scenarioPins = [];
+    let candidatePins = [];
+    let finderLayer;
+    let finderFocus;
+    let showPolarShadows = false;
     let skyTime;
     let positions;
     let lighting;
@@ -598,6 +745,37 @@
       pins.append(button);
       return { ...site, element: button };
     });
+
+    function syncFinder() {
+      const layer = !panel.hidden && panel.dataset.view === 'finder' ? api.finderLayer : null;
+      if (layer === finderLayer) return;
+      const focus = layer?.focus;
+      if (focus && finderFocus !== focus) flyTo(direction(focus.lat, focus.lon), focus.distance);
+      finderFocus = focus;
+      finderLayer = layer;
+      // Reuse buttons so map focus survives a pick or unpick.
+      for (let i = 0; i < (layer?.pins.length ?? 0); i++) {
+        const site = layer.pins[i];
+        if (!candidatePins[i]) {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'mw-globe-pin mw-candidate-pin';
+          button.addEventListener('click', () => finderLayer?.pins[i]?.toggle());
+          pins.append(button);
+          candidatePins[i] = { element: button };
+        }
+        const candidate = candidatePins[i];
+        candidate.lat = site.lat;
+        candidate.lon = site.lon;
+        const button = candidate.element;
+        button.textContent = site.number;
+        button.title = `${site.number}. ${site.name}`;
+        button.setAttribute('aria-label', `Candidate ${site.number}, ${site.name}`);
+        button.setAttribute('aria-pressed', String(site.picked));
+        button.disabled = site.disabled;
+      }
+      candidatePins.slice(layer?.pins.length ?? 0).forEach(pin => { pin.element.hidden = true; });
+    }
     const letters = ['A', 'B', 'C'];
     const markers = letters.map(letter => {
       const element = document.createElement('span');
@@ -639,7 +817,7 @@
       let top = 0;
       if (!panel.hidden) {
         if (!sheetLayout.matches) visibleWidth = panel.offsetLeft;
-        else if (panel.dataset.view === 'site') visibleHeight = panel.offsetTop;
+        else if (panel.dataset.view === 'site' || panel.dataset.view === 'finder') visibleHeight = Math.max(110, panel.offsetTop);
         else if (panel.dataset.view === 'mission') {
           visibleHeight = panel.offsetTop;
           top = Math.min(globeHeader.offsetTop + globeHeader.offsetHeight + 8, visibleHeight * 0.55);
@@ -685,7 +863,7 @@
           size: bodySizeScale * bodyRadii[name] / Math.hypot(...relative)
         }];
       }));
-      render(surface, camera, distance, view, bodies, lighting);
+      render(surface, camera, distance, view, bodies, lighting, finderLayer, showPolarShadows ? api.terrainGrid : null);
 
       if (bodies) for (const [name, body] of Object.entries(bodies)) {
         const label = bodyMarkers[name];
@@ -700,7 +878,9 @@
         label.style.top = ((1 - y) * height / 2 + margin) + 'px';
       }
 
-      for (const pin of [...sitePins, ...scenarioPins]) {
+      const visiblePins = finderLayer ? candidatePins.slice(0, finderLayer.pins.length) : [...sitePins, ...scenarioPins];
+      if (finderLayer) for (const pin of [...sitePins, ...scenarioPins]) pin.element.hidden = true;
+      for (const pin of visiblePins) {
         const normal = direction(pin.lat, pin.lon);
         const point = surface ? surface.point(pin.lat, pin.lon) : normal;
         const depth = distance - dot(point, forward);
@@ -733,6 +913,7 @@
     }
 
     function pick(x, y) {
+      if (finderLayer) return;
       const width = viewport.clientWidth;
       const height = viewport.clientHeight;
       if (!surface || !width || !height || Math.abs(x) > 1 || Math.abs(y) > 1) return;
@@ -800,7 +981,13 @@
       in() { zoom(0.7); },
       out() { zoom(1 / 0.7); },
       earth() { findBody('earth'); },
-      sun() { findBody('sun'); }
+      sun() { findBody('sun'); },
+      shadows(event) {
+        showPolarShadows = !showPolarShadows;
+        event.currentTarget.setAttribute('aria-pressed', String(showPolarShadows));
+        if (showPolarShadows && camera[2][1] > -0.96) flyTo(direction(-90, 0), 1.27);
+        schedule();
+      }
     };
     slot.querySelectorAll('[data-action]').forEach(button => {
       button.addEventListener('click', controls[button.dataset.action]);
@@ -866,6 +1053,7 @@
       surface = null;
       status.textContent = 'The globe paused while the graphics context recovers.';
       sitePins.forEach(pin => { pin.element.hidden = true; });
+      candidatePins.forEach(pin => { pin.element.hidden = true; });
       markers.forEach(marker => { marker.hidden = true; });
       Object.values(bodyMarkers).forEach(marker => { marker.hidden = true; });
     });
@@ -873,6 +1061,7 @@
     startRenderer();
 
     return () => {
+      syncFinder();
       const scenarios = api.scenarios();
       const activeScenario = api.activeScenario();
       const letter = scenarios.length > 1 ? letters[scenarios.indexOf(activeScenario)] : '';
@@ -880,7 +1069,8 @@
       select.setAttribute('aria-label', 'Select landing site' + target);
       const nextLetter = letters[scenarios.length];
       const pickHelp = nextLetter ? 'Pick a point to add ' + nextLetter : 'Pick a point' + target;
-      help.textContent = pickHelp + ' · Drag to orbit · Scroll or pinch to zoom';
+      help.textContent = (finderLayer ? 'Click a numbered candidate to pin it' : pickHelp) +
+        ' · Drag to orbit · Scroll or pinch to zoom';
       const time = activeScenario?.t;
       if (time !== undefined && time !== skyTime) {
         skyTime = time;
