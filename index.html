@@ -17,7 +17,7 @@
   --bg:#1E2226; --panel:#262B30; --panel2:#2D3338; --line:#3C434A; --text:#ECE9E2; --muted:#A3A9AE;
   --sun:#F4B942; --earth:#5DA9E9; --both:#8FD6B0; --bad:#E9806E;
   --radius:10px;
-  --edge:16px; --panel-width:390px; --section-gap:9px;
+  --edge:16px; --panel-width:390px; --section-gap:9px; --globe-control:32px;
   --font:"Avenir Next","Avenir","Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
 }
 *{box-sizing:border-box}
@@ -25,25 +25,26 @@ html{background:var(--bg);color:var(--text);font-family:var(--font);font-size:16
 body{margin:0}
 button,input,select{font:inherit;color:inherit}
 .mw-globe{position:fixed;inset:0;background:#070a0f;color:#ece9e2}
-.mw-globe-header{position:absolute;z-index:1;inset:var(--edge) auto auto var(--edge);width:min(320px,calc(100% - 2 * var(--edge)))}
-.mw-globe-header h1{font-size:1.25rem;margin:0 0 8px}
-.mw-globe-header p{margin:8px 0 0;color:#dbe4ee;font-size:.8rem}
+.mw-globe-header{position:absolute;z-index:1;inset:var(--edge) auto auto var(--edge);width:min(260px,calc(100% - 2 * var(--edge)))}
+.mw-globe-header h1{font-size:1.125rem;margin:0 0 6px}
+.mw-globe-header p{margin:5px 0 0;color:#dbe4ee;font-size:.75rem}
 .mw-globe-header h1,.mw-globe-header p{text-shadow:0 1px 4px #000,0 1px 6px #000}
-.mw-globe-start{display:none;flex-wrap:wrap;gap:7px;margin-top:12px}
+.mw-globe-start{display:none;flex-wrap:wrap;gap:5px;margin-top:8px}
 .exploring-globe:not(.panel-open) .mw-globe-start{display:flex}
-.mw-globe-start .btn{background:#142233;border-color:#70849a;min-height:44px}
+.mw-globe-start .btn{background:#142233;border-color:#70849a;min-height:var(--globe-control);font-size:.79rem;padding:4px 8px}
 .mw-globe-start .mw-finder-entry{background:#a1e5cf;border-color:#a1e5cf;color:#122821;font-weight:650}
 .exploring-globe:not(.panel-open) :is(#panelToggle,#closedTime){display:none}
-.mw-globe-dock{position:absolute;z-index:1;inset:auto var(--edge) var(--edge) var(--edge);display:grid;justify-items:start;gap:8px;pointer-events:none}
-.mw-globe-controls{display:flex;gap:6px;flex-wrap:wrap}
+.mw-globe-dock{position:absolute;z-index:1;inset:auto var(--edge) var(--edge) var(--edge);display:grid;justify-items:start;gap:5px;pointer-events:none;container-type:inline-size}
+.mw-globe-controls{display:flex;gap:4px;flex-wrap:wrap;max-width:100%}
 .mw-globe-controls button,.mw-globe-credit{pointer-events:auto}
 .mw-globe-zoom,.mw-globe-find{display:flex;gap:2px}
 .mw-globe-zoom button:first-child,.mw-globe-find button:first-child{border-start-end-radius:2px;border-end-end-radius:2px}
 .mw-globe-zoom button:last-child,.mw-globe-find button:last-child{border-start-start-radius:2px;border-end-start-radius:2px}
 .mw-globe-controls button,.mw-globe-header select,#panelToggle{color-scheme:dark}
-.mw-globe-controls button,.mw-globe select{min-height:44px;padding:6px 10px;border:1px solid #667991;border-radius:6px;background:#152233;color:#ece9e2}
-.mw-globe-controls button{min-width:44px;cursor:pointer}
+.mw-globe-controls button,.mw-globe-header select{min-height:var(--globe-control);padding:4px 8px;border:1px solid #667991;border-radius:6px;background:#152233;color:#ece9e2;font-size:.78rem}
+.mw-globe-controls button{min-width:var(--globe-control);cursor:pointer;white-space:nowrap}
 .mw-globe-controls button[aria-pressed="true"]{border-color:var(--both);color:var(--both)}
+@container (max-width:385px){.mw-pole-prefix{display:none}}
 .mw-globe-viewport{position:absolute;inset:0;overflow:hidden}
 .mw-globe canvas,.mw-globe-pins{position:absolute;inset:0;width:100%;height:100%}
 .mw-globe canvas{touch-action:none;cursor:crosshair}
@@ -61,9 +62,18 @@ button,input,select{font:inherit;color:inherit}
 .mw-candidate-pin:disabled{cursor:default}
 .mw-globe-scenario{position:absolute;transform:translate(-50%,calc(-100% - 5px));padding:0 4px;border:1px solid #e4edf8;border-radius:4px;background:#152233;color:#fff;font-weight:700;font-size:.8rem;white-space:nowrap}
 .mw-globe-scenario::after{content:'';position:absolute;top:calc(100% + 1px);left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#e4edf8;border-bottom:0}
-.mw-globe select{max-width:100%}
+.mw-globe-header select{display:block;width:min(100%,220px)}
+.mw-globe-header select,.panel-scenario #scenarioPicker{
+  appearance:none;
+  padding-inline-end:23px;
+  text-overflow:ellipsis;
+  background-image:linear-gradient(45deg,transparent 50%,#bdcbdc 50%),linear-gradient(135deg,#bdcbdc 50%,transparent 50%);
+  background-position:right 12px center,right 8px center;
+  background-size:4px 4px;
+  background-repeat:no-repeat
+}
 .mw-globe-credit{position:relative;max-width:100%}
-.mw-globe-credit summary{cursor:pointer;padding:5px 9px;border:1px solid #667991;border-radius:6px;background:#152233}
+.mw-globe-credit summary{cursor:pointer;padding:3px 7px;border:1px solid #667991;border-radius:6px;background:#152233}
 .mw-globe-sources{position:absolute;inset:auto auto calc(100% + 6px) 0;width:max-content;max-width:min(300px,calc(100vw - 2 * var(--edge)));padding:10px 12px;border:1px solid #48566b;border-radius:8px;background:#101925;line-height:1.65}
 .mw-globe-status{margin-top:6px;padding:4px 7px;background:#101925;border-radius:4px}
 .mw-globe-credit,.mw-globe-status{color:#c2cbd8;font-size:.8rem}
@@ -98,7 +108,7 @@ a{color:var(--earth)}
 .btn[aria-pressed="true"]{background:var(--text);color:var(--bg);border-color:var(--text)}
 .btn.small{padding:5px 10px;font-size:.88rem}
 
-#panelToggle{position:fixed;z-index:3;top:var(--edge);right:var(--edge);min-height:44px;background:#152233;border-color:#667991}
+#panelToggle{position:fixed;z-index:3;top:var(--edge);right:var(--edge);min-height:var(--globe-control);padding:4px 9px;font-size:.79rem;background:#152233;border-color:#667991}
 #sitePanel{position:fixed;z-index:2;top:66px;right:var(--edge);bottom:var(--edge);width:var(--panel-width);display:flex;flex-direction:column;gap:6px;pointer-events:none;font-size:.8125rem;line-height:1.35}
 #sitePanel .btn.small{font-size:.75rem;padding:4px 8px}
 #sitePanel[hidden]{display:none}
@@ -123,9 +133,16 @@ body.panel-open .mw-globe-dock{right:calc(var(--panel-width) + var(--edge) + 12p
 .panel-content .actions.view-site{margin:8px 0 0}
 .panel-toolbar{display:flex;align-items:center;flex-wrap:wrap;column-gap:8px}
 .panel-toolbar .actions:has(#addBtn:disabled){display:none}
-.panel-scenario{display:flex;align-items:center;gap:6px;font-size:.875rem}
+#sitePanel:is([data-view="sky"],[data-view="mission"]) .panel-toolbar{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:0 6px
+}
+.panel-toolbar .panel-scenario{grid-area:1 / 1}
+.panel-toolbar .view-mission{grid-area:1 / 2}
+.panel-toolbar .science-actions{grid-area:1 / 3;justify-self:end}
+#sitePanel .panel-toolbar .btn{min-height:30px}
+.panel-scenario{display:flex;align-items:center;gap:5px;font-size:.79rem;white-space:nowrap}
 .panel-scenario[hidden]{display:none}
-.panel-scenario select{width:auto}
+.panel-scenario #scenarioPicker{width:44px;min-height:30px;padding-block:3px;padding-inline-start:8px;font-size:.79rem}
 .site-summary{padding:var(--section-gap)}
 .site-summary h2{margin:0 0 5px;font-size:.95rem}
 .site-summary p{margin:4px 0 0;font-size:.78rem}
@@ -172,7 +189,6 @@ body.panel-open .mw-globe-dock{right:calc(var(--panel-width) + var(--edge) + 12p
 .mission-figures{margin-top:8px}
 .mission-figures > summary{cursor:pointer;padding:5px 0;font-size:.84rem;color:#dbe4ee}
 .mission-figures > div{margin-top:5px}
-#sitePanel[data-view="mission"] .panel-toolbar{gap:0 6px}
 .mw-finder h2{margin:0;font-size:.95rem}
 .mw-finder p{margin:4px 0 7px;font-size:.77rem}
 .mw-finder-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;align-items:end}
@@ -197,21 +213,14 @@ body.panel-open .mw-globe-dock{right:calc(var(--panel-width) + var(--edge) + 12p
   :root{--sheet-height:min(62dvh,max(52dvh,390px));--section-gap:10px;--edge:12px}
   #sitePanel{top:auto;left:8px;right:8px;bottom:8px;width:auto;height:var(--sheet-height)}
   #sitePanel:not([data-view="site"]){height:calc(100dvh - 120px)}
-  #sitePanel:is([data-view="mission"],[data-view="finder"]){height:min(64dvh,calc(100dvh - 110px))}
+  #sitePanel:is([data-view="sky"],[data-view="mission"],[data-view="finder"]){height:min(64dvh,calc(100dvh - 110px))}
   body.panel-open .mw-globe-dock{right:var(--edge);bottom:calc(var(--sheet-height) + 16px)}
   body.panel-open .mw-globe-credit{display:none}
   body.panel-open:not([data-panel-view="site"]) .mw-globe-dock{display:none}
   #closedTime{top:auto;bottom:var(--edge)}
 }
 @media (max-width:520px){
-  .mw-globe-header h1{min-height:44px;display:flex;align-items:center;margin-bottom:6px}
-  .mw-globe-header p{font-size:.75rem}
-  .mw-globe-controls button{font-size:.82rem;padding-inline:8px}
   .mw-plugin-fields label:has(select){grid-column:1/-1}
-}
-@media (max-width:360px){
-  .mw-pole-prefix{display:none}
-  .mw-globe-controls{gap:4px}
 }
 
 /* Compare table */
@@ -308,8 +317,18 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 @media (max-width:700px){
   .btn,select,input:not([type="checkbox"]),.mw-globe-credit summary{min-height:44px}
   #sitePanel .panel-nav button{min-height:44px}
+  #sitePanel .panel-toolbar .btn{min-height:44px}
   .mw-globe-credit summary{align-content:center}
   .mw-globe-pin{width:44px;height:44px}
+}
+@media (max-width:700px) and (pointer:fine){
+  .mw-globe-header select,.mw-globe-credit summary{min-height:var(--globe-control)}
+  .panel-scenario #scenarioPicker{min-height:30px}
+  #sitePanel .panel-toolbar .btn{min-height:30px}
+}
+@media (pointer:coarse){
+  :root{--globe-control:44px}
+  .panel-scenario #scenarioPicker{min-height:44px}
 }
 @media (max-width:520px){
   .state .big{font-size:1.25rem}
@@ -1814,7 +1833,9 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
         groups.set(site.group, group);
         select.append(group);
       }
-      groups.get(site.group).append(new Option(site.name, site.id));
+      const option = new Option(site.name.replace(/ \([^)]*\)$/, ''), site.id);
+      option.title = site.name;
+      groups.get(site.group).append(option);
     }
     select.value = '';
     select.addEventListener('change', () => {
@@ -2206,7 +2227,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       const pickHelp = exploring ? 'Click the Moon to pin a site'
         : nextLetter ? 'Pick a point to add ' + nextLetter : 'Pick a point' + target;
       help.textContent = (finderLayer ? 'Click a numbered candidate to pin it' : pickHelp) +
-        ' · Drag to orbit · Scroll or pinch to zoom';
+        ' · Drag to orbit';
       const time = activeScenario?.t;
       if (time !== undefined && time !== skyTime) {
         skyTime = time;

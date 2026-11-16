@@ -686,7 +686,9 @@
         groups.set(site.group, group);
         select.append(group);
       }
-      groups.get(site.group).append(new Option(site.name, site.id));
+      const option = new Option(site.name.replace(/ \([^)]*\)$/, ''), site.id);
+      option.title = site.name;
+      groups.get(site.group).append(option);
     }
     select.value = '';
     select.addEventListener('change', () => {
@@ -1078,7 +1080,7 @@
       const pickHelp = exploring ? 'Click the Moon to pin a site'
         : nextLetter ? 'Pick a point to add ' + nextLetter : 'Pick a point' + target;
       help.textContent = (finderLayer ? 'Click a numbered candidate to pin it' : pickHelp) +
-        ' · Drag to orbit · Scroll or pinch to zoom';
+        ' · Drag to orbit';
       const time = activeScenario?.t;
       if (time !== undefined && time !== skyTime) {
         skyTime = time;
