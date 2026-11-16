@@ -1,26 +1,52 @@
 # MoonWindow
 
-**Pick a landing site on the Moon and a date. See where the Sun and Earth are in its sky, whether a lander there gets solar power and direct radio contact with Earth, and for how long.**
+**Open `index.html` in a modern browser and start exploring.** MoonWindow runs entirely offline from one self-contained file (about 14 MB), with the terrain, imagery, and code already bundled. Setup takes one step.
+
+**Click the Moon, choose a date, and see what changes.** Use the side panel to analyze the site. The globe and timeline show when sunlight and a direct line of sight to Earth are available. Compare up to three landing sites side by side, each with its own start date.
 
 NASA Space Apps Challenge 2026 project for the lunar landing site challenge (Sun and Earth visibility at the Moon's south pole).
 
 ## What it does
 
-- **Landing sites:** 9 real landing sites (IM-2 Athena, IM-1 Odysseus, two points on the Shackleton connecting ridge, Chandrayaan-3, Chang'e 6, SLIM, Blue Ghost 1, Apollo 11), the best landing spot in each of NASA's 9 Artemis III candidate regions, or any custom latitude/longitude.
-- **NASA Artemis III landing rules:** every scenario is checked against the rules NASA set for the crewed lander: near the pole like NASA's candidate regions, ground slope under 10° across the 100 m landing site, Earth in view at least 25% of the year, and unbroken sunlight for the 6.5-day surface stay.
-- **Real terrain from NASA LOLA:** at south polar sites, the skyline (mountains and crater rims) decides when the Sun and Earth are visible. A button compares with flat ground.
-- **Any date and time (UTC):** buttons for ±1 hour, ±1 day, "Now" and "Slip 1 week".
-- **Sky view:** a 360° picture of the sky from the site with the horizon, the Sun and Earth, and their tracks over the next 30 days.
-- **Sunlight and Earth cards:** elevation and direction, and a countdown to sunset/sunrise and Earthset/Earthrise (to the minute).
-- **30-day timeline:** sunlight, Earth in view, and both together. Click to jump to a time.
-- **Next-30-days numbers:** % sunlight, % Earth in view, % both, longest night, longest time without Earth, and how long Sun and Earth stay up together from the chosen moment.
-- **Compare up to 3 scenarios** side by side, for example the same site after a one-week launch slip.
-- **Play time** animation, **shareable links** (the URL stores the scenarios), and an **About** panel with explanations for non-experts.
-- **Check in NASA JPL Horizons:** every scenario links to the same query in JPL Horizons so anyone can verify the numbers.
+### Explore the 3D Moon and pick a site
+
+Drag to orbit, scroll or pinch to zoom, and use **South Pole** or **Reset** to reorient the view. The WebGL globe uses NASA LOLA elevation and LROC imagery. At the selected UTC time, MoonWindow projects the calculated Moon-relative positions of the **Sun** and **Earth** into the scene and uses the Sun’s direction to light the Moon. The **Sun** and **Earth** buttons turn the view toward each body. The globe enlarges their rendered disks for readability.
+
+Choose a saved landmark from the globe dropdown, click its pin, enter precise coordinates in **Site**, or click the lunar surface. A surface click fills the next available scenario up to A, B, and C. With all three slots filled, it moves the selected scenario. Use **Copy link** to share the site and time for each scenario.
+
+### See the local skyline and solar and Earth tracks
+
+**Sky** is a 360° SVG chart from the selected landing site. Azimuth runs left to right and elevation runs vertically. The chart overlays the Sun and Earth’s current positions and their **next 30 days of tracks** on the NASA LOLA skyline, including ridges and crater rims. Switch between **LOLA terrain** and **Flat horizon** to see what the local terrain blocks. The cards show each body’s direction, clearance above or below the skyline, and time until the next rise or set when one is found. They also link to NASA JPL Horizons for the selected site and time.
+
+Choose a historical or future UTC date to see the modeled Sun and Earth positions for that moment. The tracks extend 30 days forward from the selected time. At your chosen site, follow where each track clears or drops below the skyline, then scrub through time to check when both bodies are valid qualifying times. **Mission → Dates** can also search for starts that meet your required duration of continuous shared visibility.
+
+![MoonWindow globe and the Sky chart showing the Sun behind the local ridge at IM-1 Odysseus](docs/moonwindow-globe-sky.webp)
+
+### Plan dates, compare sites, and estimate solar power
+
+**Mission** puts up to three site-and-date scenarios side by side. Each 30-day timeline shows when the **Sun**, **Earth**, and **both together** clear the horizon. Drag a track or use the shared UTC scrubber above the sidebar. You can also enter a date, step by an hour, day or week, jump to **Now**, or press **Play**. The globe and analysis update as time changes.
+
+Set **Mission days** to see whether each scenario has continuous sunlight and direct Earth line of sight for long enough. Mission tests each chosen UTC start and the same site one week later. Open **Dates** to search the next year, order qualifying windows by earliest start or longest overlap, and jump to a result. **Export CSV** saves the sites, times, window checks, visibility assumptions, and numeric power estimates.
+
+Open **Power settings and figures** to compare power now and average power in watts, total solar energy in kWh, and shared visibility. All scenarios use the same panel area, efficiency, fixed or Sun-tracking vertical mount, and mission duration. The Sun rule can require any visible part of the disk, its centre, or the entire disk for visibility windows. Solar estimates use the visible fraction in all three modes and omit dust, temperature and equipment shadow losses. Earth visibility represents geometric line of sight.
+
+![Mission compares three landing sites with separate Sun, Earth and overlap tracks and shared solar settings](docs/moonwindow-mission.webp)
+
+### Find candidate sites and try the learning challenges
+
+**First visit:** Open **Find sites**, set the maximum slope and minimum Sun and Earth coverage, then click **Filter sites**. The globe shades matching grid cells, with brighter cells ranked higher. Click numbered candidates on the globe or in the list to pin up to three. Use **Compare at selected time** to bring them into Mission on a **Shared UTC timeline**. Drag any track to move all playheads together, open **Dates** to rank alternative starts, and read the one-week delay check under each track. Turn off the shared clock to test different start dates.
+
+Toggle **Polar shadows** on the globe to see where terrain blocks direct sunlight around the south pole. The overlay traces rays through the bundled LOLA terrain as the selected time changes. Use **Sky** to inspect the more detailed site-specific skyline used in mission analysis.
+
+**Find sites** searches the south-pole grid or the archived Artemis candidate regions. Filter by slope and minimum Sun and Earth coverage. Rank by sunlight, Earth visibility, overlap, or slope, then shortlist up to three spaced-apart points. Check for joint visibility at the selected time and after a one-week delay. Send two or three picks to Mission at one common time or at their earliest qualifying starts. [Finder method and demo](#best-landing-spots-in-nasas-artemis-iii-regions)
+
+**Learn** uses scenario A for three hands-on challenges. Find a time when IM-2 has both sunlight and Earth in view, identify a far-side landing site with no direct Earth view, or find when IM-1 is shaded by its crater wall. **Check my answer** gives a ✓ or ✕ and explains correct answers.
 
 ## How to run it
 
 Open `index.html` in any modern browser. That's it: there's no server, nothing to install, and it works offline.
+
+A fresh open goes straight to the **Mons Mouton seven-day decision**. The January 15 start passes. A one-week slip leaves it **6 h 39 min short** because sunlight ends before the mission does. **Show why** opens Sky at that crossing and highlights the limiting body. **Find next qualifying start** searches from the slipped date using the same duration and visibility assumptions. To open this exact scenario from a published copy, append `#s=-84.1652,28.9528,20270115T0600&days=7&view=mission` to the app URL.
 
 To publish it on GitHub Pages: repository **Settings → Pages → Build and deployment → Deploy from a branch → `main` / root → Save**. After a minute the site is live at `https://<user>.github.io/<repo>/`.
 
@@ -48,6 +74,22 @@ Sanity checks we ran:
 
 Across 72 comparisons (9 sites × 4 dates × Sun and Earth), the app matches NASA JPL Horizons within **0.003° in elevation** and 0.005° in azimuth, with identical up/down status in all 72 cases. Full table: [docs/validation.md](docs/validation.md). Re-run with `python3 tools/fetch_horizons.py` (needs internet) and then `node tools/compare_horizons.js`.
 
+### Terrain validation and how to check it in Sky
+
+**Long-term Sun and Earth coverage:** Across 96 polar locations, agreement with NASA’s published coverage maps improved to **2.79 percentage points RMS for sunlight** and **1.95 for Earth visibility** with terrain. At one of our two ridge pins, changing the terrain grid from 80 m to 240 m increased the predicted longest darkness by **7 days 22 hours**. [Coverage and ridge sensitivity study](docs/pgda-coverage-validation.md)
+
+**Does terrain change a seven-day landing decision?** We screened 1,600 historical site/start combinations and checked approved starts against LRO camera observations. With a flat horizon, **150 of 217** approved starts had an observed shadow. With the LOLA skyline and the same Sun-centre rule, **zero of 34** approved starts had an observed shadow. The cameras sample at intervals, so they can reveal a false pass while leaving gaps between observations. [Seven-day study and in-app replay](docs/lroc-mission-window-validation.md)
+
+MoonWindow tests its terrain-based sunlight predictions against images from NASA’s Lunar Reconnaissance Orbiter Camera (LROC). We used **309 camera frames** to bracket **52 observed sunrise and sunset events** near the south pole. With the default Sun-centre rule, the LOLA terrain model predicted **11 of 52** transitions inside their observed intervals, compared with **1 of 52** for a flat horizon. Counting the first or last visible edge of the Sun reached **32 of 52**. The camera cadence bounds when the change happened to an interval. [Observational study, sunrise figure, and reproduction steps](docs/lroc-transition-validation.md)
+
+**Try the terrain check in Sky**
+
+1. Choose **IM-1 Odysseus** from the saved-site dropdown and set the UTC time to **January 15, 2027, 06:00**.
+2. Open **Sky** and switch the horizon toggle to **Flat horizon**. The Sun is **1.05° above** the 0° line, toward the east, so it clears a flat horizon.
+3. Switch back to **LOLA terrain**. The skyline in that direction rises to **8.71°**, placing the Sun below the modeled crater rim. The Sun card reports the obstruction and the chart shows the Sun and Earth tracks against the local skyline. Scrub the time to watch the tracks cross the skyline.
+
+Sky lets you inspect why a particular prediction changes with terrain. The LROC study checks the predicted timing against spacecraft observations at other south-pole locations. To try the disk-edge rule used in that study, go to **Mission → Power settings and figures** and choose **Any visible part** under the sunlight rule.
+
 ## Real terrain from NASA LOLA
 
 `tools/make_horizons.py` reads two LOLA south polar elevation models from the NASA GSFC Planetary Geodesy Data Archive (Barker et al. 2023, *Planetary Science Journal* 4:183, doi:10.60903/gsfcpgda-lola-spole):
@@ -58,7 +100,6 @@ For each south polar site and every 0.5° of azimuth, the tool traces 400 km out
 
 Checks:
 - **Map reading:** both maps give 2,592 m at IM-1 Odysseus's landing point; LROC reports 2,579 m.
-- **Published research:** the best-lit point on the Shackleton–de Gerlache connecting ridge gets **88.3%** sunlight over one year in our model, against 52% on flat ground. Gläser et al. (2014, *Icarus* 243) found up to 92.3% on this ridge with a finer 20 m LOLA model.
 
 **Why location matters:** we found the ridge's best-lit point by testing the 40 highest 80 m pixels within 1.5 km. Their yearly sunlight ranges from **57.5% to 88.3%**. The app includes a second ridge site only 200 m from the best one, which gets 77.5%.
 
@@ -82,8 +123,6 @@ How accurate the 240 m skylines are depends on the ground:
 
 A known check: 87.5°S 45°E, inside the permanently shadowed Shoemaker crater, gets 0% sunlight.
 
-Our longest ridge night (10.7 days, in the southern winter) is longer than the 3–5 days Gläser et al. report at their best points. The likely reasons are their finer 20 m grid and exact point choice; we note it rather than tune it away.
-
 To regenerate, download the maps (not stored in git) and run the tools:
 
 ```
@@ -95,6 +134,14 @@ python3 tools/make_horizons.py && node tools/terrain_report.js && python3 build.
 ```
 
 ## Best landing spots in NASA's Artemis III regions
+
+The **Find sites** tab defaults to a **160 km radius** around the lunar south pole, sampling a 5 km grid and spacing shortlisted points at least 12 km apart. It can also search the original region picks and additional points on a 1 km grid within 5 km of each Artemis region reference coordinate, with a 2 km shortlist buffer. Sampled points use the bundled 240 m or 960 m LOLA terrain, and each result shows its resolution. Coverage filters use 2027 samples at two-hour intervals. After choosing up to three points, check the selected UTC time and a one-week delay for continuous Sun and Earth visibility, or load two or three picks into Mission. The window check samples hourly and searches the next year for the earliest qualifying start.
+
+Use **Compare at selected time** for a common reference date, or **Compare earliest starts** after checking two or three picks that each have a qualifying window. Mission starts each chart at the time used for that scenario. The playhead shows the currently selected time as you scrub.
+
+To regenerate the offline shortlist from the existing terrain assets, run `node tools/make_site_candidates.js > src/site-candidates.js` and then `python3 build.py`. The grid provides preliminary screening and can miss terrain between sampled points.
+
+Demo example. Filter **Mons Mouton Plateau**, rank by **Most Sun and Earth together**, and set January 15, 2027 at 06:00 UTC. At 84.1652°S, 28.9528°E the hourly Finder gives **13 days 18 hours** of shared visibility from that time and **6 days 18 hours** from a week later. In **Mission**, set **Mission days** to **7**. Its more finely resolved crossings show **13 days 17 hours** at the selected start and **6 days 17 hours** after the slip. The original start meets the target and the delayed start falls short.
 
 NASA's Artemis III candidate regions are each about 15 × 15 km; the lander needs a spot about 100 m across inside one. A single "region" coordinate can land on a steep slope or in shadow. The published coordinate for Slater Plain, for example, gets 4% sunlight over a year. So for each region, `tools/find_artemis_spots.py` searches the LOLA 80 m map within 5 km of the published coordinate and applies NASA's landing rules ([Artemis HLS Overview, Space Apps 2025](https://ntrs.nasa.gov/citations/20250009323)):
 

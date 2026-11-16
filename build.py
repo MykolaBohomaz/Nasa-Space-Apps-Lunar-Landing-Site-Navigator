@@ -23,7 +23,7 @@ if terrain in out:
     if len(dem) != 1440 * 720 * 2:
         raise ValueError('Invalid size for the LOLA LDEM_4 raster')
     out = out.replace(terrain, terrain.replace('</script>', base64.b64encode(dem).decode('ascii') + '</script>'))
-for asset_id, filename in (('moonwindow-albedo', 'lroc-4k.jpg'), ('moonwindow-stars', 'stars-4k.jpg')):
+for asset_id, filename in (('moonwindow-albedo', 'lroc-4k.jpg'), ('moonwindow-stars', 'stars-4k.jpg'), ('moonwindow-earth', 'earth-1k.jpg')):
     tag = f'<script id="{asset_id}" type="application/octet-stream">'
     if tag + '</script>' in out:
         encoded = base64.b64encode((root / 'src/terrain' / filename).read_bytes()).decode('ascii')

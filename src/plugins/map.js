@@ -6,6 +6,12 @@
   const floatsPerVertex = 7;
   const focalLength = 2.6;
   const tapSlop = 6;
+  const bodySizeScale = 3;
+  const finderExtentKm = 220;
+  function normalize(vector) {
+    const length = Math.hypot(...vector);
+    return vector.map(value => value / length);
+  }
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
   const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 
@@ -17,10 +23,6 @@
 
   function cameraAt(lat, lon) {
     return [direction(0, lon + 90), direction(lat + 90, lon), direction(lat, lon)];
-  }
-
-  function projection(width, height) {
-    return [focalLength * Math.min(1, height / width), focalLength * Math.min(1, width / height)];
   }
 
   function surfaceCoordinates([right, up, forward], distance, x, y) {
@@ -231,16 +233,18 @@
       layout(location = 1) in vec3 normal;
       uniform mat3 camera;
       uniform vec3 view;
+      uniform vec2 viewCenter;
       out vec3 surfaceNormal;
       out float elevation;
       out vec3 surfacePosition;
       void main() {
         vec3 position = camera * vertex.xyz;
-        surfaceNormal = camera * normal;
+        surfaceNormal = normal;
         elevation = vertex.w;
         surfacePosition = vertex.xyz;
         float depth = view.x - position.z;
-        gl_Position = vec4(position.x * view.y, position.y * view.z, 1.001 * depth - 0.04, depth);
+        vec2 screen = position.xy * view.yz + viewCenter * depth;
+        gl_Position = vec4(screen, 1.001 * depth - 0.04, depth);
       }`);
     const fragment = compile(gl.FRAGMENT_SHADER, `#version 300 es
       precision highp float;
@@ -251,11 +255,17 @@
       uniform bool hasMosaic;
       uniform sampler2D southRelief;
       uniform float polarScale;
+      uniform sampler2D finderMask;
+      uniform bool showFinder;
+      uniform sampler2D shadowMap;
+      uniform bool showShadows;
+      uniform vec3 moonLight;
       out vec4 color;
       void main() {
         vec3 normal = normalize(surfaceNormal);
-        vec3 light = normalize(vec3(-0.55, 0.72, 0.55));
-        float shade = 0.34 + 0.66 * max(dot(normal, light), 0.0);
+        float direct = max(dot(normal, moonLight), 0.0);
+        // Keep the lunar night side faintly visible for picking and navigation.
+        float shade = 0.12 + 0.88 * pow(direct, 0.65);
         float highland = clamp((elevation + 5500.0) / 10000.0, 0.0, 1.0);
         vec3 surface = mix(vec3(0.49, 0.48, 0.46), vec3(0.77, 0.76, 0.72), highland);
         vec3 radial = normalize(surfacePosition);
@@ -288,6 +298,19 @@
             litSurface *= 1.0 + detail * coverage * valid;
           }
         }
+        if ((showFinder || showShadows) && radial.y < 0.0) {
+          vec2 uv = vec2(0.5) + ${radius / (finderExtentKm * 1000)} * vec2(radial.x, -radial.z) / (1.0 - radial.y);
+          if (all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0)))) {
+            if (showShadows) {
+              float falloff = 1.0 - smoothstep(0.46, 0.5, max(abs(uv.x - 0.5), abs(uv.y - 0.5)));
+              litSurface = mix(litSurface, 0.12 * surface, texture(shadowMap, uv).r * falloff);
+            }
+            if (showFinder) {
+              vec4 match = texture(finderMask, uv);
+              litSurface = mix(litSurface, match.rgb, match.a);
+            }
+          }
+        }
         color = vec4(litSurface, 1.0);
       }`);
     function link(vertexShader, fragmentShader) {
@@ -303,10 +326,15 @@
 
     const program = link(vertex, fragment);
     const camera = gl.getUniformLocation(program, 'camera');
+    const moonLight = gl.getUniformLocation(program, 'moonLight');
     const view = gl.getUniformLocation(program, 'view');
     const hasMosaic = gl.getUniformLocation(program, 'hasMosaic');
     const polarSampler = gl.getUniformLocation(program, 'southRelief');
     const polarScale = gl.getUniformLocation(program, 'polarScale');
+    const finderMask = gl.getUniformLocation(program, 'finderMask');
+    const showFinder = gl.getUniformLocation(program, 'showFinder');
+    const shadowMap = gl.getUniformLocation(program, 'shadowMap');
+    const showShadows = gl.getUniformLocation(program, 'showShadows');
     function loadTexture(source) {
       const texture = gl.createTexture();
       gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -338,8 +366,118 @@
 
     const mosaic = loadTexture(embeddedJpeg('moonwindow-albedo'));
     const stars = loadTexture(embeddedJpeg('moonwindow-stars'));
+    const earth = loadTexture(embeddedJpeg('moonwindow-earth'));
     const polarMap = window.MW_POLAR_MAP;
     const polar = loadTexture(polarMap?.image);
+    const finder = loadTexture(null);
+    let finderCells;
+    const mapSize = 1024;
+    const mapCanvas = document.createElement('canvas');
+    mapCanvas.width = mapCanvas.height = mapSize;
+    const mapContext = mapCanvas.getContext('2d');
+    function uploadFinder(layer) {
+      finderCells = layer.cells;
+      const pixelsPerKm = mapSize / (2 * finderExtentKm);
+      const side = Math.max(2, layer.cellKm * pixelsPerKm);
+      mapContext.clearRect(0, 0, mapSize, mapSize);
+      for (const point of layer.cells) {
+        const [x, y, z] = direction(point.lat, point.lon);
+        const scale = 2 * radius * pixelsPerKm / (1000 * (1 - y));
+        mapContext.fillStyle = `rgba(71,228,188,${0.37 + 0.43 * point.strength})`;
+        mapContext.fillRect(mapSize / 2 + x * scale - side / 2, mapSize / 2 - z * scale - side / 2, side, side);
+      }
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, mapCanvas);
+    }
+    const shadowProgram = link(compile(gl.VERTEX_SHADER, `#version 300 es
+      out vec2 screen;
+      void main() {
+        screen = vec2(gl_VertexID == 1 ? 3.0 : -1.0, gl_VertexID == 2 ? 3.0 : -1.0);
+        gl_Position = vec4(screen, 0.0, 1.0);
+      }`), compile(gl.FRAGMENT_SHADER, `#version 300 es
+      precision highp float;
+      precision highp sampler2D;
+      in vec2 screen;
+      out vec4 color;
+      uniform sampler2D nearTerrain;
+      uniform sampler2D farTerrain;
+      uniform vec2 cells;
+      uniform vec3 light;
+      const float R = ${radius.toFixed(1)};
+      float sampleHeight(sampler2D grid, float cell, vec2 xy) {
+        vec2 size = vec2(textureSize(grid, 0));
+        vec2 pixel = xy / cell + size * 0.5 - 0.5;
+        if (any(lessThan(pixel, vec2(0.0))) || any(greaterThanEqual(pixel, size - 1.0))) return -1e8;
+        ivec2 p = ivec2(floor(pixel));
+        vec2 f = fract(pixel);
+        float a = mix(texelFetch(grid, p, 0).r, texelFetch(grid, p + ivec2(1, 0), 0).r, f.x);
+        float b = mix(texelFetch(grid, p + ivec2(0, 1), 0).r, texelFetch(grid, p + ivec2(1, 1), 0).r, f.x);
+        return mix(a, b, f.y);
+      }
+      float heightAt(vec2 xy) {
+        float h = sampleHeight(nearTerrain, cells.x, xy);
+        return h > -1e7 ? h : sampleHeight(farTerrain, cells.y, xy);
+      }
+      void main() {
+        vec2 xy = screen * ${(finderExtentKm * 1000).toFixed(1)};
+        vec2 q = xy / (2.0 * R);
+        float k = dot(q, q);
+        vec3 up = vec3(2.0 * q.x, k - 1.0, -2.0 * q.y) / (k + 1.0);
+        vec3 origin = (R + heightAt(xy) + 8.0) * up;
+        float distanceM = cells.x * 0.5;
+        float shadow = 0.0;
+        for (int step = 0; step < 68; step++) {
+          vec3 ray = origin + distanceM * light;
+          float r = length(ray);
+          vec3 n = ray / r;
+          float ground = heightAt(2.0 * R * vec2(n.x, -n.z) / (1.0 - n.y));
+          if (ground < -1e7) break;
+          if (r < R + ground) { shadow = 1.0; break; }
+          if ((r > R + 15000.0 && dot(n, light) > 0.0) || distanceM >= 400000.0) break;
+          distanceM += max(120.0, distanceM * 0.17);
+        }
+        color = vec4(shadow, 0.0, 0.0, 1.0);
+      }`));
+    const shadowFbo = gl.createFramebuffer();
+    const shadow = loadTexture(null);
+    const shadowSize = 640;
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, shadowSize, shadowSize, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, shadowFbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, shadow.texture, 0);
+    const shadowReady = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    const shadowTextures = [gl.createTexture(), gl.createTexture()];
+    const sourceUniforms = ['nearTerrain', 'farTerrain'].map(name => gl.getUniformLocation(shadowProgram, name));
+    const lightUniform = gl.getUniformLocation(shadowProgram, 'light');
+    const cellsUniform = gl.getUniformLocation(shadowProgram, 'cells');
+    let shadowGrid, shadowLight;
+
+    function bakeShadows(grid, light) {
+      if (light === shadowLight && shadowGrid === grid) return;
+      const grids = [grid.meta.near, grid.meta.far];
+      gl.useProgram(shadowProgram);
+      for (let i = 0; i < grids.length; i++) {
+        gl.activeTexture(gl.TEXTURE3 + i);
+        gl.bindTexture(gl.TEXTURE_2D, shadowTextures[i]);
+        gl.uniform1i(sourceUniforms[i], 3 + i);
+        if (grid === shadowGrid) continue;
+        const n = grids[i].size;
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, n, n, 0, gl.RED, gl.FLOAT, grid.rasters[i]);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      }
+      gl.uniform2f(cellsUniform, ...grids.map(g => g.cellM));
+      gl.uniform3fv(lightUniform, light);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, shadowFbo);
+      gl.viewport(0, 0, shadowSize, shadowSize);
+      gl.disable(gl.DEPTH_TEST);
+      gl.bindVertexArray(skyVao);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.bindVertexArray(null);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.activeTexture(gl.TEXTURE0);
+      shadowGrid = grid;
+      shadowLight = light;
+    }
     const skyProgram = link(
       compile(gl.VERTEX_SHADER, `#version 300 es
         out vec2 screen;
@@ -352,7 +490,13 @@
         in vec2 screen;
         uniform mat3 axes;
         uniform vec2 projection;
+        uniform vec2 viewCenter;
         uniform sampler2D sky;
+        uniform sampler2D earthMap;
+        uniform bool hasEarthMap;
+        uniform vec4 sunDisk;
+        uniform vec4 earthDisk;
+        uniform vec3 earthLight;
         out vec4 color;
 
         vec2 panorama(vec3 ray) {
@@ -362,32 +506,73 @@
 
         void main() {
           // Use direction only: the sky has no distance or zoom parallax.
-          vec3 ray = normalize(axes * vec3(screen / projection, -1.0));
+          vec3 ray = normalize(axes * vec3((screen - viewCenter) / projection, -1.0));
           // Frame the Milky Way near the initial orbit as a visual backdrop.
-          ray = vec3(ray.y, -ray.x, ray.z);
-          vec2 uv = panorama(ray);
+          vec2 uv = panorama(vec3(ray.y, -ray.x, ray.z));
           vec2 dx = dFdx(uv);
           vec2 dy = dFdy(uv);
           dx.x -= round(dx.x);
           dy.x -= round(dy.x);
           vec3 rgb = textureGrad(sky, uv, dx, dy).rgb;
-          color = vec4(vec3(0.012, 0.017, 0.026) + 0.72 * rgb, 1.0);
+          vec3 scene = vec3(0.012, 0.017, 0.026) + 0.72 * rgb;
+          float towardSun = dot(ray, sunDisk.xyz);
+          if (towardSun > 0.99) {
+            float r = length(cross(ray, sunDisk.xyz)) / sunDisk.w;
+            scene += vec3(0.44, 0.23, 0.07) * exp(-2.0 * r);
+            float disk = 1.0 - smoothstep(0.96, 1.04, r);
+            scene = mix(scene, mix(vec3(1.0, 0.61, 0.25), vec3(1.0, 0.97, 0.83),
+              sqrt(max(0.0, 1.0 - r * r))), disk);
+          }
+          float towardEarth = dot(ray, earthDisk.xyz);
+          if (towardEarth > 0.99) {
+            float r = length(cross(ray, earthDisk.xyz)) / earthDisk.w;
+            if (r < 1.04) {
+              float depth = sqrt(max(0.0, 1.0 - r * r));
+              vec3 normal = (towardEarth * ray - earthDisk.xyz) / earthDisk.w - depth * ray;
+              vec2 uv = vec2(atan(normal.x, normal.z) / 6.2831853 + 0.5,
+                0.5 - asin(clamp(normal.y, -1.0, 1.0)) / 3.14159265);
+              vec3 albedo = hasEarthMap ? textureLod(earthMap, uv, 0.0).rgb : vec3(0.16, 0.42, 0.8);
+              float light = max(0.0, dot(normal, earthLight));
+              vec3 atmosphere = pow(1.0 - depth, 3.0) * vec3(0.14, 0.41, 0.76);
+              vec3 litEarth = albedo * (0.14 + 0.95 * light) + atmosphere * (0.25 + light);
+              scene = mix(scene, litEarth, 1.0 - smoothstep(0.98, 1.04, r));
+            }
+          }
+          color = vec4(scene, 1.0);
         }`)
     );
     const skyAxes = gl.getUniformLocation(skyProgram, 'axes');
     const skyProjection = gl.getUniformLocation(skyProgram, 'projection');
+    const skyCenter = gl.getUniformLocation(skyProgram, 'viewCenter');
+    const earthMap = gl.getUniformLocation(skyProgram, 'earthMap');
+    const hasEarthMap = gl.getUniformLocation(skyProgram, 'hasEarthMap');
+    const sunDisk = gl.getUniformLocation(skyProgram, 'sunDisk');
+    const earthDisk = gl.getUniformLocation(skyProgram, 'earthDisk');
+    const earthLight = gl.getUniformLocation(skyProgram, 'earthLight');
+    const globeCenter = gl.getUniformLocation(program, 'viewCenter');
     const skyVao = gl.createVertexArray();
 
-    return (surface, axes, distance, xScale, yScale) => {
+    return (surface, axes, distance, { xScale, yScale, centerX, centerY }, bodies, lighting, layer, localGrid) => {
+      const cast = !!(shadowReady && localGrid && lighting);
+      if (cast) bakeShadows(localGrid, lighting.moon);
       gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-      if (stars.ready) {
+      if (bodies) {
         gl.disable(gl.DEPTH_TEST);
         gl.useProgram(skyProgram);
         gl.uniformMatrix3fv(skyAxes, false, axes.flat());
         gl.uniform2f(skyProjection, xScale, yScale);
+        gl.uniform2f(skyCenter, centerX, centerY);
+        gl.uniform4f(sunDisk, ...bodies.sun.direction, bodies.sun.size);
+        gl.uniform4f(earthDisk, ...bodies.earth.direction, bodies.earth.size);
+        gl.uniform3f(earthLight, ...lighting.earth);
         gl.bindTexture(gl.TEXTURE_2D, stars.texture);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, earth.texture);
+        gl.uniform1i(earthMap, 1);
+        gl.uniform1i(hasEarthMap, earth.ready ? 1 : 0);
+        gl.activeTexture(gl.TEXTURE0);
         gl.bindVertexArray(skyVao);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
         gl.bindVertexArray(null);
@@ -395,18 +580,29 @@
       if (!surface) return;
       gl.enable(gl.DEPTH_TEST);
       gl.useProgram(program);
+      gl.uniform3fv(moonLight, lighting?.moon ?? [0, 0, 0]);
       gl.bindTexture(gl.TEXTURE_2D, mosaic.texture);
       gl.uniform1i(hasMosaic, mosaic.ready ? 1 : 0);
       gl.activeTexture(gl.TEXTURE1);
       gl.bindTexture(gl.TEXTURE_2D, polar.texture);
       gl.uniform1i(polarSampler, 1);
       gl.uniform1f(polarScale, polar.ready ? radius / (polarMap.radiusKm * 1000) : 0);
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, finder.texture);
+      if (layer?.cells && layer.cells !== finderCells) uploadFinder(layer);
+      gl.uniform1i(finderMask, 2);
+      gl.uniform1i(showFinder, !!layer?.cells?.length);
+      gl.activeTexture(gl.TEXTURE5);
+      gl.bindTexture(gl.TEXTURE_2D, shadow.texture);
+      gl.uniform1i(shadowMap, 5);
+      gl.uniform1i(showShadows, cast);
       gl.activeTexture(gl.TEXTURE0);
       const [right, up, forward] = axes;
       gl.uniformMatrix3fv(camera, false, [
         right[0], up[0], forward[0], right[1], up[1], forward[1], right[2], up[2], forward[2]
       ]);
       gl.uniform3f(view, distance, xScale, yScale);
+      gl.uniform2f(globeCenter, centerX, centerY);
       gl.bindBuffer(gl.ARRAY_BUFFER, surface.vertexBuffer);
       gl.enableVertexAttribArray(0);
       const stride = floatsPerVertex * Float32Array.BYTES_PER_ELEMENT;
@@ -422,42 +618,74 @@
     slot.innerHTML = `
       <section class="mw-globe" aria-label="Lunar globe">
         <div class="mw-globe-header">
-          <div><h2>Lunar globe</h2><p id="mw-globe-help">Click or tap the Moon to select and center scenario A · Drag to orbit · Scroll or pinch to zoom</p></div>
-          <div class="mw-globe-controls">
-            <button type="button" data-action="pole">South pole</button>
-            <button type="button" data-action="reset">Reset view</button>
-            <button type="button" data-action="in" aria-label="Zoom in">+</button>
-            <button type="button" data-action="out" aria-label="Zoom out">−</button>
+          <h1>MoonWindow</h1>
+          <select aria-label="Select landing site"></select>
+          <p id="mw-globe-help">Pick a site · Drag to orbit · Scroll or pinch to zoom</p>
+          <div role="status" class="mw-globe-status"></div>
+        </div>
+        <div class="mw-globe-dock">
+          <div class="mw-globe-controls" role="group" aria-label="Globe controls">
+            <button type="button" data-action="pole" aria-label="South pole"><span class="mw-pole-prefix">South </span>Pole</button>
+            <button type="button" data-action="reset" aria-label="Reset view">Reset</button>
+            <div class="mw-globe-zoom" role="group" aria-label="Zoom">
+              <button type="button" data-action="in" aria-label="Zoom in">+</button>
+              <button type="button" data-action="out" aria-label="Zoom out">−</button>
+            </div>
+            <div class="mw-globe-find" role="group" aria-label="Find in the sky">
+              <button type="button" data-action="earth" aria-label="Find Earth" title="Find Earth at the selected scenario time">Earth</button>
+              <button type="button" data-action="sun" aria-label="Find Sun" title="Find the Sun at the selected scenario time">Sun</button>
+            </div>
+            <button type="button" data-action="shadows" aria-pressed="false" title="Show modeled terrain-cast shadows near the south pole">Polar shadows</button>
           </div>
+          <details class="mw-globe-credit">
+            <summary>Globe data</summary>
+            <div class="mw-globe-sources">
+              <div><a target="_blank" rel="noopener"></a><span></span></div>
+              <div><a href="https://svs.gsfc.nasa.gov/4720/" target="_blank" rel="noopener">NASA SVS / LROC imagery</a></div>
+              <div><a href="https://svs.gsfc.nasa.gov/4851/" target="_blank" rel="noopener">NASA SVS star map</a></div>
+            </div>
+          </details>
         </div>
         <div class="mw-globe-viewport">
           <canvas tabindex="0" aria-label="Moon terrain. Use arrow keys to orbit, plus or minus to zoom, and Enter to select the center."
             aria-describedby="mw-globe-help"></canvas>
           <div class="mw-globe-pins"></div>
         </div>
-        <div class="mw-globe-footer">
-          <label>Set scenario A site <select aria-label="Set scenario A site"></select></label>
-          <span class="mw-globe-credit"><a target="_blank" rel="noopener"></a><span></span> · <a href="https://svs.gsfc.nasa.gov/4720/" target="_blank" rel="noopener">NASA SVS / LROC imagery</a> · <a href="https://svs.gsfc.nasa.gov/4851/" target="_blank" rel="noopener">NASA SVS star map</a></span>
-        </div>
-        <div role="status" class="mw-globe-status"></div>
       </section>`;
     const canvas = slot.querySelector('canvas');
     const viewport = canvas.parentElement;
+    const globeHeader = slot.querySelector('.mw-globe-header');
+    const panel = document.getElementById('sitePanel');
+    const sheetLayout = window.matchMedia('(max-width: 900px)');
     if (window.MW_POLAR_MAP?.credit) {
-      const polarCredit = document.createElement('span');
-      polarCredit.textContent = ' · South pole relief: NASA LOLA';
+      const polarCredit = document.createElement('div');
+      polarCredit.textContent = 'South pole relief from NASA LOLA';
       polarCredit.title = window.MW_POLAR_MAP.credit;
-      slot.querySelector('.mw-globe-credit').append(polarCredit);
+      slot.querySelector('.mw-globe-sources').append(polarCredit);
     }
     const pins = slot.querySelector('.mw-globe-pins');
     const select = slot.querySelector('select');
+    const help = slot.querySelector('#mw-globe-help');
     const status = slot.querySelector('[role="status"]');
     const credit = slot.querySelector('.mw-globe-credit a');
     const detail = credit.nextElementSibling;
-    select.add(new Option('Custom coordinates', 'custom'));
-    for (const site of api.SITES) select.add(new Option(site.name, site.id));
+    const prompt = new Option('Choose a saved site', '');
+    prompt.disabled = true;
+    select.add(prompt);
+    const groups = new Map();
+    for (const site of api.SITES) {
+      if (!groups.has(site.group)) {
+        const group = document.createElement('optgroup');
+        group.label = site.group;
+        groups.set(site.group, group);
+        select.append(group);
+      }
+      groups.get(site.group).append(new Option(site.name, site.id));
+    }
+    select.value = '';
     select.addEventListener('change', () => {
       const site = api.SITES.find(item => item.id === select.value);
+      select.value = '';
       if (site) selectSite(site);
     });
 
@@ -468,20 +696,40 @@
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     let surface = null;
     let scenarioPins = [];
+    let candidatePins = [];
+    let finderLayer;
+    let finderFocus;
+    let showPolarShadows = false;
+    let skyTime;
+    let positions;
+    let lighting;
     let gl;
     let render;
     let sourceRequest = 0;
 
-    function selectSite(site) {
-      api.setSite(0, site.lat, site.lon);
-      const move = flightTo(camera, direction(site.lat, site.lon));
+    function selectSite(site, { surfacePick = false } = {}) {
+      api.openSitePanel();
+      if (surfacePick) {
+        api.pickSurfaceSite(site.lat, site.lon);
+      } else {
+        const index = api.scenarios().indexOf(api.activeScenario());
+        if (index < 0) return;
+        api.setSite(index, site.lat, site.lon);
+      }
+      flyTo(direction(site.lat, site.lon));
+    }
+
+    function flyTo(target, endDistance = distance) {
+      const move = flightTo(camera, target);
       if (reducedMotion.matches || move.angle < 0.001) {
         camera = orbitCamera(camera, move.horizontal, move.vertical);
+        distance = endDistance;
         flight = null;
       } else {
         flight = {
           from: camera, move, start: performance.now(),
-          duration: clamp(350 + move.angle * 250, 350, 950)
+          duration: clamp(350 + move.angle * 250, 350, 950),
+          startDistance: distance, endDistance
         };
       }
       schedule();
@@ -492,18 +740,98 @@
       button.type = 'button';
       button.className = 'mw-globe-pin';
       button.title = site.name;
-      button.setAttribute('aria-label', 'Select ' + site.name + ' for scenario A');
+      button.setAttribute('aria-label', 'Select ' + site.name + ' for the active scenario');
       button.addEventListener('click', () => selectSite(site));
       pins.append(button);
       return { ...site, element: button };
     });
-    const markers = ['A', 'B', 'C'].map(letter => {
+
+    function syncFinder() {
+      const layer = !panel.hidden && panel.dataset.view === 'finder' ? api.finderLayer : null;
+      if (layer === finderLayer) return;
+      const focus = layer?.focus;
+      if (focus && finderFocus !== focus) flyTo(direction(focus.lat, focus.lon), focus.distance);
+      finderFocus = focus;
+      finderLayer = layer;
+      // Reuse buttons so map focus survives a pick or unpick.
+      for (let i = 0; i < (layer?.pins.length ?? 0); i++) {
+        const site = layer.pins[i];
+        if (!candidatePins[i]) {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'mw-globe-pin mw-candidate-pin';
+          button.addEventListener('click', () => finderLayer?.pins[i]?.toggle());
+          pins.append(button);
+          candidatePins[i] = { element: button };
+        }
+        const candidate = candidatePins[i];
+        candidate.lat = site.lat;
+        candidate.lon = site.lon;
+        const button = candidate.element;
+        button.textContent = site.number;
+        button.title = `${site.number}. ${site.name}`;
+        button.setAttribute('aria-label', `Candidate ${site.number}, ${site.name}`);
+        button.setAttribute('aria-pressed', String(site.picked));
+        button.disabled = site.disabled;
+      }
+      candidatePins.slice(layer?.pins.length ?? 0).forEach(pin => { pin.element.hidden = true; });
+    }
+    const letters = ['A', 'B', 'C'];
+    const markers = letters.map(letter => {
       const element = document.createElement('span');
       element.textContent = letter;
       element.className = 'mw-globe-scenario';
       pins.append(element);
       return element;
     });
+    const bodyMarkers = {
+      sun: document.createElement('span'),
+      earth: document.createElement('span')
+    };
+    for (const [name, element] of Object.entries(bodyMarkers)) {
+      element.className = 'mw-globe-body';
+      element.dataset.body = name;
+      element.textContent = name === 'sun' ? 'Sun' : 'Earth';
+      element.hidden = true;
+      pins.append(element);
+    }
+    const bodyRadii = {
+      sun: api.engine.SUN_RADIUS_KM / api.engine.MOON_RADIUS_KM,
+      earth: api.engine.EARTH_RADIUS_KM / api.engine.MOON_RADIUS_KM
+    };
+
+    function findBody(name) {
+      if (!positions) return;
+      const target = normalize(positions[name]);
+      const hint = Math.abs(dot(camera[0], target)) < 0.9 ? camera[0] : camera[1];
+      const along = dot(hint, target);
+      const tangent = normalize(hint.map((value, i) => value - along * target[i]));
+      // Leave room for the Moon's disk and frame the body next to it.
+      const angle = 15 * radians;
+      flyTo(target.map((value, i) => -Math.cos(angle) * value + Math.sin(angle) * tangent[i]), 6.5);
+    }
+
+    function viewFor(width, height) {
+      let visibleWidth = width;
+      let visibleHeight = height;
+      let top = 0;
+      if (!panel.hidden) {
+        if (!sheetLayout.matches) visibleWidth = panel.offsetLeft;
+        else if (panel.dataset.view === 'site' || panel.dataset.view === 'finder') visibleHeight = Math.max(110, panel.offsetTop);
+        else if (panel.dataset.view === 'mission') {
+          visibleHeight = panel.offsetTop;
+          top = Math.min(globeHeader.offsetTop + globeHeader.offsetHeight + 8, visibleHeight * 0.55);
+        }
+      }
+      const shortSide = Math.max(1, Math.min(visibleWidth, visibleHeight - top));
+      return {
+        shortSide,
+        xScale: focalLength * shortSide / width,
+        yScale: focalLength * shortSide / height,
+        centerX: visibleWidth / width - 1,
+        centerY: 1 - (visibleHeight + top) / height
+      };
+    }
 
     function draw(now) {
       frame = null;
@@ -512,10 +840,11 @@
       const height = viewport.clientHeight;
       if (!width || !height) return;
       if (flight) {
-        const { from, move, start, duration } = flight;
+        const { from, move, start, duration, startDistance, endDistance } = flight;
         const t = reducedMotion.matches ? 1 : clamp((now - start) / duration, 0, 1);
         const eased = t * t * (3 - 2 * t);
         camera = orbitCamera(from, move.horizontal * eased, move.vertical * eased);
+        distance = startDistance + (endDistance - startDistance) * eased;
         if (t === 1) flight = null;
         else schedule();
       }
@@ -525,15 +854,38 @@
       if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
       if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
       const [right, up, forward] = camera;
-      const [xScale, yScale] = projection(width, height);
-      render(surface, camera, distance, xScale, yScale);
+      const view = viewFor(width, height);
+      const { xScale, yScale, centerX, centerY } = view;
+      const bodies = positions && Object.fromEntries(Object.entries(positions).map(([name, position]) => {
+        const relative = position.map((value, i) => value - distance * forward[i]);
+        return [name, {
+          direction: normalize(relative),
+          size: bodySizeScale * bodyRadii[name] / Math.hypot(...relative)
+        }];
+      }));
+      render(surface, camera, distance, view, bodies, lighting, finderLayer, showPolarShadows ? api.terrainGrid : null);
 
-      for (const pin of [...sitePins, ...scenarioPins]) {
+      if (bodies) for (const [name, body] of Object.entries(bodies)) {
+        const label = bodyMarkers[name];
+        const depth = -dot(body.direction, forward);
+        const x = dot(body.direction, right) * xScale / depth + centerX;
+        const y = dot(body.direction, up) * yScale / depth + centerY;
+        const behindMoon = surface && depth >= Math.sqrt(1 - (1.02 / distance) ** 2);
+        label.hidden = depth <= 0 || behindMoon || Math.abs(x) >= 0.97 || Math.abs(y) >= 0.93;
+        if (label.hidden) continue;
+        const margin = yScale * height * body.size / (2 * depth ** 2) + 5;
+        label.style.left = (x + 1) * width / 2 + 'px';
+        label.style.top = ((1 - y) * height / 2 + margin) + 'px';
+      }
+
+      const visiblePins = finderLayer ? candidatePins.slice(0, finderLayer.pins.length) : [...sitePins, ...scenarioPins];
+      if (finderLayer) for (const pin of [...sitePins, ...scenarioPins]) pin.element.hidden = true;
+      for (const pin of visiblePins) {
         const normal = direction(pin.lat, pin.lon);
         const point = surface ? surface.point(pin.lat, pin.lon) : normal;
         const depth = distance - dot(point, forward);
-        const x = dot(point, right) * xScale / depth;
-        const y = dot(point, up) * yScale / depth;
+        const x = dot(point, right) * xScale / depth + centerX;
+        const y = dot(point, up) * yScale / depth + centerY;
         pin.element.hidden = !surface || dot(normal, forward) <= Math.hypot(...point) / distance ||
           Math.abs(x) >= 0.98 || Math.abs(y) >= 0.98;
         if (pin.element.hidden) continue;
@@ -554,17 +906,21 @@
 
     function orbit(dx, dy) {
       flight = null;
-      const shortSide = Math.max(1, Math.min(viewport.clientWidth, viewport.clientHeight));
+      const { shortSide } = viewFor(viewport.clientWidth, viewport.clientHeight);
       const radiansPerPixel = 2 * (distance - 1) / (focalLength * shortSide);
       camera = orbitCamera(camera, -dx * radiansPerPixel, dy * radiansPerPixel);
       schedule();
     }
 
     function pick(x, y) {
-      if (!surface || Math.abs(x) > 1 || Math.abs(y) > 1) return;
-      const [xScale, yScale] = projection(viewport.clientWidth, viewport.clientHeight);
-      const point = surfaceCoordinates(camera, distance, x / xScale, y / yScale);
-      if (point) selectSite(point);
+      if (finderLayer) return;
+      const width = viewport.clientWidth;
+      const height = viewport.clientHeight;
+      if (!surface || !width || !height || Math.abs(x) > 1 || Math.abs(y) > 1) return;
+      const { xScale, yScale, centerX, centerY } = viewFor(width, height);
+      const point = surfaceCoordinates(camera, distance, ((x ?? centerX) - centerX) / xScale,
+        ((y ?? centerY) - centerY) / yScale);
+      if (point) selectSite(point, { surfacePick: true });
     }
 
     const pointers = new Map();
@@ -623,7 +979,15 @@
       pole() { flight = null; camera = cameraAt(-90, 0); distance = 1.45; schedule(); },
       reset() { flight = null; camera = cameraAt(-62, 20); distance = 3.35; schedule(); },
       in() { zoom(0.7); },
-      out() { zoom(1 / 0.7); }
+      out() { zoom(1 / 0.7); },
+      earth() { findBody('earth'); },
+      sun() { findBody('sun'); },
+      shadows(event) {
+        showPolarShadows = !showPolarShadows;
+        event.currentTarget.setAttribute('aria-pressed', String(showPolarShadows));
+        if (showPolarShadows && camera[2][1] > -0.96) flyTo(direction(-90, 0), 1.27);
+        schedule();
+      }
     };
     slot.querySelectorAll('[data-action]').forEach(button => {
       button.addEventListener('click', controls[button.dataset.action]);
@@ -633,13 +997,15 @@
         ArrowLeft: () => orbit(-40, 0), ArrowRight: () => orbit(40, 0),
         ArrowUp: () => orbit(0, -40), ArrowDown: () => orbit(0, 40),
         '+': controls.in, '=': controls.in, '-': controls.out, Home: controls.reset,
-        Enter: () => pick(0, 0)
+        Enter: () => pick()
       };
       if (!Object.hasOwn(actions, event.key)) return;
       event.preventDefault();
       actions[event.key]();
     });
-    new ResizeObserver(schedule).observe(viewport);
+    const resize = new ResizeObserver(schedule);
+    resize.observe(viewport);
+    resize.observe(panel);
 
     const terrain = window.MoonWindowTerrain;
     async function load(provider) {
@@ -673,7 +1039,7 @@
         render = makeRenderer(gl, schedule);
         load(provider).catch(() => {});
       } catch (error) {
-        status.textContent = error.message + ' Site selection is available below.';
+        status.textContent = error.message + ' Use the saved-site picker to explore.';
       }
     }
     terrain.setProvider = async next => {
@@ -687,15 +1053,50 @@
       surface = null;
       status.textContent = 'The globe paused while the graphics context recovers.';
       sitePins.forEach(pin => { pin.element.hidden = true; });
+      candidatePins.forEach(pin => { pin.element.hidden = true; });
       markers.forEach(marker => { marker.hidden = true; });
+      Object.values(bodyMarkers).forEach(marker => { marker.hidden = true; });
     });
     canvas.addEventListener('webglcontextrestored', startRenderer);
     startRenderer();
 
     return () => {
+      syncFinder();
       const scenarios = api.scenarios();
-      select.value = scenarios[0]?.siteId || 'custom';
-      scenarioPins = scenarios.map((scenario, index) => ({ ...scenario, element: markers[index] }));
+      const activeScenario = api.activeScenario();
+      const letter = scenarios.length > 1 ? letters[scenarios.indexOf(activeScenario)] : '';
+      const target = letter ? ' for scenario ' + letter : '';
+      select.setAttribute('aria-label', 'Select landing site' + target);
+      const nextLetter = letters[scenarios.length];
+      const pickHelp = nextLetter ? 'Pick a point to add ' + nextLetter : 'Pick a point' + target;
+      help.textContent = (finderLayer ? 'Click a numbered candidate to pin it' : pickHelp) +
+        ' · Drag to orbit · Scroll or pinch to zoom';
+      const time = activeScenario?.t;
+      if (time !== undefined && time !== skyTime) {
+        skyTime = time;
+        const vectors = api.engine.moonSkyVectors(new Date(time));
+        // Convert (prime meridian, east, north) to the globe's (east, north, prime meridian).
+        const toGlobe = ([x, y, z]) => [y, z, x].map(km => km / api.engine.MOON_RADIUS_KM);
+        positions = { sun: toGlobe(vectors.sun), earth: toGlobe(vectors.earth) };
+        lighting = {
+          moon: normalize(positions.sun),
+          earth: normalize(positions.sun.map((value, i) => value - positions.earth[i]))
+        };
+      }
+      const locations = new Map();
+      scenarios.forEach(({ lat, lon }, index) => {
+        const key = `${lat},${((lon % 360) + 360) % 360}`;
+        const existing = locations.get(key);
+        const element = markers[index];
+        if (existing) {
+          existing.element.textContent += ' · ' + letters[index];
+          element.hidden = true;
+        } else {
+          element.textContent = letters[index];
+          locations.set(key, { lat, lon, element });
+        }
+      });
+      scenarioPins = [...locations.values()];
       markers.slice(scenarios.length).forEach(marker => { marker.hidden = true; });
       schedule();
     };

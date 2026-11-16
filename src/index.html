@@ -17,47 +17,65 @@
   --bg:#1E2226; --panel:#262B30; --panel2:#2D3338; --line:#3C434A; --text:#ECE9E2; --muted:#A3A9AE;
   --sun:#F4B942; --earth:#5DA9E9; --both:#8FD6B0; --bad:#E9806E;
   --radius:10px;
+  --edge:16px; --panel-width:410px; --section-gap:12px;
   --font:"Avenir Next","Avenir","Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
 }
 *{box-sizing:border-box}
 html{background:var(--bg);color:var(--text);font-family:var(--font);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
 body{margin:0}
 button,input,select{font:inherit;color:inherit}
-.mw-globe{margin:16px 0;padding:14px;background:#101925;border:1px solid #344459;border-radius:12px;color:#ece9e2}
-.mw-globe-header,.mw-globe-footer,.mw-globe-controls{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
-.mw-globe-header,.mw-globe-footer{justify-content:space-between}
-.mw-globe h2{font-size:1.15rem;margin:0}
-.mw-globe p{margin:3px 0;color:#c2cbd8;font-size:.875rem}
+.mw-globe{position:fixed;inset:0;background:#070a0f;color:#ece9e2}
+.mw-globe-header{position:absolute;z-index:1;inset:var(--edge) auto auto var(--edge);width:min(320px,calc(100% - 2 * var(--edge)))}
+.mw-globe-header h1{font-size:1.25rem;margin:0 0 8px}
+.mw-globe-header p{margin:8px 0 0;color:#dbe4ee;font-size:.8rem}
+.mw-globe-header h1,.mw-globe-header p{text-shadow:0 1px 4px #000,0 1px 6px #000}
+.mw-globe-dock{position:absolute;z-index:1;inset:auto var(--edge) var(--edge) var(--edge);display:grid;justify-items:start;gap:8px;pointer-events:none}
+.mw-globe-controls{display:flex;gap:6px;flex-wrap:wrap}
+.mw-globe-controls button,.mw-globe-credit{pointer-events:auto}
+.mw-globe-zoom,.mw-globe-find{display:flex;gap:2px}
+.mw-globe-zoom button:first-child,.mw-globe-find button:first-child{border-start-end-radius:2px;border-end-end-radius:2px}
+.mw-globe-zoom button:last-child,.mw-globe-find button:last-child{border-start-start-radius:2px;border-end-start-radius:2px}
+.mw-globe-controls button,.mw-globe-header select,#panelToggle{color-scheme:dark}
 .mw-globe-controls button,.mw-globe select{min-height:44px;padding:6px 10px;border:1px solid #667991;border-radius:6px;background:#152233;color:#ece9e2}
 .mw-globe-controls button{min-width:44px;cursor:pointer}
-.mw-globe-viewport{position:relative;height:clamp(280px,52vh,510px);margin:10px 0;overflow:hidden;border-radius:8px;background:#070a0f}
+.mw-globe-controls button[aria-pressed="true"]{border-color:var(--both);color:var(--both)}
+.mw-globe-viewport{position:absolute;inset:0;overflow:hidden}
 .mw-globe canvas,.mw-globe-pins{position:absolute;inset:0;width:100%;height:100%}
 .mw-globe canvas{touch-action:none;cursor:crosshair}
 .mw-globe canvas.is-dragging{cursor:grabbing}
 .mw-globe canvas:focus-visible{outline:2px solid #9fcbff;outline-offset:-3px}
 .mw-globe-pins{pointer-events:none}
+.mw-globe-body{position:absolute;transform:translateX(-50%);padding:2px 7px;border-radius:4px;background:#070a0fdd;color:#f9ce88;font-size:.78rem;font-weight:600}
+.mw-globe-body[data-body="earth"]{color:#aad5ff}
 .mw-globe-pin{position:absolute;transform:translate(-50%,-50%);width:24px;height:24px;padding:0;border:0;border-radius:50%;background:transparent;pointer-events:auto;cursor:pointer}
 .mw-globe-pin::before{content:'';display:block;width:9px;height:9px;margin:auto;border:2px solid #101925;border-radius:50%;background:#ffc573;box-sizing:content-box}
 .mw-globe-pin:hover,.mw-globe-pin:focus-visible{z-index:1;outline:2px solid #fff}
-.mw-globe-scenario{position:absolute;transform:translate(-50%,calc(-100% - 5px));padding:0 4px;border:1px solid #e4edf8;border-radius:4px;background:#152233;color:#fff;font-weight:700;font-size:.8rem}
+.mw-candidate-pin{background:#101925;color:#c2ffeb;border:1px solid #62dbbb;font-size:.72rem;font-weight:700}
+.mw-candidate-pin::before{display:none}
+.mw-candidate-pin[aria-pressed="true"]{background:#96f0d2;color:#102321}
+.mw-candidate-pin:disabled{cursor:default}
+.mw-globe-scenario{position:absolute;transform:translate(-50%,calc(-100% - 5px));padding:0 4px;border:1px solid #e4edf8;border-radius:4px;background:#152233;color:#fff;font-weight:700;font-size:.8rem;white-space:nowrap}
 .mw-globe-scenario::after{content:'';position:absolute;top:calc(100% + 1px);left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#e4edf8;border-bottom:0}
-.mw-globe-footer label{display:flex;align-items:center;flex-wrap:wrap;gap:6px;max-width:100%;font-size:.875rem}
 .mw-globe select{max-width:100%}
+.mw-globe-credit{position:relative;max-width:100%}
+.mw-globe-credit summary{cursor:pointer;padding:5px 9px;border:1px solid #667991;border-radius:6px;background:#152233}
+.mw-globe-sources{position:absolute;inset:auto auto calc(100% + 6px) 0;width:max-content;max-width:min(300px,calc(100vw - 2 * var(--edge)));padding:10px 12px;border:1px solid #48566b;border-radius:8px;background:#101925;line-height:1.65}
+.mw-globe-status{margin-top:6px;padding:4px 7px;background:#101925;border-radius:4px}
 .mw-globe-credit,.mw-globe-status{color:#c2cbd8;font-size:.8rem}
 .mw-globe-credit a{color:#a9d1ff}
 .mw-globe-status:empty{display:none}
-.mw-power,.mw-learn{padding:14px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)}
-.mw-power h3{margin:0 0 8px;font-size:1rem}
-.mw-plugin-fields,.mw-power-results{display:flex;flex-wrap:wrap;gap:10px 16px}
-.mw-plugin-fields label{flex:1 1 135px;min-width:0}
+.mw-power,.mw-learn{padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)}
+.mw-power summary{cursor:pointer;font-weight:600}
+.mw-power-summary{display:block;font-size:.8rem;font-weight:400;margin-top:3px}
+.mw-plugin-fields{display:grid;gap:10px;margin-top:10px;grid-template-columns:repeat(auto-fit,minmax(min(112px,100%),1fr))}
+.mw-plugin-fields label{min-width:0;color:var(--muted);font-size:.875rem}
 .mw-plugin-fields input,.mw-plugin-fields select{display:block;margin-top:4px}
-.mw-power-results{margin:12px 0}
-.mw-power-results dt{color:var(--muted);font-size:.85rem}
-.mw-power-results dd{margin:0;color:var(--sun);font-weight:600}
 .mw-power p{margin:6px 0 0}
 .mw-plugin-error{color:var(--bad)}
 .mw-learn{margin:12px 0}
-.mw-learn summary{cursor:pointer;font-weight:600;align-content:center}
+.mw-learn h2{font-size:1.1rem;margin:0}
+.mw-learn ol{padding-inline-start:24px}
+.mw-learn li+li{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
 .mw-learn li p{margin:8px 0}
 .mw-learn-feedback:empty{margin:0}
 .mw-learn-result{display:inline-block;margin-inline-end:.5em;padding:.12em .55em;border:1px solid currentColor;border-radius:.5em;transform-origin:left center}
@@ -66,15 +84,7 @@ button,input,select{font:inherit;color:inherit}
 .mw-learn-icon{display:inline-block;margin-inline-end:.35em}
 a{color:var(--earth)}
 :focus-visible{outline:2px solid var(--sun);outline-offset:2px}
-.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
 
-/* Header */
-.top{border-bottom:1px solid var(--line)}
-.top .wrap{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;padding-top:22px;padding-bottom:18px}
-.brand{display:flex;gap:14px;align-items:center;min-width:0}
-.brand svg{flex:none}
-.brand h1{margin:0;font-size:1.9rem;line-height:1.1;font-weight:700;letter-spacing:-.01em}
-.brand p{margin:2px 0 0;color:var(--muted);max-width:60ch}
 .actions{display:flex;flex-wrap:wrap;gap:8px}
 .btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 14px;cursor:pointer;white-space:nowrap}
 .btn:hover{border-color:var(--muted)}
@@ -83,41 +93,160 @@ a{color:var(--earth)}
 .btn[aria-pressed="true"]{background:var(--text);color:var(--bg);border-color:var(--text)}
 .btn.small{padding:5px 10px;font-size:.88rem}
 
-main.wrap{padding-top:20px;padding-bottom:40px}
+#panelToggle{position:fixed;z-index:3;top:var(--edge);right:var(--edge);min-height:44px;background:#152233;border-color:#667991}
+#sitePanel{position:fixed;z-index:2;top:70px;right:var(--edge);bottom:var(--edge);width:var(--panel-width);display:flex;flex-direction:column;gap:8px;pointer-events:none}
+#sitePanel[hidden]{display:none}
+.panel-shell,.time-controls{border:1px solid #48566b;border-radius:16px;background:#101925;box-shadow:0 16px 52px #000a;pointer-events:auto}
+.panel-shell{display:flex;flex:1 1 auto;flex-direction:column;min-height:0}
+.time-controls{flex:none;display:grid;grid-template-columns:auto minmax(36px,1fr) auto;align-items:center;gap:8px;padding:4px 7px;position:relative;z-index:1}
+.time-steps{position:relative}
+.time-steps summary{display:grid;align-items:center;font-variant-numeric:tabular-nums}
+.time-editor{position:absolute;z-index:2;top:calc(100% + 6px);right:0;width:min(272px,calc(100vw - 32px));padding:10px;background:#101925;border:1px solid #48566b;border-radius:8px;box-shadow:0 12px 28px #000a}
+.time-controls input[type=range]{display:block;width:100%;height:28px;min-height:28px;margin:0;accent-color:var(--earth);cursor:ew-resize;touch-action:pan-y}
+#closedTime{position:fixed;z-index:1;top:70px;right:var(--edge);padding:4px 8px;border-radius:6px;background:#101925e6;color:#dbe4ee;font-size:.8rem;font-variant-numeric:tabular-nums;pointer-events:none}
+body.panel-open #closedTime{display:none}
+body.panel-open:not([data-panel-view="site"]){--panel-width:min(920px,72vw)}
+body.panel-open[data-panel-view="mission"]{--panel-width:430px}
+body.panel-open[data-panel-view="finder"]{--panel-width:min(530px,49vw)}
+body.panel-open .mw-globe-dock{right:calc(var(--panel-width) + var(--edge) + 12px)}
+.panel-nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;padding:7px;border-bottom:1px solid #344459}
+.panel-nav button{min-height:34px;padding-inline:3px;font-size:.82rem;white-space:normal;line-height:1.15}
+.panel-nav .btn[aria-pressed="true"]{background:#233a52;color:#e7f2ff;border-color:#688fb7}
+.panel-content{min-height:0;overflow:auto;overscroll-behavior:contain;padding:var(--section-gap);scrollbar-gutter:stable}
+.panel-content .actions,.panel-scenario{margin:0 0 8px}
+.panel-content .actions.view-site{margin:8px 0 0}
+.panel-toolbar{display:flex;align-items:center;flex-wrap:wrap;column-gap:8px}
+.panel-toolbar .actions:has(#addBtn:disabled){display:none}
+.panel-scenario{display:flex;align-items:center;gap:6px;font-size:.875rem}
+.panel-scenario[hidden]{display:none}
+.panel-scenario select{width:auto}
+.site-summary{padding:var(--section-gap)}
+.site-summary h2{margin:0 0 8px;font-size:1.1rem}
+.site-summary p{margin:5px 0 0;font-size:.9rem}
+.visibility{display:flex;gap:8px;flex-wrap:wrap}
+.sky{overflow-x:auto}
+.sky svg{min-width:700px}
+#sitePanel:not([data-view="site"]) .view-site,
+#sitePanel:not([data-view="sky"]) .view-sky,
+#sitePanel:not([data-view="mission"]) .view-mission,
+#sitePanel:not([data-view="learn"]) .view-learn,
+#sitePanel:is([data-view="site"],[data-view="learn"]) .science-actions,
+#sitePanel:not([data-view="site"],[data-view="learn"]) .site-summary,
+#sitePanel[data-view="learn"] .panel-scenario,
+#sitePanel[data-view="finder"] #scenarioView,
+#sitePanel:not([data-view="finder"]) #finderView{display:none}
+.mission-verdict{margin:2px 0 9px;font-size:.93rem;font-weight:650}
+.mission-context,.decision-event p{color:var(--muted);font-size:.8rem;margin:0 0 7px}
+.mission-decision-actions{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.decision-event{margin:0 0 8px;padding:8px;border:1px solid var(--line);border-radius:8px}
+.limit-card{outline:2px solid var(--sun);outline-offset:-2px}
+.mission-options{display:flex;justify-content:space-between;align-items:center;gap:6px;margin:0 0 5px}
+.mission-options label{display:flex;align-items:center;gap:6px;font-size:.8rem;white-space:nowrap}
+.mission-options input{width:4.1em;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:3px 5px}
+.mission-target,.mission-readiness{margin:0 0 5px;color:var(--muted);font-size:.74rem}
+.mission-readiness{margin:4px 0}
+.shared-clock{display:block;margin:4px 0 6px;color:var(--muted);font-size:.77rem}
+.shared-clock[hidden]{display:none}
+.shared-clock input{vertical-align:middle;accent-color:var(--both)}
+.mission-pass{color:var(--both)}
+.mission-fail{color:#ffb1a5}
+.mission-legend{display:flex;align-items:center;flex-wrap:wrap;gap:3px 10px;margin:0 0 4px;color:var(--muted);font-size:.73rem}
+.mission-legend i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:3px}
+.mission-legend .sun{background:var(--sun)}
+.mission-legend .earth{background:var(--earth)}
+.mission-legend .both{background:var(--both)}
+.mission-legend .energy-label{margin-left:auto}
+#sitePanel[data-view="mission"] #scenarios{border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+#sitePanel[data-view="mission"] .scenario{background:none;border:0;border-radius:0}
+#sitePanel[data-view="mission"] .scenario + .scenario{border-top:1px solid var(--line)}
+.mission-track{position:relative;padding:5px 8px 3px}
+.mission-track-head{display:flex;align-items:baseline;gap:6px;padding-right:54px}
+.mission-scenario-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.81rem;margin:0}
+.mission-energy{margin-left:auto;flex:none;color:var(--sun);font-size:.76rem;font-variant-numeric:tabular-nums}
+.mission-planning > summary{position:absolute;top:5px;right:8px;cursor:pointer;font-size:.76rem;color:#dbe4ee}
+.mission-planning[open]{border-top:1px solid var(--line);padding-top:8px}
+.mission-figures{margin-top:8px}
+.mission-figures > summary{cursor:pointer;padding:5px 0;font-size:.84rem;color:#dbe4ee}
+.mission-figures > div{margin-top:5px}
+#sitePanel[data-view="mission"] .panel-toolbar{gap:0 6px}
+.mw-finder h2{margin:0;font-size:1.15rem}
+.mw-finder p{margin:6px 0 12px;font-size:.9rem}
+.mw-finder-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(135px,100%),1fr));gap:10px;align-items:end}
+.mw-finder-fields button{min-height:40px}
+.mw-finder .mw-finder-count{margin-top:14px}
+.mw-finder-picks{min-width:0;margin:0;padding:0;border:0}
+.mw-finder-picks legend{font-size:.875rem;color:var(--muted);padding:0 0 6px}
+.mw-finder ol{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.mw-finder li{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:8px 10px;font-size:.88rem}
+.mw-finder-picks label{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
+.mw-finder-picks input{width:16px;height:16px;min-height:0;margin:3px 0 0;accent-color:var(--earth);flex:none}
+.mw-finder li small{display:block;color:var(--muted);font-size:.8rem}
+.mw-finder-window{margin-top:14px}
+.mw-finder-window .field{max-width:265px;margin-bottom:10px}
+.mw-finder-window .actions{margin-bottom:8px}
+.mw-finder button:disabled{opacity:.5;cursor:default}
+@media (min-width:901px){
+  #sitePanel:is([data-view="site"],[data-view="mission"]){bottom:auto;max-height:calc(100dvh - 86px)}
+}
+@media (max-width:900px){
+  :root{--sheet-height:min(62dvh,max(52dvh,390px));--section-gap:10px;--edge:12px}
+  #sitePanel{top:auto;left:8px;right:8px;bottom:8px;width:auto;height:var(--sheet-height)}
+  #sitePanel:not([data-view="site"]){height:calc(100dvh - 120px)}
+  #sitePanel:is([data-view="mission"],[data-view="finder"]){height:min(64dvh,calc(100dvh - 110px))}
+  body.panel-open .mw-globe-dock{right:var(--edge);bottom:calc(var(--sheet-height) + 16px)}
+  body.panel-open .mw-globe-credit{display:none}
+  body.panel-open:not([data-panel-view="site"]) .mw-globe-dock{display:none}
+  #closedTime{top:auto;bottom:var(--edge)}
+}
+@media (max-width:520px){
+  .mw-globe-header h1{min-height:44px;display:flex;align-items:center;margin-bottom:6px}
+  .mw-globe-header p{font-size:.75rem}
+  .mw-globe-controls button{font-size:.82rem;padding-inline:8px}
+  .mw-plugin-fields label:has(select){grid-column:1/-1}
+}
+@media (max-width:360px){
+  .mw-pole-prefix{display:none}
+  .mw-globe-controls{gap:4px}
+}
 
 /* Compare table */
-#compare{margin-bottom:22px;overflow-x:auto}
-#compare h2{font-size:1.15rem;margin:0 0 8px}
-table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:.95rem}
-th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
-th{color:var(--muted);font-weight:500;white-space:normal;vertical-align:bottom;min-width:70px}
-td.num,th.num{text-align:right}
-td .muted{color:var(--muted);font-size:.85rem}
-#compare p{margin:0 0 10px;color:var(--muted);max-width:90ch}
+.compare-table{overflow:auto;border:1px solid var(--line);border-radius:var(--radius)}
+.compare-table table{border-collapse:separate;border-spacing:0;table-layout:fixed;width:100%;font-variant-numeric:tabular-nums;font-size:.875rem}
+.compare-table th,.compare-table td{text-align:left;padding:5px 7px;line-height:1.32;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere}
+.compare-table thead th{background:#233a52;color:#e7f2ff;font-weight:600}
+.compare-table th:first-child{position:sticky;left:0;width:max(24%,74px)}
+.compare-table tbody th{background:var(--panel);color:var(--muted);font-weight:500}
+.compare-table td{background:#182534}
+.compare-table tbody tr:last-child > *{border-bottom:0}
+.compare-table .muted{color:var(--muted);font-size:.8rem}
+@media (max-width:520px){
+  .compare-table th,.compare-table td{padding:5px;font-size:.8rem}
+}
 .best{color:var(--both);font-weight:600}
 
 /* Scenario */
-.scenario{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:24px;overflow:hidden}
-.sc-head{display:grid;grid-template-columns:auto 1fr 1.2fr auto;gap:14px 18px;align-items:end;padding:16px 18px 12px}
-.sc-tag{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:1.1rem;background:var(--text);color:var(--bg);align-self:center}
+.scenario{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.sc-head{display:grid;gap:8px;padding:var(--section-gap)}
+#sitePanel:is([data-view="site"],[data-view="learn"]) .sc-head{padding-top:0}
 .field{display:flex;flex-direction:column;gap:4px;min-width:0}
 .field>span{font-size:.82rem;color:var(--muted)}
 select,input[type=number],input[type=datetime-local]{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0;width:100%}
 input[type=datetime-local]{color-scheme:dark}
 .coords{display:flex;gap:8px;margin-top:8px}
 .coords .field{flex:1}
-.steps{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.remove{align-self:start}
-.insight{margin:0;padding:0 18px 12px;max-width:95ch;color:var(--text)}
+.steps{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+#sitePanel:not([data-view="site"]) .sc-head{display:none}
+.remove{justify-self:start}
+.insight{margin:0;padding:0 var(--section-gap) var(--section-gap);max-width:95ch;color:var(--text)}
 .insight b{font-weight:600}
 
 /* Sky strip: the black lunar sky */
 .sky{margin:0;background:#000;position:relative}
 .sky svg{display:block;width:100%;height:auto}
-.skycap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 16px;padding:8px 18px;font-size:.85rem;color:var(--muted);background:var(--panel2);border-top:1px solid var(--line)}
+.skycap{display:grid;gap:6px;padding:10px var(--section-gap);font-size:.85rem;color:var(--muted);background:var(--panel2);border-top:1px solid var(--line)}
 
 /* Status cards */
-.cards{display:grid;grid-template-columns:1fr 1fr 1.25fr;gap:14px;padding:16px 18px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:var(--section-gap);padding:var(--section-gap)}
 .card{background:var(--panel2);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;border-top:4px solid var(--line)}
 .card.power{border-top-color:var(--sun)}
 .card.comms{border-top-color:var(--earth)}
@@ -138,15 +267,16 @@ input[type=datetime-local]{color-scheme:dark}
 .bar i{display:block;height:100%}
 
 /* Timeline */
-.tl{margin:0;padding:4px 18px 10px}
-.tl figcaption{font-size:.9rem;color:var(--muted);margin-bottom:4px}
-.tl svg{display:block;width:100%;height:auto;cursor:crosshair}
-.ext{display:grid;gap:14px;padding:0 18px}
+.tl{margin:0}
+.tl figcaption{font-size:.71rem;color:var(--muted)}
+.tl svg{display:block;width:100%;height:37px;cursor:ew-resize;touch-action:pan-y;user-select:none}
+.tl svg:focus-visible{outline:2px solid var(--earth);outline-offset:2px}
+.ext{display:grid;gap:var(--section-gap);padding:0 var(--section-gap)}
 .ext:empty{display:none}
 .ext-slot:empty{display:none}
 #extTop{display:grid;gap:16px;margin-bottom:16px}
 #extTop:empty{display:none}
-.sc-foot{display:flex;flex-wrap:wrap;gap:8px 18px;padding:10px 18px 16px;border-top:1px solid var(--line);font-size:.9rem;color:var(--muted)}
+.sc-foot{display:flex;flex-wrap:wrap;gap:8px 18px;padding:10px var(--section-gap) var(--section-gap);border-top:1px solid var(--line);font-size:.9rem;color:var(--muted)}
 
 /* Help tips */
 .tip{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:50%;width:20px;height:20px;font-size:.75rem;line-height:1;padding:0;cursor:help;position:relative;flex:none}
@@ -163,92 +293,123 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 .dlg dl{margin:0}
 .dlg dt{font-weight:600;margin-top:8px}
 .dlg dd{margin:2px 0 0;color:var(--muted)}
-.dlg-close{float:right}
+.dlg-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.dlg-close{flex:none}
 
-footer{border-top:1px solid var(--line);color:var(--muted);font-size:.88rem}
-footer .wrap{padding-top:16px;padding-bottom:28px}
-footer p{margin:4px 0;max-width:100ch}
-
-@media (max-width:900px){
-  .sc-head{grid-template-columns:auto 1fr;}
-  .sc-time{grid-column:1/-1}
-  .remove{grid-column:2;grid-row:1;justify-self:end}
-  .cards{grid-template-columns:1fr}
-}
 @media (max-width:700px){
-  .sky,.tl{overflow-x:auto}
-  .sky svg{min-width:760px}
-  .tl svg{min-width:680px}
-  .skycap{min-width:0}
-  .btn,select,input,.mw-learn summary{min-height:44px}
+  .btn,select,input:not([type="checkbox"]),.mw-globe-credit summary{min-height:44px}
+  .panel-nav button{min-height:44px}
+  .mw-globe-credit summary{align-content:center}
   .mw-globe-pin{width:44px;height:44px}
 }
 @media (max-width:520px){
-  .brand h1{font-size:1.5rem}
   .state .big{font-size:1.8rem}
-  .wrap{padding:0 12px}
-  .sc-head,.cards{padding-left:12px;padding-right:12px}
+  .dlg{padding:16px}
+  .dlg h2{font-size:1.3rem}
 }
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 </style>
 </head>
 <body>
-<header class="top">
-  <div class="wrap">
-    <div class="brand">
-      <svg width="46" height="46" viewBox="0 0 46 46" aria-hidden="true">
-        <rect width="46" height="46" rx="10" fill="#000"/>
-        <circle cx="16" cy="29" r="7" fill="#F4B942"/>
-        <circle cx="33" cy="17" r="4.5" fill="#5DA9E9"/>
-        <path d="M0 30 L9 27 L15 31 L24 26 L33 30 L40 28 L46 30 V46 H0Z" fill="#3C434A"/>
-      </svg>
-      <div>
-        <h1>MoonWindow</h1>
-        <p>Pick a spot on the Moon and a date. See whether it has sunlight for power and a line of sight to Earth for radio, and for how long.</p>
-      </div>
-    </div>
-    <nav class="actions" aria-label="App actions">
-      <button class="btn primary" id="addBtn" type="button">Add comparison</button>
-      <button class="btn" id="terrainBtn" type="button" aria-pressed="true">Terrain: real (NASA LOLA)</button>
-      <button class="btn" id="playBtn" type="button" aria-pressed="false">Play time</button>
-      <button class="btn" id="linkBtn" type="button">Copy link</button>
-      <button class="btn" id="aboutBtn" type="button">About and data</button>
+<main>
+  <div id="globeStage" data-top-slot="map"></div>
+  <button class="btn" id="panelToggle" type="button" aria-controls="sitePanel" aria-expanded="false">Site details</button>
+  <time id="closedTime"></time>
+  <aside id="sitePanel" data-view="site" aria-label="Landing site details" hidden>
+    <section class="time-controls" aria-label="Scenario time">
+      <button class="btn small" id="playBtn" type="button" aria-pressed="false">Play</button>
+      <input id="timeScrub" type="range" min="0" max="720" step="1" aria-label="Scrub the 30-day timeline">
+      <details class="time-steps">
+        <summary class="btn small" aria-label="Change date and time"><time id="timeReadout"></time></summary>
+        <div class="time-editor">
+          <label class="field"><span id="timeLabel">Date and time (UTC)</span><input id="scenarioTime" type="datetime-local" step="60" required></label>
+          <div class="steps" role="group" aria-label="Move time">
+            <button class="btn small" type="button" data-step="-24">−1 day</button>
+            <button class="btn small" type="button" data-step="-1">−1 hour</button>
+            <button class="btn small" type="button" data-now="1">Now</button>
+            <button class="btn small" type="button" data-step="1">+1 hour</button>
+            <button class="btn small" type="button" data-step="24">+1 day</button>
+            <button class="btn small" type="button" data-step="168">+1 week</button>
+          </div>
+        </div>
+      </details>
+    </section>
+    <div class="panel-shell">
+    <nav class="panel-nav" aria-label="Site views">
+      <button class="btn small" type="button" data-panel-view="site" aria-pressed="true" aria-controls="scenarioView">Site</button>
+      <button class="btn small" type="button" data-panel-view="sky" aria-pressed="false" aria-controls="scenarioView">Sky</button>
+      <button class="btn small" type="button" data-panel-view="mission" aria-pressed="false" aria-controls="scenarioView">Mission</button>
+      <button class="btn small" type="button" data-panel-view="finder" aria-pressed="false" aria-controls="finderView">Find sites</button>
+      <button class="btn small" type="button" data-panel-view="learn" aria-pressed="false" aria-controls="scenarioView">Learn</button>
     </nav>
-  </div>
-</header>
-
-<main class="wrap">
-  <section id="extTop"></section>
-  <section id="compare" hidden aria-labelledby="cmpTitle">
-    <h2 id="cmpTitle">Side-by-side summary</h2>
-    <p>"Both up for" is how long a solar lander that lands at that moment keeps sunlight and direct radio together. It is the number that changes most when a landing date slips.</p>
-    <table><thead><tr>
-      <th>Scenario</th><th>Site</th><th>Time (UTC)</th><th>Sun now</th><th>Earth now</th>
-      <th class="num">Sun and Earth both up for</th><th class="num">Sunlight, 30 d</th><th class="num">Earth in view, 30 d</th><th class="num">Both, 30 d</th><th class="num">Longest night</th>
-    </tr></thead><tbody></tbody></table>
-  </section>
-  <div id="scenarios"></div>
+    <div class="panel-content">
+      <div id="scenarioView">
+        <div class="panel-toolbar">
+          <label class="panel-scenario">Scenario <select id="scenarioPicker"></select></label>
+          <div class="actions science-actions">
+            <button class="btn small" id="terrainBtn" type="button" aria-pressed="true" title="Toggle NASA LOLA terrain">LOLA terrain</button>
+          </div>
+          <div class="actions view-mission"><button class="btn small" id="addBtn" type="button">Add scenario</button></div>
+        </div>
+        <div class="view-mission">
+          <p class="mission-verdict"></p>
+          <p class="mission-context"></p>
+          <div class="mission-decision-actions" hidden>
+            <button class="btn small" id="explainDecision" type="button">Show why</button>
+            <button class="btn small" id="findDecisionDate" type="button">Find next qualifying start</button>
+          </div>
+          <div class="mission-options">
+            <label for="missionDays">Mission days <input id="missionDays" type="number" min="1" max="30" step="1" value="30" required></label>
+            <button class="btn small" id="exportMission" type="button">Export CSV</button>
+          </div>
+          <p class="mission-target"></p>
+          <label class="shared-clock" hidden><input id="sharedClock" type="checkbox"> Shared UTC timeline</label>
+          <div class="mission-legend" aria-label="Timeline and energy legend">
+            <span>30-day visibility</span><span><i class="sun"></i>Sun</span><span><i class="earth"></i>Earth</span><span><i class="both"></i>Both</span>
+            <span class="energy-label"></span>
+          </div>
+        </div>
+        <div id="scenarios"></div>
+        <details class="mission-figures view-mission">
+          <summary>Power settings and figures</summary>
+          <label class="field"><span>Sunlight rule for visibility windows</span><select id="missionSunRule">
+            <option value="edge">Any visible part</option>
+            <option value="centre" selected>Sun centre</option>
+            <option value="full">Full solar disk</option>
+          </select></label>
+          <div data-top-slot="power"></div>
+          <div id="compare">
+            <div class="compare-table" tabindex="0" role="region" aria-label="Mission comparison figures">
+              <table><thead></thead><tbody></tbody></table>
+            </div>
+          </div>
+        </details>
+        <div class="actions view-site">
+          <button class="btn small" id="linkBtn" type="button">Copy link</button>
+          <button class="btn small" id="aboutBtn" type="button">About and data</button>
+        </div>
+        <div id="extTop" class="view-learn"></div>
+      </div>
+      <div id="finderView" data-top-slot="finder"></div>
+    </div>
+    </div>
+  </aside>
 </main>
-
-<footer>
-  <div class="wrap">
-    <p>Positions are calculated in your browser from the Astronomy Engine library and the IAU model of the Moon's orientation. <span id="valNote">Each scenario links to the same query in NASA JPL Horizons.</span> Polar horizons come from NASA LRO LOLA laser-altimeter topography. Site coordinates come from LROC, the USGS Gazetteer of Planetary Nomenclature and NASA NSSDC.</p>
-    <p>Built for the NASA Space Apps Challenge 2026. Development assisted by Anthropic Claude and OpenAI Codex. Independent project.</p>
-  </div>
-</footer>
 
 <dialog id="about" aria-labelledby="aboutTitle">
   <div class="dlg">
-    <button class="btn small dlg-close" type="button" id="aboutClose">Close</button>
-    <h2 id="aboutTitle">About MoonWindow</h2>
+    <div class="dlg-head">
+      <h2 id="aboutTitle">About MoonWindow</h2>
+      <button class="btn small dlg-close" type="button" id="aboutClose">Close</button>
+    </div>
     <p>Landers near the Moon's south pole live on a knife edge. The Sun and Earth both hang near the horizon there, so a small change of landing spot or date can switch solar power or direct radio contact on or off. MoonWindow shows that at a glance for any site and date.</p>
 
     <h3>What you see</h3>
     <ul>
       <li><b>Sky view:</b> a 360° picture of the sky from the landing site. Left to right is compass direction, up and down is height above the horizon. The sky is black because the Moon has no air, even in daylight. Dotted tracks show where the Sun and Earth move over the next 30 days.</li>
       <li><b>Sunlight and Earth cards:</b> whether each is above the horizon now, how high, and how long until it sets or rises.</li>
-      <li><b>30-day timeline:</b> when there is sunlight, when Earth is in view, and when you have both. Click it to jump to that moment.</li>
-      <li><b>Comparison:</b> add up to three scenarios, for example the same site a week later after a launch slip.</li>
+      <li><b>30-day timeline:</b> when there is sunlight, when Earth is in view, and when you have both. Drag or tap to choose a time, or focus the timeline and use the arrow keys to step by one hour.</li>
+      <li><b>Mission:</b> compare power and visibility for up to three scenarios using shared solar settings. Each timeline has a landing-date finder below it.</li>
     </ul>
 
     <h3>How it's calculated</h3>
@@ -261,7 +422,7 @@ footer p{margin:4px 0;max-width:100ch}
     <p id="aboutVal">Each scenario links to the same query in NASA JPL Horizons so you can compare the numbers.</p>
     <ul>
       <li><b>Terrain detail.</b> The 80 m and 240 m grids capture mountains, ridges and crater rims but not boulders or small craters near the lander. At the pole, a few hundred metres matter: on the connecting ridge, two points 200 m apart get 88% and 78% sunlight over a year. Listed south polar sites use precomputed 80 m skylines. Any other point south of 77°S, including custom coordinates, gets a skyline computed in your browser from 240 m LOLA terrain (960 m for distant mountains). That is accurate on plains and plateaus and approximate on narrow ridges. Points north of 77°S use flat ground.</li>
-      <li><b>Centers, not edges.</b> "Up" means the center of the Sun or Earth is above the horizon. The Sun's disk is about half a degree wide, so near the poles it can be partly visible.</li>
+      <li><b>Visibility thresholds.</b> Earth visibility uses its centre. The Mission panel lets you choose whether any part, the centre, or the entire Sun must clear the horizon. Power estimates use the visible fraction of the solar disk.</li>
     </ul>
 
     <h3>Landing sites</h3>
@@ -280,53 +441,58 @@ footer p{margin:4px 0;max-width:100ch}
 
     <h3>Credits and AI use</h3>
     <p>NASA LRO LOLA supplies the horizon and terrain data. NASA JPL Horizons provides validation. Globe imagery comes from NASA Goddard Scientific Visualization Studio's <a href="https://svs.gsfc.nasa.gov/4720/">CGI Moon Kit</a> and <a href="https://svs.gsfc.nasa.gov/4851/">Deep Star Maps 2020</a> with ESA/Gaia/DPAC (Gaia DR2). Astronomy Engine by Don Cross is bundled under the MIT License.</p>
+    <p>The 3D globe uses the selected scenario's time to light the Moon and position the Sun and Earth. A faint fill keeps the lunar night side visible for navigation. The Sun and Earth are enlarged for readability. Earth uses a fixed <a href="https://science.nasa.gov/earth/earth-observatory/blue-marble-next-generation/base-topography-bathymetry/">NASA Earth Observatory Blue Marble</a> texture.</p>
     <p>Anthropic Claude and OpenAI Codex assisted with code and documentation. See <a href="docs/sources.md">sources, licenses, and AI disclosure</a> for the full inventory.</p>
   </div>
 </dialog>
 
 <template id="tplScenario">
   <section class="scenario">
+    <div class="site-summary"><h2 class="summary-name"></h2><div class="summary-status"></div></div>
     <div class="sc-head">
-      <div class="sc-tag" aria-hidden="true"></div>
-      <div class="sc-place">
+      <div class="sc-place view-site">
         <label class="field"><span>Landing site</span><select class="site"></select></label>
         <div class="coords">
           <label class="field"><span>Latitude (°, south is negative)</span><input class="lat" type="number" step="0.001" min="-90" max="90" inputmode="decimal"></label>
           <label class="field"><span>Longitude (° east)</span><input class="lon" type="number" step="0.001" min="-360" max="360" inputmode="decimal"></label>
         </div>
       </div>
-      <div class="sc-time">
-        <label class="field"><span>Date and time (UTC)</span><input class="dt" type="datetime-local" step="60"></label>
-        <div class="steps" role="group" aria-label="Move time">
-          <button class="btn small" type="button" data-step="-24">−1 day</button>
-          <button class="btn small" type="button" data-step="-1">−1 hour</button>
-          <button class="btn small" type="button" data-now="1">Now</button>
-          <button class="btn small" type="button" data-step="1">+1 hour</button>
-          <button class="btn small" type="button" data-step="24">+1 day</button>
-          <button class="btn small" type="button" data-step="168">Slip 1 week</button>
-        </div>
+      <button class="btn small remove view-site" type="button">Remove scenario</button>
+    </div>
+    <div class="view-sky">
+      <div class="decision-event" hidden>
+        <p class="decision-event-detail"></p>
+        <button class="btn small" type="button">Back to Mission</button>
       </div>
-      <button class="btn small remove" type="button">Remove</button>
+      <figure class="sky">
+        <svg class="skysvg" viewBox="0 0 1000 300" role="img"></svg>
+        <figcaption class="skycap"></figcaption>
+      </figure>
+      <div class="cards">
+        <article class="card power"></article>
+        <article class="card comms"></article>
+      </div>
+      <p class="insight"></p>
+      <div class="sc-foot">
+        <span>Check this moment in NASA JPL Horizons</span>
+        <a class="hz-sun" target="_blank" rel="noopener">Sun position</a>
+        <a class="hz-earth" target="_blank" rel="noopener">Earth position</a>
+      </div>
     </div>
-    <p class="insight"></p>
-    <figure class="sky">
-      <svg class="skysvg" viewBox="0 0 1000 300" role="img"></svg>
-      <figcaption class="skycap"></figcaption>
-    </figure>
-    <div class="cards">
-      <article class="card power"></article>
-      <article class="card comms"></article>
-      <article class="card month"></article>
-    </div>
-    <div class="ext"></div>
-    <figure class="tl">
-      <figcaption class="tlcap"></figcaption>
-      <svg class="tlsvg" viewBox="0 0 1000 132" role="img"></svg>
-    </figure>
-    <div class="sc-foot">
-      <span>Check this moment in NASA JPL Horizons:</span>
-      <a class="hz-sun" target="_blank" rel="noopener">Sun position</a>
-      <a class="hz-earth" target="_blank" rel="noopener">Earth position</a>
+    <div class="view-mission mission-track">
+      <div class="mission-track-head"><h3 class="mission-scenario-name"></h3><span class="mission-energy"></span></div>
+      <figure class="tl">
+        <figcaption class="tlcap"></figcaption>
+        <svg class="tlsvg" viewBox="0 0 1000 37" role="slider" tabindex="0"
+          aria-label="Timeline time" aria-valuemin="0" aria-valuemax="720"></svg>
+      </figure>
+      <p class="mission-readiness"></p>
+      <details class="mission-planning">
+        <summary>Dates</summary>
+        <div class="ext" data-plugin-group="planner"></div>
+        <div class="cards"><article class="card month"></article></div>
+        <div class="ext"></div>
+      </details>
     </div>
   </section>
 </template>
@@ -340,10 +506,12 @@ footer p{margin:4px 0;max-width:100ch}
 <script src="validation-data.js"></script>
 <script src="terrain-grid.js"></script>
 <script src="terrain.js"></script>
+<script src="site-candidates.js"></script>
 <!-- Plugins: one file each, listed here. Order does not matter. -->
 <script id="moonwindow-dem" type="application/octet-stream"></script>
 <script id="moonwindow-albedo" type="application/octet-stream"></script>
 <script id="moonwindow-stars" type="application/octet-stream"></script>
+<script id="moonwindow-earth" type="application/octet-stream"></script>
 <script src="plugins/terrain-source.js"></script>
 <script src="plugins/map.js"></script>
 <script src="plugins/rules.js"></script>
@@ -351,6 +519,7 @@ footer p{margin:4px 0;max-width:100ch}
 <script src="plugins/learn.js"></script>
 <!-- <script src="plugins/export.js"></script> -->
 <script src="plugins/planner.js"></script>
+<script src="plugins/finder.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

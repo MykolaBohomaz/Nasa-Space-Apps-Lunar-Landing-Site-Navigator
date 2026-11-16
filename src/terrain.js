@@ -121,7 +121,7 @@
       return { values: out, groundM: h0 };
     }
 
-    return { profile, heightAt, covers, resAt, meta };
+    return { profile, heightAt, covers, resAt, meta, rasters: [Znear, Zfar] };
   }
 
   const api = { loadBrowser, loadNode, create, decodeHeights };
