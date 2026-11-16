@@ -1,3 +1,4 @@
+# Code generated with an AI assistant (Claude) from our team's requirements.
 # Rebuilds index.html (one self-contained file) from src/.
 # Every <script src="..."> in src/index.html is inlined from src/ (Astronomy Engine from node_modules).
 # Commented-out <script> lines are skipped. Needs: Python 3, and `npm install astronomy-engine@2` in this folder.

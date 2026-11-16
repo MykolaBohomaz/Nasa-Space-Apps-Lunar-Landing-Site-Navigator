@@ -1,3 +1,4 @@
+# Code written with AI assistance from our team's requirements (Anthropic Claude / OpenAI Codex; see docs/sources.md).
 """Extract fixed 3×3 image patches from the LROC South Pole Movie PDS archive."""
 import csv
 import math

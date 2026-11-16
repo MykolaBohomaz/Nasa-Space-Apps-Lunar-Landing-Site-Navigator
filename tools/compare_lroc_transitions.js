@@ -1,3 +1,4 @@
+// Code written with AI assistance from our team's requirements (Anthropic Claude / OpenAI Codex; see docs/sources.md).
 // Score the shipped Sun-centre visibility rule against LROC WAC image pairs.
 'use strict';
 const fs = require('node:fs');

@@ -1,3 +1,4 @@
+// Code written with AI assistance from our team's requirements (Anthropic Claude / OpenAI Codex; see docs/sources.md).
 // Compare NASA PGDA solar and Earth coverage with the shipped terrain and a flat baseline.
 'use strict';
 const fs = require('node:fs');

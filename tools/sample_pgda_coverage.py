@@ -1,3 +1,4 @@
+# Code written with AI assistance from our team's requirements (Anthropic Claude / OpenAI Codex; see docs/sources.md).
 """Read NASA PGDA's 120 m solar and Earth coverage rasters at a fixed polar sample."""
 import csv
 import math

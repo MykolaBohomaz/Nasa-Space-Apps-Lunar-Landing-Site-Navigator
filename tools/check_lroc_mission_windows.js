@@ -1,3 +1,4 @@
+// Code written with AI assistance from our team's requirements (Anthropic Claude / OpenAI Codex; see docs/sources.md).
 // Check proposed seven-day landing windows against observed lunar surface shadows.
 'use strict';
 const fs = require('node:fs');

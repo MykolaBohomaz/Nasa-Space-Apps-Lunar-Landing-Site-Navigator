@@ -1,3 +1,4 @@
+// Code written with AI assistance from our team's requirements (Anthropic Claude / OpenAI Codex; see docs/sources.md).
 // Shortlist Artemis region points from MoonWindow's offline NASA LOLA screening data.
 (() => {
   'use strict';

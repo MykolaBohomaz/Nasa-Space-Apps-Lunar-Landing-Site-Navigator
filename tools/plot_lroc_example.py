@@ -1,3 +1,4 @@
+# Code written with AI assistance from our team's requirements (Anthropic Claude / OpenAI Codex; see docs/sources.md).
 """Plot one sunrise from the cached camera measurements and predictions."""
 import csv
 import gzip

@@ -1,3 +1,4 @@
+// Code written with AI assistance from our team's requirements (Anthropic Claude / OpenAI Codex; see docs/sources.md).
 // Run from the repo root: node tools/make_site_candidates.js > src/site-candidates.js
 'use strict';
 const { inflateSync } = require('node:zlib');
