@@ -621,6 +621,10 @@
           <h1>MoonWindow</h1>
           <select aria-label="Select landing site"></select>
           <p id="mw-globe-help">Pick a site · Drag to orbit · Scroll or pinch to zoom</p>
+          <nav class="mw-globe-start" aria-label="Get started">
+            <button type="button" class="btn mw-finder-entry">Find sites</button>
+            <button type="button" class="btn mw-demo-entry">Try the 7-day demo</button>
+          </nav>
           <div role="status" class="mw-globe-status"></div>
         </div>
         <div class="mw-globe-dock">
@@ -666,6 +670,8 @@
     const pins = slot.querySelector('.mw-globe-pins');
     const select = slot.querySelector('select');
     const help = slot.querySelector('#mw-globe-help');
+    slot.querySelector('.mw-finder-entry').addEventListener('click', api.openFinder);
+    slot.querySelector('.mw-demo-entry').addEventListener('click', api.startMissionDemo);
     const status = slot.querySelector('[role="status"]');
     const credit = slot.querySelector('.mw-globe-credit a');
     const detail = credit.nextElementSibling;
@@ -1063,12 +1069,14 @@
     return () => {
       syncFinder();
       const scenarios = api.scenarios();
+      const exploring = api.exploringNewSite();
       const activeScenario = api.activeScenario();
       const letter = scenarios.length > 1 ? letters[scenarios.indexOf(activeScenario)] : '';
       const target = letter ? ' for scenario ' + letter : '';
       select.setAttribute('aria-label', 'Select landing site' + target);
       const nextLetter = letters[scenarios.length];
-      const pickHelp = nextLetter ? 'Pick a point to add ' + nextLetter : 'Pick a point' + target;
+      const pickHelp = exploring ? 'Click the Moon to pin a site'
+        : nextLetter ? 'Pick a point to add ' + nextLetter : 'Pick a point' + target;
       help.textContent = (finderLayer ? 'Click a numbered candidate to pin it' : pickHelp) +
         ' · Drag to orbit · Scroll or pinch to zoom';
       const time = activeScenario?.t;
@@ -1084,7 +1092,8 @@
         };
       }
       const locations = new Map();
-      scenarios.forEach(({ lat, lon }, index) => {
+      const pinned = exploring ? [] : scenarios;
+      pinned.forEach(({ lat, lon }, index) => {
         const key = `${lat},${((lon % 360) + 360) % 360}`;
         const existing = locations.get(key);
         const element = markers[index];
@@ -1097,7 +1106,7 @@
         }
       });
       scenarioPins = [...locations.values()];
-      markers.slice(scenarios.length).forEach(marker => { marker.hidden = true; });
+      markers.slice(pinned.length).forEach(marker => { marker.hidden = true; });
       schedule();
     };
   }

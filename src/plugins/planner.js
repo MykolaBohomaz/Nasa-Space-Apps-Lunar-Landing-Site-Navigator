@@ -36,13 +36,13 @@
   function css() {
     const st = document.createElement('style');
     st.textContent = `
-      .mw-plan{background:var(--panel2);border:1px solid var(--line);border-top:4px solid var(--both);border-radius:10px;padding:14px 16px}
-      .mw-plan h3{margin:0 0 4px;font-size:1rem;font-weight:600}
-      .mw-plan p{margin:4px 0;color:var(--muted);font-size:.9rem;max-width:80ch}
-      .mw-plan form{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:8px 0}
-      .mw-plan input{width:5.5em;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px;color:var(--text)}
-      .mw-plan ol{margin:8px 0 0;padding:0;list-style:none;display:grid;gap:6px}
-      .mw-plan li{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:8px 10px;background:var(--bg);border-radius:8px;font-variant-numeric:tabular-nums}
+      .mw-plan{background:var(--panel2);border:1px solid var(--line);border-top:2px solid var(--both);border-radius:8px;padding:8px}
+      .mw-plan h3{margin:0 0 4px;font-size:.85rem;font-weight:600}
+      .mw-plan p{margin:3px 0;color:var(--muted);font-size:.75rem}
+      .mw-plan form{display:flex;flex-wrap:wrap;align-items:end;gap:5px 7px;margin:5px 0}
+      .mw-plan input{width:4.5em;background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:4px 6px;color:var(--text)}
+      .mw-plan ol{margin:5px 0 0;padding:0;list-style:none;display:grid;gap:4px}
+      .mw-plan li{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:5px 7px;background:var(--bg);border-radius:6px;font-variant-numeric:tabular-nums}
       .mw-plan li b{min-width:19ch}
       .mw-plan .len{color:var(--both);font-weight:600}
       .mw-plan .note{color:var(--text)}`;
@@ -52,10 +52,9 @@
   function build(slot) {
     slot.innerHTML = `<section class="mw-plan" aria-label="Landing date finder">
       <h3>Find landing dates</h3>
-      <p>Dates in the next year when a lander here keeps sunlight and direct radio to Earth together for long enough. It uses the same horizon as the rest of this scenario.</p>
       <form>
-        <label>Need Sun and Earth together for at least <input type="number" min="1" max="30" step="1" value="7" inputmode="numeric"> days</label>
-        <label>Order <select name="order"><option value="earliest">Earliest start</option><option value="longest">Longest overlap</option></select></label>
+        <label class="field"><span>Min overlap (days)</span><input type="number" min="1" max="30" step="1" value="7" inputmode="numeric"></label>
+        <label class="field"><span>Order</span><select name="order"><option value="earliest">Earliest start</option><option value="longest">Longest overlap</option></select></label>
         <button class="btn small" type="submit">Find dates</button>
       </form>
       <div class="out" aria-live="polite"></div>
