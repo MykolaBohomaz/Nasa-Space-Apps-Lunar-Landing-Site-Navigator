@@ -1,5 +1,7 @@
 # MoonWindow
 
+**Live app:** https://mykolabohomaz.github.io/Nasa-Space-Apps-Lunar-Landing-Site-Navigator/ · **Demo (7 slides):** [docs/MoonWindow-demo.pdf](docs/MoonWindow-demo.pdf)
+
 **Open `index.html` in a modern browser and start exploring.** MoonWindow runs entirely offline from one self-contained file (about 14 MB), with the terrain, imagery, and code already bundled. Setup takes one step.
 
 **Click the Moon, choose a date, and see what changes.** Use the side panel to analyze the site. The globe and timeline show when sunlight and a direct line of sight to Earth are available. Compare up to three landing sites side by side, each with its own start date.
@@ -50,7 +52,7 @@ Open `index.html` in any modern browser. That's it: there's no server, nothing t
 
 A fresh open shows the full-screen globe. Click the surface to pin your first site, open **Find sites** to screen terrain, or choose **Try the 7-day demo** to open the Mons Mouton decision. The January 15 start passes. A one-week slip leaves it **6 h 39 min short** because sunlight ends before the mission does. **Show why** opens Sky at that crossing and highlights the limiting body. **Find next qualifying start** searches from the slipped date using the same duration and visibility assumptions. To open the demo directly from a published copy, append `#s=-84.1652,28.9528,20270115T0600&days=7&view=mission` to the app URL.
 
-To publish it on GitHub Pages: repository **Settings → Pages → Build and deployment → Deploy from a branch → `main` / root → Save**. After a minute the site is live at `https://<user>.github.io/<repo>/`.
+To publish it on GitHub Pages: repository **Settings → Pages → Build and deployment → Deploy from a branch → `main` / root → Save**. After a minute the site is live at https://mykolabohomaz.github.io/Nasa-Space-Apps-Lunar-Landing-Site-Navigator/.
 
 ## How it works
 

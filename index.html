@@ -487,6 +487,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       </div>
       <button class="btn small remove view-site" type="button">Remove scenario</button>
     </div>
+    <div class="ext view-site" data-plugin-group="rules"></div>
     <div class="view-sky">
       <div class="decision-event" hidden>
         <p class="decision-event-detail"></p>
@@ -2296,10 +2297,10 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       .mw-rules h3{margin:0 0 4px}
       .mw-rules p{margin:4px 0;color:var(--muted)}
       .mw-rules ul{margin:10px 0 6px;padding:0;list-style:none;display:grid;gap:6px}
-      .mw-rules li{display:grid;grid-template-columns:7.5em 1fr;gap:4px 12px;align-items:baseline;padding:8px 10px;background:var(--bg);border-radius:8px}
+      .mw-rules li{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:baseline;padding:8px 10px;background:var(--bg);border-radius:8px}
       .mw-rules li .chip{justify-self:start;white-space:nowrap}
       .mw-rules .chip.na{background:rgba(163,169,174,.16);color:var(--muted)}
-      .mw-rules li span.v{grid-column:2;color:var(--muted);font-size:.9rem;font-variant-numeric:tabular-nums}
+      .mw-rules li span.v{grid-column:2;color:var(--muted);font-size:.85rem;font-variant-numeric:tabular-nums}
       .mw-rules .sum{color:var(--text);font-weight:600}
       .mw-rules a{color:var(--earth)}`;
     document.head.appendChild(st);
