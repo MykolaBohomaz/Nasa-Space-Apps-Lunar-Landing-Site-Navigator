@@ -17,7 +17,7 @@
   --bg:#1E2226; --panel:#262B30; --panel2:#2D3338; --line:#3C434A; --text:#ECE9E2; --muted:#A3A9AE;
   --sun:#F4B942; --earth:#5DA9E9; --both:#8FD6B0; --bad:#E9806E;
   --radius:10px;
-  --edge:16px; --panel-width:410px; --section-gap:12px;
+  --edge:16px; --panel-width:390px; --section-gap:9px; --globe-control:32px;
   --font:"Avenir Next","Avenir","Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
 }
 *{box-sizing:border-box}
@@ -25,20 +25,26 @@ html{background:var(--bg);color:var(--text);font-family:var(--font);font-size:16
 body{margin:0}
 button,input,select{font:inherit;color:inherit}
 .mw-globe{position:fixed;inset:0;background:#070a0f;color:#ece9e2}
-.mw-globe-header{position:absolute;z-index:1;inset:var(--edge) auto auto var(--edge);width:min(320px,calc(100% - 2 * var(--edge)))}
-.mw-globe-header h1{font-size:1.25rem;margin:0 0 8px}
-.mw-globe-header p{margin:8px 0 0;color:#dbe4ee;font-size:.8rem}
+.mw-globe-header{position:absolute;z-index:1;inset:var(--edge) auto auto var(--edge);width:min(260px,calc(100% - 2 * var(--edge)))}
+.mw-globe-header h1{font-size:1.125rem;margin:0 0 6px}
+.mw-globe-header p{margin:5px 0 0;color:#dbe4ee;font-size:.75rem}
 .mw-globe-header h1,.mw-globe-header p{text-shadow:0 1px 4px #000,0 1px 6px #000}
-.mw-globe-dock{position:absolute;z-index:1;inset:auto var(--edge) var(--edge) var(--edge);display:grid;justify-items:start;gap:8px;pointer-events:none}
-.mw-globe-controls{display:flex;gap:6px;flex-wrap:wrap}
+.mw-globe-start{display:none;flex-wrap:wrap;gap:5px;margin-top:8px}
+.exploring-globe:not(.panel-open) .mw-globe-start{display:flex}
+.mw-globe-start .btn{background:#142233;border-color:#70849a;min-height:var(--globe-control);font-size:.79rem;padding:4px 8px}
+.mw-globe-start .mw-finder-entry{background:#a1e5cf;border-color:#a1e5cf;color:#122821;font-weight:650}
+.exploring-globe:not(.panel-open) :is(#panelToggle,#closedTime){display:none}
+.mw-globe-dock{position:absolute;z-index:1;inset:auto var(--edge) var(--edge) var(--edge);display:grid;justify-items:start;gap:5px;pointer-events:none;container-type:inline-size}
+.mw-globe-controls{display:flex;gap:4px;flex-wrap:wrap;max-width:100%}
 .mw-globe-controls button,.mw-globe-credit{pointer-events:auto}
 .mw-globe-zoom,.mw-globe-find{display:flex;gap:2px}
 .mw-globe-zoom button:first-child,.mw-globe-find button:first-child{border-start-end-radius:2px;border-end-end-radius:2px}
 .mw-globe-zoom button:last-child,.mw-globe-find button:last-child{border-start-start-radius:2px;border-end-start-radius:2px}
 .mw-globe-controls button,.mw-globe-header select,#panelToggle{color-scheme:dark}
-.mw-globe-controls button,.mw-globe select{min-height:44px;padding:6px 10px;border:1px solid #667991;border-radius:6px;background:#152233;color:#ece9e2}
-.mw-globe-controls button{min-width:44px;cursor:pointer}
+.mw-globe-controls button,.mw-globe-header select{min-height:var(--globe-control);padding:4px 8px;border:1px solid #667991;border-radius:6px;background:#152233;color:#ece9e2;font-size:.78rem}
+.mw-globe-controls button{min-width:var(--globe-control);cursor:pointer;white-space:nowrap}
 .mw-globe-controls button[aria-pressed="true"]{border-color:var(--both);color:var(--both)}
+@container (max-width:385px){.mw-pole-prefix{display:none}}
 .mw-globe-viewport{position:absolute;inset:0;overflow:hidden}
 .mw-globe canvas,.mw-globe-pins{position:absolute;inset:0;width:100%;height:100%}
 .mw-globe canvas{touch-action:none;cursor:crosshair}
@@ -56,9 +62,18 @@ button,input,select{font:inherit;color:inherit}
 .mw-candidate-pin:disabled{cursor:default}
 .mw-globe-scenario{position:absolute;transform:translate(-50%,calc(-100% - 5px));padding:0 4px;border:1px solid #e4edf8;border-radius:4px;background:#152233;color:#fff;font-weight:700;font-size:.8rem;white-space:nowrap}
 .mw-globe-scenario::after{content:'';position:absolute;top:calc(100% + 1px);left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#e4edf8;border-bottom:0}
-.mw-globe select{max-width:100%}
+.mw-globe-header select{display:block;width:min(100%,220px)}
+.mw-globe-header select,.panel-scenario #scenarioPicker{
+  appearance:none;
+  padding-inline-end:23px;
+  text-overflow:ellipsis;
+  background-image:linear-gradient(45deg,transparent 50%,#bdcbdc 50%),linear-gradient(135deg,#bdcbdc 50%,transparent 50%);
+  background-position:right 12px center,right 8px center;
+  background-size:4px 4px;
+  background-repeat:no-repeat
+}
 .mw-globe-credit{position:relative;max-width:100%}
-.mw-globe-credit summary{cursor:pointer;padding:5px 9px;border:1px solid #667991;border-radius:6px;background:#152233}
+.mw-globe-credit summary{cursor:pointer;padding:3px 7px;border:1px solid #667991;border-radius:6px;background:#152233}
 .mw-globe-sources{position:absolute;inset:auto auto calc(100% + 6px) 0;width:max-content;max-width:min(300px,calc(100vw - 2 * var(--edge)));padding:10px 12px;border:1px solid #48566b;border-radius:8px;background:#101925;line-height:1.65}
 .mw-globe-status{margin-top:6px;padding:4px 7px;background:#101925;border-radius:4px}
 .mw-globe-credit,.mw-globe-status{color:#c2cbd8;font-size:.8rem}
@@ -72,11 +87,11 @@ button,input,select{font:inherit;color:inherit}
 .mw-plugin-fields input,.mw-plugin-fields select{display:block;margin-top:4px}
 .mw-power p{margin:6px 0 0}
 .mw-plugin-error{color:var(--bad)}
-.mw-learn{margin:12px 0}
-.mw-learn h2{font-size:1.1rem;margin:0}
-.mw-learn ol{padding-inline-start:24px}
-.mw-learn li+li{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
-.mw-learn li p{margin:8px 0}
+.mw-learn{margin:6px 0;padding:8px}
+.mw-learn h2{font-size:.95rem;margin:0}
+.mw-learn ol{padding-inline-start:20px;margin:6px 0}
+.mw-learn li+li{margin-top:7px;padding-top:6px;border-top:1px solid var(--line)}
+.mw-learn li p{margin:4px 0}
 .mw-learn-feedback:empty{margin:0}
 .mw-learn-result{display:inline-block;margin-inline-end:.5em;padding:.12em .55em;border:1px solid currentColor;border-radius:.5em;transform-origin:left center}
 .mw-learn-result.best{background:#193a31}
@@ -93,8 +108,9 @@ a{color:var(--earth)}
 .btn[aria-pressed="true"]{background:var(--text);color:var(--bg);border-color:var(--text)}
 .btn.small{padding:5px 10px;font-size:.88rem}
 
-#panelToggle{position:fixed;z-index:3;top:var(--edge);right:var(--edge);min-height:44px;background:#152233;border-color:#667991}
-#sitePanel{position:fixed;z-index:2;top:70px;right:var(--edge);bottom:var(--edge);width:var(--panel-width);display:flex;flex-direction:column;gap:8px;pointer-events:none}
+#panelToggle{position:fixed;z-index:3;top:var(--edge);right:var(--edge);min-height:var(--globe-control);padding:4px 9px;font-size:.79rem;background:#152233;border-color:#667991}
+#sitePanel{position:fixed;z-index:2;top:66px;right:var(--edge);bottom:var(--edge);width:var(--panel-width);display:flex;flex-direction:column;gap:6px;pointer-events:none;font-size:.8125rem;line-height:1.35}
+#sitePanel .btn.small{font-size:.75rem;padding:4px 8px}
 #sitePanel[hidden]{display:none}
 .panel-shell,.time-controls{border:1px solid #48566b;border-radius:16px;background:#101925;box-shadow:0 16px 52px #000a;pointer-events:auto}
 .panel-shell{display:flex;flex:1 1 auto;flex-direction:column;min-height:0}
@@ -105,27 +121,32 @@ a{color:var(--earth)}
 .time-controls input[type=range]{display:block;width:100%;height:28px;min-height:28px;margin:0;accent-color:var(--earth);cursor:ew-resize;touch-action:pan-y}
 #closedTime{position:fixed;z-index:1;top:70px;right:var(--edge);padding:4px 8px;border-radius:6px;background:#101925e6;color:#dbe4ee;font-size:.8rem;font-variant-numeric:tabular-nums;pointer-events:none}
 body.panel-open #closedTime{display:none}
-body.panel-open:not([data-panel-view="site"]){--panel-width:min(920px,72vw)}
-body.panel-open[data-panel-view="mission"]{--panel-width:430px}
-body.panel-open[data-panel-view="finder"]{--panel-width:min(530px,49vw)}
 body.panel-open .mw-globe-dock{right:calc(var(--panel-width) + var(--edge) + 12px)}
-.panel-nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;padding:7px;border-bottom:1px solid #344459}
-.panel-nav button{min-height:34px;padding-inline:3px;font-size:.82rem;white-space:normal;line-height:1.15}
+.panel-nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;padding:5px;border-bottom:1px solid #344459}
+#sitePanel .panel-nav button{min-height:30px;padding-inline:2px;white-space:normal;line-height:1.15}
 .panel-nav .btn[aria-pressed="true"]{background:#233a52;color:#e7f2ff;border-color:#688fb7}
 .panel-content{min-height:0;overflow:auto;overscroll-behavior:contain;padding:var(--section-gap);scrollbar-gutter:stable}
-.panel-content .actions,.panel-scenario{margin:0 0 8px}
+@media (min-width:701px){
+  #sitePanel :is(select,input[type=number],input[type=datetime-local]){padding:4px 6px;font-size:.8125rem}
+}
+.panel-content .actions,.panel-scenario{margin:0 0 5px}
 .panel-content .actions.view-site{margin:8px 0 0}
 .panel-toolbar{display:flex;align-items:center;flex-wrap:wrap;column-gap:8px}
 .panel-toolbar .actions:has(#addBtn:disabled){display:none}
-.panel-scenario{display:flex;align-items:center;gap:6px;font-size:.875rem}
+#sitePanel:is([data-view="sky"],[data-view="mission"]) .panel-toolbar{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:0 6px
+}
+.panel-toolbar .panel-scenario{grid-area:1 / 1}
+.panel-toolbar .view-mission{grid-area:1 / 2}
+.panel-toolbar .science-actions{grid-area:1 / 3;justify-self:end}
+#sitePanel .panel-toolbar .btn{min-height:30px}
+.panel-scenario{display:flex;align-items:center;gap:5px;font-size:.79rem;white-space:nowrap}
 .panel-scenario[hidden]{display:none}
-.panel-scenario select{width:auto}
+.panel-scenario #scenarioPicker{width:44px;min-height:30px;padding-block:3px;padding-inline-start:8px;font-size:.79rem}
 .site-summary{padding:var(--section-gap)}
-.site-summary h2{margin:0 0 8px;font-size:1.1rem}
-.site-summary p{margin:5px 0 0;font-size:.9rem}
+.site-summary h2{margin:0 0 5px;font-size:.95rem}
+.site-summary p{margin:4px 0 0;font-size:.78rem}
 .visibility{display:flex;gap:8px;flex-wrap:wrap}
-.sky{overflow-x:auto}
-.sky svg{min-width:700px}
 #sitePanel:not([data-view="site"]) .view-site,
 #sitePanel:not([data-view="sky"]) .view-sky,
 #sitePanel:not([data-view="mission"]) .view-mission,
@@ -135,9 +156,9 @@ body.panel-open .mw-globe-dock{right:calc(var(--panel-width) + var(--edge) + 12p
 #sitePanel[data-view="learn"] .panel-scenario,
 #sitePanel[data-view="finder"] #scenarioView,
 #sitePanel:not([data-view="finder"]) #finderView{display:none}
-.mission-verdict{margin:2px 0 9px;font-size:.93rem;font-weight:650}
-.mission-context,.decision-event p{color:var(--muted);font-size:.8rem;margin:0 0 7px}
-.mission-decision-actions{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.mission-verdict{margin:2px 0 4px;font-size:.875rem;font-weight:650}
+.mission-context,.decision-event p{color:var(--muted);font-size:.75rem;margin:0 0 5px}
+.mission-decision-actions{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px}
 .decision-event{margin:0 0 8px;padding:8px;border:1px solid var(--line);border-radius:8px}
 .limit-card{outline:2px solid var(--sun);outline-offset:-2px}
 .mission-options{display:flex;justify-content:space-between;align-items:center;gap:6px;margin:0 0 5px}
@@ -168,45 +189,38 @@ body.panel-open .mw-globe-dock{right:calc(var(--panel-width) + var(--edge) + 12p
 .mission-figures{margin-top:8px}
 .mission-figures > summary{cursor:pointer;padding:5px 0;font-size:.84rem;color:#dbe4ee}
 .mission-figures > div{margin-top:5px}
-#sitePanel[data-view="mission"] .panel-toolbar{gap:0 6px}
-.mw-finder h2{margin:0;font-size:1.15rem}
-.mw-finder p{margin:6px 0 12px;font-size:.9rem}
-.mw-finder-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(135px,100%),1fr));gap:10px;align-items:end}
-.mw-finder-fields button{min-height:40px}
-.mw-finder .mw-finder-count{margin-top:14px}
+.mw-finder h2{margin:0;font-size:.95rem}
+.mw-finder p{margin:4px 0 7px;font-size:.77rem}
+.mw-finder-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;align-items:end}
+.mw-finder-fields button{min-height:30px}
+.mw-finder .mw-finder-count{margin-top:8px}
 .mw-finder-picks{min-width:0;margin:0;padding:0;border:0}
 .mw-finder-picks legend{font-size:.875rem;color:var(--muted);padding:0 0 6px}
 .mw-finder ol{list-style:none;margin:0;padding:0;display:grid;gap:6px}
-.mw-finder li{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:8px 10px;font-size:.88rem}
+.mw-finder li{border:1px solid var(--line);border-radius:6px;background:var(--panel);padding:5px 7px;font-size:.77rem}
 .mw-finder-picks label{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
 .mw-finder-picks input{width:16px;height:16px;min-height:0;margin:3px 0 0;accent-color:var(--earth);flex:none}
-.mw-finder li small{display:block;color:var(--muted);font-size:.8rem}
-.mw-finder-window{margin-top:14px}
-.mw-finder-window .field{max-width:265px;margin-bottom:10px}
-.mw-finder-window .actions{margin-bottom:8px}
+.mw-finder li small{display:block;color:var(--muted);font-size:.73rem}
+.mw-finder-window{margin-top:8px}
+.mw-finder-window .field{display:flex;flex-direction:row;align-items:center;margin-bottom:4px}
+.mw-finder-window .field input{width:4.5em}
+.mw-finder-window .actions{margin-bottom:6px}
 .mw-finder button:disabled{opacity:.5;cursor:default}
 @media (min-width:901px){
-  #sitePanel:is([data-view="site"],[data-view="mission"]){bottom:auto;max-height:calc(100dvh - 86px)}
+  #sitePanel{bottom:auto;max-height:calc(100dvh - 82px)}
 }
 @media (max-width:900px){
   :root{--sheet-height:min(62dvh,max(52dvh,390px));--section-gap:10px;--edge:12px}
   #sitePanel{top:auto;left:8px;right:8px;bottom:8px;width:auto;height:var(--sheet-height)}
   #sitePanel:not([data-view="site"]){height:calc(100dvh - 120px)}
-  #sitePanel:is([data-view="mission"],[data-view="finder"]){height:min(64dvh,calc(100dvh - 110px))}
+  #sitePanel:is([data-view="sky"],[data-view="mission"],[data-view="finder"]){height:min(64dvh,calc(100dvh - 110px))}
   body.panel-open .mw-globe-dock{right:var(--edge);bottom:calc(var(--sheet-height) + 16px)}
   body.panel-open .mw-globe-credit{display:none}
   body.panel-open:not([data-panel-view="site"]) .mw-globe-dock{display:none}
   #closedTime{top:auto;bottom:var(--edge)}
 }
 @media (max-width:520px){
-  .mw-globe-header h1{min-height:44px;display:flex;align-items:center;margin-bottom:6px}
-  .mw-globe-header p{font-size:.75rem}
-  .mw-globe-controls button{font-size:.82rem;padding-inline:8px}
   .mw-plugin-fields label:has(select){grid-column:1/-1}
-}
-@media (max-width:360px){
-  .mw-pole-prefix{display:none}
-  .mw-globe-controls{gap:4px}
 }
 
 /* Compare table */
@@ -243,23 +257,27 @@ input[type=datetime-local]{color-scheme:dark}
 /* Sky strip: the black lunar sky */
 .sky{margin:0;background:#000;position:relative}
 .sky svg{display:block;width:100%;height:auto}
-.skycap{display:grid;gap:6px;padding:10px var(--section-gap);font-size:.85rem;color:var(--muted);background:var(--panel2);border-top:1px solid var(--line)}
+.skycap{padding:5px var(--section-gap);font-size:.73rem;color:var(--muted);background:var(--panel2);border-top:1px solid var(--line)}
 
 /* Status cards */
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:var(--section-gap);padding:var(--section-gap)}
-.card{background:var(--panel2);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;border-top:4px solid var(--line)}
+.card{min-width:0;background:var(--panel2);border:1px solid var(--line);border-radius:var(--radius);padding:8px;border-top:2px solid var(--line)}
+.view-sky .cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.sky-notes{padding:0 var(--section-gap);color:var(--muted)}
+.sky-notes summary{cursor:pointer;margin-bottom:5px}
+.sky-notes .insight{padding:0 0 6px}
 .card.power{border-top-color:var(--sun)}
 .card.comms{border-top-color:var(--earth)}
 .card.month{border-top-color:var(--both)}
-.card h3{margin:0 0 6px;font-size:1rem;font-weight:600;display:flex;align-items:center;gap:6px}
-.state{display:flex;align-items:baseline;gap:10px;margin:2px 0 4px}
-.state .big{font-size:2.2rem;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
-.chip{font-size:.85rem;font-weight:600;padding:2px 9px;border-radius:99px}
+.card h3{margin:0 0 4px;font-size:.85rem;font-weight:600;display:flex;align-items:center;gap:5px}
+.state{display:flex;align-items:baseline;flex-wrap:wrap;gap:3px 6px;margin:2px 0 3px}
+.state .big{font-size:1.3rem;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.chip{font-size:.72rem;font-weight:600;padding:2px 6px;border-radius:99px}
 .chip.ok{background:rgba(143,214,176,.16);color:var(--both)}
 .chip.no{background:rgba(233,128,110,.16);color:var(--bad)}
-.card p{margin:4px 0;font-variant-numeric:tabular-nums}
-.card .muted{color:var(--muted);font-size:.9rem}
-.count{font-size:1.05rem;font-weight:600}
+.card p{margin:3px 0;font-variant-numeric:tabular-nums}
+.card .muted{color:var(--muted);font-size:.73rem}
+.count{font-size:.79rem;font-weight:600}
 .stats{display:grid;grid-template-columns:1fr auto;gap:5px 12px;margin:6px 0 0;font-variant-numeric:tabular-nums}
 .stats dt{color:var(--muted)}
 .stats dd{margin:0;text-align:right;font-weight:600}
@@ -276,7 +294,7 @@ input[type=datetime-local]{color-scheme:dark}
 .ext-slot:empty{display:none}
 #extTop{display:grid;gap:16px;margin-bottom:16px}
 #extTop:empty{display:none}
-.sc-foot{display:flex;flex-wrap:wrap;gap:8px 18px;padding:10px var(--section-gap) var(--section-gap);border-top:1px solid var(--line);font-size:.9rem;color:var(--muted)}
+.sc-foot{display:flex;flex-wrap:wrap;gap:4px 10px;padding:6px var(--section-gap);border-top:1px solid var(--line);font-size:.73rem;color:var(--muted)}
 
 /* Help tips */
 .tip{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:50%;width:20px;height:20px;font-size:.75rem;line-height:1;padding:0;cursor:help;position:relative;flex:none}
@@ -298,12 +316,22 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 
 @media (max-width:700px){
   .btn,select,input:not([type="checkbox"]),.mw-globe-credit summary{min-height:44px}
-  .panel-nav button{min-height:44px}
+  #sitePanel .panel-nav button{min-height:44px}
+  #sitePanel .panel-toolbar .btn{min-height:44px}
   .mw-globe-credit summary{align-content:center}
   .mw-globe-pin{width:44px;height:44px}
 }
+@media (max-width:700px) and (pointer:fine){
+  .mw-globe-header select,.mw-globe-credit summary{min-height:var(--globe-control)}
+  .panel-scenario #scenarioPicker{min-height:30px}
+  #sitePanel .panel-toolbar .btn{min-height:30px}
+}
+@media (pointer:coarse){
+  :root{--globe-control:44px}
+  .panel-scenario #scenarioPicker{min-height:44px}
+}
 @media (max-width:520px){
-  .state .big{font-size:1.8rem}
+  .state .big{font-size:1.25rem}
   .dlg{padding:16px}
   .dlg h2{font-size:1.3rem}
 }
@@ -465,16 +493,16 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
         <button class="btn small" type="button">Back to Mission</button>
       </div>
       <figure class="sky">
-        <svg class="skysvg" viewBox="0 0 1000 300" role="img"></svg>
+        <svg class="skysvg" viewBox="0 0 400 238" role="img"></svg>
         <figcaption class="skycap"></figcaption>
       </figure>
       <div class="cards">
         <article class="card power"></article>
         <article class="card comms"></article>
       </div>
-      <p class="insight"></p>
+      <details class="sky-notes"><summary>Visibility notes</summary><p class="insight"></p></details>
       <div class="sc-foot">
-        <span>Check this moment in NASA JPL Horizons</span>
+        <span>NASA JPL Horizons</span>
         <a class="hz-sun" target="_blank" rel="noopener">Sun position</a>
         <a class="hz-earth" target="_blank" rel="noopener">Earth position</a>
       </div>
@@ -1740,6 +1768,10 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
           <h1>MoonWindow</h1>
           <select aria-label="Select landing site"></select>
           <p id="mw-globe-help">Pick a site · Drag to orbit · Scroll or pinch to zoom</p>
+          <nav class="mw-globe-start" aria-label="Get started">
+            <button type="button" class="btn mw-finder-entry">Find sites</button>
+            <button type="button" class="btn mw-demo-entry">Try the 7-day demo</button>
+          </nav>
           <div role="status" class="mw-globe-status"></div>
         </div>
         <div class="mw-globe-dock">
@@ -1785,6 +1817,8 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     const pins = slot.querySelector('.mw-globe-pins');
     const select = slot.querySelector('select');
     const help = slot.querySelector('#mw-globe-help');
+    slot.querySelector('.mw-finder-entry').addEventListener('click', api.openFinder);
+    slot.querySelector('.mw-demo-entry').addEventListener('click', api.startMissionDemo);
     const status = slot.querySelector('[role="status"]');
     const credit = slot.querySelector('.mw-globe-credit a');
     const detail = credit.nextElementSibling;
@@ -1799,7 +1833,9 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
         groups.set(site.group, group);
         select.append(group);
       }
-      groups.get(site.group).append(new Option(site.name, site.id));
+      const option = new Option(site.name.replace(/ \([^)]*\)$/, ''), site.id);
+      option.title = site.name;
+      groups.get(site.group).append(option);
     }
     select.value = '';
     select.addEventListener('change', () => {
@@ -2182,14 +2218,16 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     return () => {
       syncFinder();
       const scenarios = api.scenarios();
+      const exploring = api.exploringNewSite();
       const activeScenario = api.activeScenario();
       const letter = scenarios.length > 1 ? letters[scenarios.indexOf(activeScenario)] : '';
       const target = letter ? ' for scenario ' + letter : '';
       select.setAttribute('aria-label', 'Select landing site' + target);
       const nextLetter = letters[scenarios.length];
-      const pickHelp = nextLetter ? 'Pick a point to add ' + nextLetter : 'Pick a point' + target;
+      const pickHelp = exploring ? 'Click the Moon to pin a site'
+        : nextLetter ? 'Pick a point to add ' + nextLetter : 'Pick a point' + target;
       help.textContent = (finderLayer ? 'Click a numbered candidate to pin it' : pickHelp) +
-        ' · Drag to orbit · Scroll or pinch to zoom';
+        ' · Drag to orbit';
       const time = activeScenario?.t;
       if (time !== undefined && time !== skyTime) {
         skyTime = time;
@@ -2203,7 +2241,8 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
         };
       }
       const locations = new Map();
-      scenarios.forEach(({ lat, lon }, index) => {
+      const pinned = exploring ? [] : scenarios;
+      pinned.forEach(({ lat, lon }, index) => {
         const key = `${lat},${((lon % 360) + 360) % 360}`;
         const existing = locations.get(key);
         const element = markers[index];
@@ -2216,7 +2255,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
         }
       });
       scenarioPins = [...locations.values()];
-      markers.slice(scenarios.length).forEach(marker => { marker.hidden = true; });
+      markers.slice(pinned.length).forEach(marker => { marker.hidden = true; });
       schedule();
     };
   }
@@ -2463,7 +2502,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       if (slot.firstElementChild) return;
       const section = document.createElement('section');
       section.className = 'mw-learn';
-      section.innerHTML = '<h2>Moon challenges</h2><p class="muted">Use scenario A to try these challenges.</p>';
+      section.innerHTML = '<h2>Moon challenges</h2><p class="muted">Use scenario A.</p>';
       const list = document.createElement('ol');
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
       for (const challenge of challenges) {
@@ -2554,13 +2593,13 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
   function css() {
     const st = document.createElement('style');
     st.textContent = `
-      .mw-plan{background:var(--panel2);border:1px solid var(--line);border-top:4px solid var(--both);border-radius:10px;padding:14px 16px}
-      .mw-plan h3{margin:0 0 4px;font-size:1rem;font-weight:600}
-      .mw-plan p{margin:4px 0;color:var(--muted);font-size:.9rem;max-width:80ch}
-      .mw-plan form{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:8px 0}
-      .mw-plan input{width:5.5em;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px;color:var(--text)}
-      .mw-plan ol{margin:8px 0 0;padding:0;list-style:none;display:grid;gap:6px}
-      .mw-plan li{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:8px 10px;background:var(--bg);border-radius:8px;font-variant-numeric:tabular-nums}
+      .mw-plan{background:var(--panel2);border:1px solid var(--line);border-top:2px solid var(--both);border-radius:8px;padding:8px}
+      .mw-plan h3{margin:0 0 4px;font-size:.85rem;font-weight:600}
+      .mw-plan p{margin:3px 0;color:var(--muted);font-size:.75rem}
+      .mw-plan form{display:flex;flex-wrap:wrap;align-items:end;gap:5px 7px;margin:5px 0}
+      .mw-plan input{width:4.5em;background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:4px 6px;color:var(--text)}
+      .mw-plan ol{margin:5px 0 0;padding:0;list-style:none;display:grid;gap:4px}
+      .mw-plan li{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:5px 7px;background:var(--bg);border-radius:6px;font-variant-numeric:tabular-nums}
       .mw-plan li b{min-width:19ch}
       .mw-plan .len{color:var(--both);font-weight:600}
       .mw-plan .note{color:var(--text)}`;
@@ -2570,10 +2609,9 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
   function build(slot) {
     slot.innerHTML = `<section class="mw-plan" aria-label="Landing date finder">
       <h3>Find landing dates</h3>
-      <p>Dates in the next year when a lander here keeps sunlight and direct radio to Earth together for long enough. It uses the same horizon as the rest of this scenario.</p>
       <form>
-        <label>Need Sun and Earth together for at least <input type="number" min="1" max="30" step="1" value="7" inputmode="numeric"> days</label>
-        <label>Order <select name="order"><option value="earliest">Earliest start</option><option value="longest">Longest overlap</option></select></label>
+        <label class="field"><span>Min overlap (days)</span><input type="number" min="1" max="30" step="1" value="7" inputmode="numeric"></label>
+        <label class="field"><span>Order</span><select name="order"><option value="earliest">Earliest start</option><option value="longest">Longest overlap</option></select></label>
         <button class="btn small" type="submit">Find dates</button>
       </form>
       <div class="out" aria-live="polite"></div>
@@ -2677,7 +2715,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
   function mount(slot, api) {
     slot.innerHTML = `
       <section class="mw-finder" aria-labelledby="mw-finder-heading">
-        <h2 id="mw-finder-heading">Find landing sites</h2>
+        <h2 id="mw-finder-heading">Site finder</h2>
         <p class="mw-finder-scope muted"></p>
         <form class="mw-finder-fields">
           <label class="field"><span>Search area</span><select name="region"></select></label>
@@ -2694,7 +2732,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
         </form>
         <p class="mw-finder-count" role="status"></p>
         <div class="mw-finder-window">
-          <label class="field"><span>Required continuous days with Sun and Earth</span><input class="mw-finder-days" type="number" min="1" max="30" value="7" required></label>
+          <label class="field"><span>Required overlap (days)</span><input class="mw-finder-days" type="number" min="1" max="30" value="7" required></label>
           <p class="mw-finder-start muted"></p>
           <div class="actions">
             <button class="btn small" type="button" data-check>Check landing windows</button>
@@ -2703,8 +2741,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
           </div>
           <div class="mw-finder-report" aria-live="polite"></div>
         </div>
-        <fieldset class="mw-finder-picks"><legend>Pin up to three sites on the globe or in the list</legend><ol></ol></fieldset>
-        <p class="muted">Grid-based slope and visibility estimates. Local rocks and small terrain features can matter, especially near ridges.</p>
+        <fieldset class="mw-finder-picks"><legend>Pin up to three</legend><ol></ol></fieldset>
       </section>`;
 
     const form = slot.querySelector('form');
@@ -2764,10 +2801,9 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       const rank = value('rank');
       const wide = polar && regionId === polar.id;
       const spacing = wide ? POLAR_SPACING_KM : ARTEMIS_SPACING_KM;
-      scope.textContent = (wide
-        ? `Search points on a ${polar.stepKm} km grid within ${polar.radiusKm} km of the south pole.`
-        : 'Search points within 5 km of the selected Artemis region reference points.') +
-        ' Brighter cells rank higher. Coverage filters use modeled 2027 Sun-centre and Earth-centre visibility.';
+      scope.textContent = wide ? `${polar.stepKm} km grid · 2027 coverage · Brighter cells rank higher`
+        : 'Within 5 km of Artemis reference points · 2027 coverage';
+      scope.title = 'Coverage uses the centres of the Sun and Earth. Grid estimates smooth out small terrain features.';
       const searchRegions = wide ? [polar] : artemis.filter(r => !regionId || r.id === regionId);
       const matches = searchRegions
         .flatMap(r => r.sites.map(s => ({ ...s, region: r.name })))
@@ -2790,15 +2826,14 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       }
       picked = new Set(results.slice(0, MAX_PICKS));
       count.textContent = matches.length
-        ? `${matches.length} matching cells on the globe · ${results.length} numbered candidates · ${spacing} km spacing`
+        ? `${matches.length} matching cells · ${results.length} candidates · ≥ ${spacing} km apart`
         : 'No points match. Try a different region or relax a filter.';
       choices.hidden = !results.length;
       slot.querySelector('.mw-finder-window').hidden = !results.length;
       list.innerHTML = results.map((s, i) => `<li><label>
         <input type="checkbox" data-rank="${i}" ${picked.has(s) ? 'checked' : ''}>
-        <span><strong>${i + 1}. ${f.esc(s.region)}</strong> · ${coordinates(s)}
-          <small>${s.slope.toFixed(1)}° slope · ${s.resM} m LOLA · ${s.original ? 'original candidate' : s.distanceKm.toFixed(1) + (wide ? ' km from pole' : ' km from reference point')}</small>
-          <small>Sun ${f.pct(s.sun)} · Earth ${f.pct(s.earth)} · Both ${f.pct(s.both)}</small>
+        <span title="${s.resM} m LOLA · ${s.original ? 'Original candidate' : s.distanceKm.toFixed(1) + (wide ? ' km from pole' : ' km from reference point')}"><strong>${i + 1}. ${f.esc(s.region)}</strong> · ${coordinates(s)}
+          <small>${s.slope.toFixed(1)}° slope · Sun ${f.pct(s.sun)} · Earth ${f.pct(s.earth)} · Both ${f.pct(s.both)}</small>
         </span>
       </label></li>`).join('');
       clearReport();
@@ -2924,6 +2959,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
   let uid = 0;
   let useTerrain = true;
   let sharedClock = false;
+  let exploringNewSite = false;
   const SUN_RULES = { edge: 1, centre: 0, full: -1 };
   const SUN_RULE_LABELS = { edge: 'Any visible part of the Sun', centre: 'Sun centre', full: 'Full solar disk' };
   let sunRule = 'centre';
@@ -3109,7 +3145,8 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
 
   function renderSky(s, el, cur) {
     const svg = $(el, '.skysvg');
-    const W = 1000, H = 300, L = 46, R = 14, T = 14, B = 34, pw = W - L - R, ph = H - T - B;
+    const { width: W, height: H } = svg.viewBox.baseVal;
+    const L = 34, R = 12, T = 14, B = 27, pw = W - L - R, ph = H - T - B;
     const st = s.stats;
     const terr = terrainOn(s);
     const pmax = terr ? Math.max(...s.prof) : 0, pmin = terr ? Math.min(...s.prof) : 0;
@@ -3166,38 +3203,35 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     // Label boxes already used, so later labels can move out of the way instead of overlapping.
     const boxes = [];
     const hits = a => boxes.some(b => a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1);
-    const inPlot = a => a.y1 >= T && a.y2 <= T + ph;
     // current bodies
     const spot = b => [x(b.az), b.el >= bot && b.el <= top ? y(b.el) : (b.el < bot ? T + ph - 10 : T + 10)];
     // Reserve both markers first so neither label is drawn over the other body.
     [[cur.earth, 9], [cur.sun, 10]].forEach(([b, r]) => { const [cx, cy] = spot(b); boxes.push({ x1: cx - r, x2: cx + r, y1: cy - r, y2: cy + r }); });
     const body = (b, color, label, r) => {
-      const inView = b.el >= bot && b.el <= top;
       const [cx, cy] = spot(b);
-      const up = isUp(s, b), blocked = !up && b.el > 0;
+      const up = isUp(s, b);
       let out = '';
       if (label === 'Sun' && up) out += `<circle cx="${cx}" cy="${cy}" r="${r * 3}" fill="url(#${gid}glow)"/>`;
       out += up
         ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}" stroke="#000" stroke-width="1.5"/>`
         : `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="3 3"/>`;
-      const txt = `${label} ${fmtDeg(b.el)}${inView ? '' : ' (below view)'}`;
-      const status = b.kind === 'sun' && sunRule !== 'centre' ? (up ? 'meets sunlight rule' : 'below sunlight threshold')
-        : (up ? 'above horizon' : blocked ? 'hidden behind terrain' : 'below horizon');
-      const sub = `${status}, ${Math.round(b.az)}° ${compass(b.az)}`;
-      const w = Math.max(txt.length * 9, sub.length * 6.8);
-      const box = (rt, yy) => { const xx = rt ? cx + r + 6 : cx - r - 6; return { rt, xx, yy, x1: rt ? xx : xx - w, x2: rt ? xx + w : xx, y1: yy - 15, y2: yy + 19 }; };
+      const txt = `${label} ${fmtDeg(b.el)}`;
+      const w = txt.length * 7.5;
+      const box = (rt, yy) => {
+        const xx = rt ? cx + r + 5 : cx - r - 5;
+        return { rt, xx, yy, x1: rt ? xx : xx - w, x2: rt ? xx + w : xx, y1: yy - 13, y2: yy + 4 };
+      };
       const fits = a => a.y1 >= T && a.y2 <= T + ph + 6 && a.x1 >= L - 4 && a.x2 <= L + pw + 4;
       // Try spots in order: beside the marker above or under it, on either side, then stacked past a label already drawn.
-      const pref = cx < L + pw - 190;
+      const pref = cx < L + pw - w - r - 5;
       const ys = [cy < T + 40 ? cy + r + 16 : cy - r - 22, cy < T + 40 ? cy - r - 22 : cy + r + 16];
       boxes.forEach(o => { ys.push(o.y1 - 21, o.y2 + 15); });
       const spots = [];
       for (const rt of [pref, !pref]) for (const yy of ys) spots.push(box(rt, yy));
-      const lb = spots.find(a => fits(a) && !hits(a)) || box(pref, ys[0]);
-      const right = lb.rt, tx = lb.xx, ly1 = lb.yy, ly2 = ly1 + 15;
+      const lb = spots.find(a => fits(a) && !hits(a)) || spots.find(fits) || box(pref, ys[0]);
+      const tx = lb.rt ? clamp(lb.xx, L, L + pw - w) : clamp(lb.xx, L + w, L + pw);
       boxes.push(lb);
-      out += `<text x="${tx}" y="${ly1}" text-anchor="${right ? 'start' : 'end'}" font-size="15" font-weight="700" fill="${color}" paint-order="stroke" stroke="#000" stroke-width="4">${txt}</text>`;
-      out += `<text x="${tx}" y="${ly2}" text-anchor="${right ? 'start' : 'end'}" font-size="12" fill="#ECE9E2" paint-order="stroke" stroke="#000" stroke-width="4">${sub}</text>`;
+      out += `<text x="${tx}" y="${lb.yy}" text-anchor="${lb.rt ? 'start' : 'end'}" font-size="13" font-weight="700" fill="${color}" paint-order="stroke" stroke="#000" stroke-width="3">${txt}</text>`;
       return out;
     };
     const bodies = body(cur.earth, '#5DA9E9', 'Earth', 9) + body(cur.sun, '#F4B942', 'Sun', 10);
@@ -3212,22 +3246,18 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     };
     const Rx = L + pw - 6, Lx = L + 8;
     if (terr) {
-      g += note('Flat ground would be here (0°)', '#A3A9AE', [[Rx, y0 - 6, 1], [Lx, y0 - 6, 0], [Rx, y0 + 16, 1], [Lx, y0 + 16, 0], [x(180), y0 - 6, 0]]);
-      g += note('Real skyline from NASA LOLA terrain', '#ECE9E2', [[Lx, T + ph - 10, 0], [Rx, T + ph - 10, 1], [x(135), T + ph - 10, 0]]);
+      g += note('Flat horizon (0°)', '#A3A9AE', [[Rx, y0 - 6, 1], [Lx, y0 - 6, 0], [Rx, y0 + 16, 1], [Lx, y0 + 16, 0], [x(180), y0 - 6, 0]]);
+      g += note('LOLA skyline', '#ECE9E2', [[Lx, T + ph - 10, 0], [Rx, T + ph - 10, 1], [x(135), T + ph - 10, 0]]);
     } else {
       g += note('Horizon (flat ground)', '#ECE9E2', [[Lx, y0 + 16, 0], [Rx, y0 + 16, 1], [x(180), y0 + 16, 0]]);
     }
     g += bodies;
     svg.innerHTML = g;
     svg.setAttribute('aria-label', `Sky from ${siteName(s)}: Sun at ${fmtDeg(cur.sun.el)} elevation, azimuth ${Math.round(cur.sun.az)}°; Earth at ${fmtDeg(cur.earth.el)} elevation, azimuth ${Math.round(cur.earth.az)}°.`);
-    const stretch = top <= 20 ? ' Heights are stretched so small angles are visible.' : '';
     const pi = s.profInfo;
-    const hzText = !terr ? (s.prof ? 'Horizon: flat ground (terrain switched off).'
-        : s.lat > -77 ? 'Horizon: flat ground (LOLA terrain is used south of 77°S).'
-        : 'Horizon: flat ground (terrain data still loading).')
-      : pi.source === 'site' ? `Horizon: real terrain from NASA LOLA (${pi.resM} m grid at the site, viewed 2 m above the ground).`
-      : `Horizon: real terrain from NASA LOLA, computed in your browser for these coordinates (${pi.resM} m grid, viewed 2 m above the ground). On narrow ridges and peaks this is approximate; the listed sites use finer 80 m terrain.`;
-    $(el, '.skycap').innerHTML = `<span>Sky from the landing site at ${esc(fmtFull(s.t))}. Dots show the next 30 days.${stretch}</span><span>${hzText} The sky is black even in daylight: the Moon has no air.</span>`;
+    const horizon = terr ? `LOLA ${pi.resM} m · 2 m observer`
+      : s.prof ? 'Flat horizon' : terrainPending && s.lat <= -77 ? 'Loading LOLA…' : 'Flat horizon · no local terrain';
+    $(el, '.skycap').textContent = `30-day tracks · ${horizon}`;
   }
 
   function bodyCard(kind, s, cur) {
@@ -3235,25 +3265,22 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     const b = cur[kind];
     const up = isUp(s, b), blocked = !up && b.el > 0;
     const nc = isSun ? s.nextSun : s.nextEarth;
-    const title = isSun ? 'Sunlight for power' : 'Earth in view for radio';
+    const title = isSun ? 'Sunlight' : 'Earth view';
     const tip = isSun
       ? 'Solar panels need the Sun above the horizon. At the poles the Sun stays low, so panels are mounted vertically.'
       : 'Direct-to-Earth radio needs Earth above the local horizon. Otherwise a relay satellite is needed.';
-    const word = isSun ? (up ? 'Sun up' : 'Sun down') : (up ? 'Earth up' : 'Earth down');
-    const chip = isSun ? (up ? 'Meets sunlight rule' : blocked && sunRule === 'centre' ? 'Blocked by terrain' : 'Below sunlight threshold')
-      : blocked ? 'Blocked by terrain' : (up ? 'Direct radio possible' : 'No direct radio');
+    const chip = up ? 'Visible' : blocked && (!isSun || sunRule === 'centre') ? 'Terrain blocked' : 'Hidden';
     const ev = isSun ? (up ? 'Sunset' : 'Sunrise') : (up ? 'Earthset' : 'Earthrise');
     const count = nc.at
       ? `<p class="count">${ev} in ${fmtDur(nc.at - s.t)}</p><p class="muted">${esc(fmtUTC(nc.at))}</p>`
-      : `<p class="count">No ${ev.toLowerCase()} in the next ${nc.days} days</p><p class="muted">${terrainOn(s) ? 'With real terrain' : 'With a flat horizon'}</p>`;
+      : `<p class="count">No ${ev.toLowerCase()} in ${nc.days} d</p>`;
     const h = horizonAt(s, b.az);
-    const terrLine = terrainOn(s) ? `<p class="muted">Skyline in that direction: ${fmtDeg(h)}. ${isSun ? 'Sun' : 'Earth'} centre ${fmtDeg(Math.abs(b.el - h))} ${b.el >= h ? 'above' : 'below'} it.</p>` : '';
-    const where = isSun ? `Sunlight rule: ${SUN_RULE_LABELS[sunRule]}`
-      : blocked ? 'Earth above flat ground but hidden by hills' : word + ', ' + (up ? 'above' : 'below') + ' the horizon';
+    const bearing = Math.round(b.az) % 360;
+    const skyline = terrainOn(s) ? ` · Skyline ${fmtDeg(h)}` : '';
     return `<h3>${title} <button type="button" class="tip" data-tip="${esc(tip)}" aria-label="${esc(tip)}">?</button></h3>
       <div class="state"><span class="big">${fmtDeg(b.el)}</span><span class="chip ${up ? 'ok' : 'no'}">${chip}</span></div>
-      <p class="muted">${where} · ${Math.round(b.az)}° (${compass(b.az)})</p>
-      ${terrLine}${count}`;
+      <p class="muted" title="${compass(b.az)}">${bearing}° az.${skyline}</p>
+      ${count}`;
   }
 
   function monthCard(s) {
@@ -3565,7 +3592,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       (rank(a) === 2 ? Math.min(b.overlap, b.slipped) - Math.min(a.overlap, a.slipped) : 0) ||
       (b.overlap ?? -1) - (a.overlap ?? -1));
     const result = ranked[0];
-    const { s, index, selected, delayed, slipTime, searchedThrough } = result;
+    const { s, index, selected, delayed } = result;
     const passes = meetsMission(selected.duration, days);
     const delayPasses = meetsMission(delayed.duration, days);
     const inspectDelay = passes && !delayPasses;
@@ -3576,11 +3603,9 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
       ? (delayPasses ? `${scenario}meets the ${days}-day target even after a one-week delay.`
         : `${scenario}meets the ${days}-day target. A one-week delay leaves it ${fmtDur(needed - available)} short.`)
       : `${scenario}falls ${fmtDur(needed - (selected.duration ?? 0))} short of the ${days}-day target.`;
-    const currentText = overlapLabel(selected.duration, s.t, searchedThrough);
-    const delayText = overlapLabel(delayed.duration, slipTime, searchedThrough);
     const limit = event.at === null ? 'No loss of overlap in the search period'
       : `${event.reason} ${event.duration === null ? 'at the start' : 'on ' + fmtFull(event.at)}`;
-    context.textContent = `${siteName(s)} · ${fmtFull(s.t)}. Continuous overlap: ${currentText}, ${delayText.toLowerCase()} one week later. ${limit}.`;
+    context.textContent = `${siteName(s)} · ${fmtUTC(s.t)}. ${limit}.`;
     document.getElementById('explainDecision').disabled = event.at === null;
     missionDecision = { ...result, event, days, inspectDelay };
   }
@@ -3668,6 +3693,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
   }
 
   function renderAll() {
+    document.body.classList.toggle('exploring-globe', exploringNewSite);
     if (sharedClock && !scenarios.some(showingEvent) && scenarios.some(s => s.anchor !== scenarios[0]?.anchor)) {
       for (const s of scenarios) ensureSamples(s, true);
     }
@@ -3743,6 +3769,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
 
   // URL: #s=lat,lon,YYYYMMDDTHHMM;...&days=7&view=mission
   function saveHash() {
+    if (exploringNewSite) return;
     const enc = scenarios.map(s => {
       const time = showingEvent(s) ? checkedEvent.time : s.t;
       return `${+s.lat.toFixed(4)},${+s.lon.toFixed(4)},${new Date(time).toISOString().slice(0, 16).replace(/[-:]/g, '')}`;
@@ -3859,7 +3886,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
 
   function pickSurfaceSite(lat, lon) {
     const active = inspectedScenario;
-    if (scenarios.length === MAX_SCENARIOS) {
+    if (exploringNewSite || scenarios.length === MAX_SCENARIOS) {
       API.setSite(scenarios.indexOf(active), lat, lon);
       return;
     }
@@ -3871,6 +3898,7 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
   function loadSiteComparison(points, { shared = false, days } = {}) {
     if (points.length < 2 || points.length > MAX_SCENARIOS) return;
     stopPlayback();
+    exploringNewSite = false;
     scenarios.forEach(s => s.unmount());
     scenarios = [];
     for (const { lat, lon, t } of points) addScenario(lat, lon, t);
@@ -3882,6 +3910,21 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     }
     setPanel('mission');
     sitePanel.querySelector('[data-panel-view="mission"]').focus();
+  }
+
+  function startMissionDemo() {
+    const s = scenarios[0];
+    exploringNewSite = false;
+    inspectedScenario = s;
+    Object.assign(s, missionDemo, { siteId: matchSite(missionDemo.lat, missionDemo.lon) });
+    sunRule = 'centre';
+    sunRuleInput.value = sunRule;
+    missionDaysInput.value = 7;
+    missionDaysInput.dispatchEvent(new Event('change'));
+    ensureSamples(s, true);
+    setTerrain(true);
+    setPanel('mission');
+    $(sitePanel, '[data-panel-view="mission"]').focus();
   }
 
   panelToggle.addEventListener('click', () => setPanel(sitePanel.hidden ? sitePanel.dataset.view : null));
@@ -4038,6 +4081,12 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     engine: E, HOUR, DAY, WINDOW_H, SAMPLE_H, SITES,
     scenarios: () => scenarios.slice(),          // each: {lat, lon, t, siteId, anchor, samples[], stats, cur, nextSun, nextEarth, el}
     activeScenario: () => inspectedScenario,
+    exploringNewSite: () => exploringNewSite,
+    openFinder() {
+      setPanel('finder');
+      $(sitePanel, '[data-panel-view="finder"]').focus();
+    },
+    startMissionDemo,
     openSitePanel,
     pickSurfaceSite,
     loadSiteComparison,
@@ -4047,7 +4096,16 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
     skylineAt,
     sunRule: () => sunRule,
     clearsSkyline,
-    setSite(i, lat, lon) { const s = scenarios[i]; if (!s) return; s.lat = lat; s.lon = lon; s.siteId = matchSite(lat, lon); ensureSamples(s, true); renderAll(); },
+    setSite(i, lat, lon) {
+      const s = scenarios[i];
+      if (!s) return;
+      exploringNewSite = false;
+      s.lat = lat;
+      s.lon = lon;
+      s.siteId = matchSite(lat, lon);
+      ensureSamples(s, true);
+      renderAll();
+    },
     setTime(i, t, { inspect = false, preview = false } = {}) {
       const s = scenarios[i];
       if (!s) return;
@@ -4094,9 +4152,9 @@ window.MW_SITE_CANDIDATES = [{"id":"artemis-peak-cabeus-b","name":"Peak near Cab
   }
 
   if (!loadHash()) {
+    exploringNewSite = true;
     addScenario(missionDemo.lat, missionDemo.lon, missionDemo.t);
     missionDaysInput.value = 7;
-    setPanel('mission');
   }
   sunRuleInput.value = sunRule;
   updateTerrainButton();

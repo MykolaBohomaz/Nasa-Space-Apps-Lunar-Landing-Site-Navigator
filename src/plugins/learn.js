@@ -24,7 +24,7 @@
       if (slot.firstElementChild) return;
       const section = document.createElement('section');
       section.className = 'mw-learn';
-      section.innerHTML = '<h2>Moon challenges</h2><p class="muted">Use scenario A to try these challenges.</p>';
+      section.innerHTML = '<h2>Moon challenges</h2><p class="muted">Use scenario A.</p>';
       const list = document.createElement('ol');
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
       for (const challenge of challenges) {

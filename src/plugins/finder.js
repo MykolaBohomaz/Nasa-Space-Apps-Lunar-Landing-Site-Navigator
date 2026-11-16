@@ -21,7 +21,7 @@
   function mount(slot, api) {
     slot.innerHTML = `
       <section class="mw-finder" aria-labelledby="mw-finder-heading">
-        <h2 id="mw-finder-heading">Find landing sites</h2>
+        <h2 id="mw-finder-heading">Site finder</h2>
         <p class="mw-finder-scope muted"></p>
         <form class="mw-finder-fields">
           <label class="field"><span>Search area</span><select name="region"></select></label>
@@ -38,7 +38,7 @@
         </form>
         <p class="mw-finder-count" role="status"></p>
         <div class="mw-finder-window">
-          <label class="field"><span>Required continuous days with Sun and Earth</span><input class="mw-finder-days" type="number" min="1" max="30" value="7" required></label>
+          <label class="field"><span>Required overlap (days)</span><input class="mw-finder-days" type="number" min="1" max="30" value="7" required></label>
           <p class="mw-finder-start muted"></p>
           <div class="actions">
             <button class="btn small" type="button" data-check>Check landing windows</button>
@@ -47,8 +47,7 @@
           </div>
           <div class="mw-finder-report" aria-live="polite"></div>
         </div>
-        <fieldset class="mw-finder-picks"><legend>Pin up to three sites on the globe or in the list</legend><ol></ol></fieldset>
-        <p class="muted">Grid-based slope and visibility estimates. Local rocks and small terrain features can matter, especially near ridges.</p>
+        <fieldset class="mw-finder-picks"><legend>Pin up to three</legend><ol></ol></fieldset>
       </section>`;
 
     const form = slot.querySelector('form');
@@ -108,10 +107,9 @@
       const rank = value('rank');
       const wide = polar && regionId === polar.id;
       const spacing = wide ? POLAR_SPACING_KM : ARTEMIS_SPACING_KM;
-      scope.textContent = (wide
-        ? `Search points on a ${polar.stepKm} km grid within ${polar.radiusKm} km of the south pole.`
-        : 'Search points within 5 km of the selected Artemis region reference points.') +
-        ' Brighter cells rank higher. Coverage filters use modeled 2027 Sun-centre and Earth-centre visibility.';
+      scope.textContent = wide ? `${polar.stepKm} km grid · 2027 coverage · Brighter cells rank higher`
+        : 'Within 5 km of Artemis reference points · 2027 coverage';
+      scope.title = 'Coverage uses the centres of the Sun and Earth. Grid estimates smooth out small terrain features.';
       const searchRegions = wide ? [polar] : artemis.filter(r => !regionId || r.id === regionId);
       const matches = searchRegions
         .flatMap(r => r.sites.map(s => ({ ...s, region: r.name })))
@@ -134,15 +132,14 @@
       }
       picked = new Set(results.slice(0, MAX_PICKS));
       count.textContent = matches.length
-        ? `${matches.length} matching cells on the globe · ${results.length} numbered candidates · ${spacing} km spacing`
+        ? `${matches.length} matching cells · ${results.length} candidates · ≥ ${spacing} km apart`
         : 'No points match. Try a different region or relax a filter.';
       choices.hidden = !results.length;
       slot.querySelector('.mw-finder-window').hidden = !results.length;
       list.innerHTML = results.map((s, i) => `<li><label>
         <input type="checkbox" data-rank="${i}" ${picked.has(s) ? 'checked' : ''}>
-        <span><strong>${i + 1}. ${f.esc(s.region)}</strong> · ${coordinates(s)}
-          <small>${s.slope.toFixed(1)}° slope · ${s.resM} m LOLA · ${s.original ? 'original candidate' : s.distanceKm.toFixed(1) + (wide ? ' km from pole' : ' km from reference point')}</small>
-          <small>Sun ${f.pct(s.sun)} · Earth ${f.pct(s.earth)} · Both ${f.pct(s.both)}</small>
+        <span title="${s.resM} m LOLA · ${s.original ? 'Original candidate' : s.distanceKm.toFixed(1) + (wide ? ' km from pole' : ' km from reference point')}"><strong>${i + 1}. ${f.esc(s.region)}</strong> · ${coordinates(s)}
+          <small>${s.slope.toFixed(1)}° slope · Sun ${f.pct(s.sun)} · Earth ${f.pct(s.earth)} · Both ${f.pct(s.both)}</small>
         </span>
       </label></li>`).join('');
       clearReport();

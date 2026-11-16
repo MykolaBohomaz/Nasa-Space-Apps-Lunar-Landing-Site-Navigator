@@ -15,6 +15,7 @@
   let uid = 0;
   let useTerrain = true;
   let sharedClock = false;
+  let exploringNewSite = false;
   const SUN_RULES = { edge: 1, centre: 0, full: -1 };
   const SUN_RULE_LABELS = { edge: 'Any visible part of the Sun', centre: 'Sun centre', full: 'Full solar disk' };
   let sunRule = 'centre';
@@ -200,7 +201,8 @@
 
   function renderSky(s, el, cur) {
     const svg = $(el, '.skysvg');
-    const W = 1000, H = 300, L = 46, R = 14, T = 14, B = 34, pw = W - L - R, ph = H - T - B;
+    const { width: W, height: H } = svg.viewBox.baseVal;
+    const L = 34, R = 12, T = 14, B = 27, pw = W - L - R, ph = H - T - B;
     const st = s.stats;
     const terr = terrainOn(s);
     const pmax = terr ? Math.max(...s.prof) : 0, pmin = terr ? Math.min(...s.prof) : 0;
@@ -257,38 +259,35 @@
     // Label boxes already used, so later labels can move out of the way instead of overlapping.
     const boxes = [];
     const hits = a => boxes.some(b => a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1);
-    const inPlot = a => a.y1 >= T && a.y2 <= T + ph;
     // current bodies
     const spot = b => [x(b.az), b.el >= bot && b.el <= top ? y(b.el) : (b.el < bot ? T + ph - 10 : T + 10)];
     // Reserve both markers first so neither label is drawn over the other body.
     [[cur.earth, 9], [cur.sun, 10]].forEach(([b, r]) => { const [cx, cy] = spot(b); boxes.push({ x1: cx - r, x2: cx + r, y1: cy - r, y2: cy + r }); });
     const body = (b, color, label, r) => {
-      const inView = b.el >= bot && b.el <= top;
       const [cx, cy] = spot(b);
-      const up = isUp(s, b), blocked = !up && b.el > 0;
+      const up = isUp(s, b);
       let out = '';
       if (label === 'Sun' && up) out += `<circle cx="${cx}" cy="${cy}" r="${r * 3}" fill="url(#${gid}glow)"/>`;
       out += up
         ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}" stroke="#000" stroke-width="1.5"/>`
         : `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="3 3"/>`;
-      const txt = `${label} ${fmtDeg(b.el)}${inView ? '' : ' (below view)'}`;
-      const status = b.kind === 'sun' && sunRule !== 'centre' ? (up ? 'meets sunlight rule' : 'below sunlight threshold')
-        : (up ? 'above horizon' : blocked ? 'hidden behind terrain' : 'below horizon');
-      const sub = `${status}, ${Math.round(b.az)}° ${compass(b.az)}`;
-      const w = Math.max(txt.length * 9, sub.length * 6.8);
-      const box = (rt, yy) => { const xx = rt ? cx + r + 6 : cx - r - 6; return { rt, xx, yy, x1: rt ? xx : xx - w, x2: rt ? xx + w : xx, y1: yy - 15, y2: yy + 19 }; };
+      const txt = `${label} ${fmtDeg(b.el)}`;
+      const w = txt.length * 7.5;
+      const box = (rt, yy) => {
+        const xx = rt ? cx + r + 5 : cx - r - 5;
+        return { rt, xx, yy, x1: rt ? xx : xx - w, x2: rt ? xx + w : xx, y1: yy - 13, y2: yy + 4 };
+      };
       const fits = a => a.y1 >= T && a.y2 <= T + ph + 6 && a.x1 >= L - 4 && a.x2 <= L + pw + 4;
       // Try spots in order: beside the marker above or under it, on either side, then stacked past a label already drawn.
-      const pref = cx < L + pw - 190;
+      const pref = cx < L + pw - w - r - 5;
       const ys = [cy < T + 40 ? cy + r + 16 : cy - r - 22, cy < T + 40 ? cy - r - 22 : cy + r + 16];
       boxes.forEach(o => { ys.push(o.y1 - 21, o.y2 + 15); });
       const spots = [];
       for (const rt of [pref, !pref]) for (const yy of ys) spots.push(box(rt, yy));
-      const lb = spots.find(a => fits(a) && !hits(a)) || box(pref, ys[0]);
-      const right = lb.rt, tx = lb.xx, ly1 = lb.yy, ly2 = ly1 + 15;
+      const lb = spots.find(a => fits(a) && !hits(a)) || spots.find(fits) || box(pref, ys[0]);
+      const tx = lb.rt ? clamp(lb.xx, L, L + pw - w) : clamp(lb.xx, L + w, L + pw);
       boxes.push(lb);
-      out += `<text x="${tx}" y="${ly1}" text-anchor="${right ? 'start' : 'end'}" font-size="15" font-weight="700" fill="${color}" paint-order="stroke" stroke="#000" stroke-width="4">${txt}</text>`;
-      out += `<text x="${tx}" y="${ly2}" text-anchor="${right ? 'start' : 'end'}" font-size="12" fill="#ECE9E2" paint-order="stroke" stroke="#000" stroke-width="4">${sub}</text>`;
+      out += `<text x="${tx}" y="${lb.yy}" text-anchor="${lb.rt ? 'start' : 'end'}" font-size="13" font-weight="700" fill="${color}" paint-order="stroke" stroke="#000" stroke-width="3">${txt}</text>`;
       return out;
     };
     const bodies = body(cur.earth, '#5DA9E9', 'Earth', 9) + body(cur.sun, '#F4B942', 'Sun', 10);
@@ -303,22 +302,18 @@
     };
     const Rx = L + pw - 6, Lx = L + 8;
     if (terr) {
-      g += note('Flat ground would be here (0°)', '#A3A9AE', [[Rx, y0 - 6, 1], [Lx, y0 - 6, 0], [Rx, y0 + 16, 1], [Lx, y0 + 16, 0], [x(180), y0 - 6, 0]]);
-      g += note('Real skyline from NASA LOLA terrain', '#ECE9E2', [[Lx, T + ph - 10, 0], [Rx, T + ph - 10, 1], [x(135), T + ph - 10, 0]]);
+      g += note('Flat horizon (0°)', '#A3A9AE', [[Rx, y0 - 6, 1], [Lx, y0 - 6, 0], [Rx, y0 + 16, 1], [Lx, y0 + 16, 0], [x(180), y0 - 6, 0]]);
+      g += note('LOLA skyline', '#ECE9E2', [[Lx, T + ph - 10, 0], [Rx, T + ph - 10, 1], [x(135), T + ph - 10, 0]]);
     } else {
       g += note('Horizon (flat ground)', '#ECE9E2', [[Lx, y0 + 16, 0], [Rx, y0 + 16, 1], [x(180), y0 + 16, 0]]);
     }
     g += bodies;
     svg.innerHTML = g;
     svg.setAttribute('aria-label', `Sky from ${siteName(s)}: Sun at ${fmtDeg(cur.sun.el)} elevation, azimuth ${Math.round(cur.sun.az)}°; Earth at ${fmtDeg(cur.earth.el)} elevation, azimuth ${Math.round(cur.earth.az)}°.`);
-    const stretch = top <= 20 ? ' Heights are stretched so small angles are visible.' : '';
     const pi = s.profInfo;
-    const hzText = !terr ? (s.prof ? 'Horizon: flat ground (terrain switched off).'
-        : s.lat > -77 ? 'Horizon: flat ground (LOLA terrain is used south of 77°S).'
-        : 'Horizon: flat ground (terrain data still loading).')
-      : pi.source === 'site' ? `Horizon: real terrain from NASA LOLA (${pi.resM} m grid at the site, viewed 2 m above the ground).`
-      : `Horizon: real terrain from NASA LOLA, computed in your browser for these coordinates (${pi.resM} m grid, viewed 2 m above the ground). On narrow ridges and peaks this is approximate; the listed sites use finer 80 m terrain.`;
-    $(el, '.skycap').innerHTML = `<span>Sky from the landing site at ${esc(fmtFull(s.t))}. Dots show the next 30 days.${stretch}</span><span>${hzText} The sky is black even in daylight: the Moon has no air.</span>`;
+    const horizon = terr ? `LOLA ${pi.resM} m · 2 m observer`
+      : s.prof ? 'Flat horizon' : terrainPending && s.lat <= -77 ? 'Loading LOLA…' : 'Flat horizon · no local terrain';
+    $(el, '.skycap').textContent = `30-day tracks · ${horizon}`;
   }
 
   function bodyCard(kind, s, cur) {
@@ -326,25 +321,22 @@
     const b = cur[kind];
     const up = isUp(s, b), blocked = !up && b.el > 0;
     const nc = isSun ? s.nextSun : s.nextEarth;
-    const title = isSun ? 'Sunlight for power' : 'Earth in view for radio';
+    const title = isSun ? 'Sunlight' : 'Earth view';
     const tip = isSun
       ? 'Solar panels need the Sun above the horizon. At the poles the Sun stays low, so panels are mounted vertically.'
       : 'Direct-to-Earth radio needs Earth above the local horizon. Otherwise a relay satellite is needed.';
-    const word = isSun ? (up ? 'Sun up' : 'Sun down') : (up ? 'Earth up' : 'Earth down');
-    const chip = isSun ? (up ? 'Meets sunlight rule' : blocked && sunRule === 'centre' ? 'Blocked by terrain' : 'Below sunlight threshold')
-      : blocked ? 'Blocked by terrain' : (up ? 'Direct radio possible' : 'No direct radio');
+    const chip = up ? 'Visible' : blocked && (!isSun || sunRule === 'centre') ? 'Terrain blocked' : 'Hidden';
     const ev = isSun ? (up ? 'Sunset' : 'Sunrise') : (up ? 'Earthset' : 'Earthrise');
     const count = nc.at
       ? `<p class="count">${ev} in ${fmtDur(nc.at - s.t)}</p><p class="muted">${esc(fmtUTC(nc.at))}</p>`
-      : `<p class="count">No ${ev.toLowerCase()} in the next ${nc.days} days</p><p class="muted">${terrainOn(s) ? 'With real terrain' : 'With a flat horizon'}</p>`;
+      : `<p class="count">No ${ev.toLowerCase()} in ${nc.days} d</p>`;
     const h = horizonAt(s, b.az);
-    const terrLine = terrainOn(s) ? `<p class="muted">Skyline in that direction: ${fmtDeg(h)}. ${isSun ? 'Sun' : 'Earth'} centre ${fmtDeg(Math.abs(b.el - h))} ${b.el >= h ? 'above' : 'below'} it.</p>` : '';
-    const where = isSun ? `Sunlight rule: ${SUN_RULE_LABELS[sunRule]}`
-      : blocked ? 'Earth above flat ground but hidden by hills' : word + ', ' + (up ? 'above' : 'below') + ' the horizon';
+    const bearing = Math.round(b.az) % 360;
+    const skyline = terrainOn(s) ? ` · Skyline ${fmtDeg(h)}` : '';
     return `<h3>${title} <button type="button" class="tip" data-tip="${esc(tip)}" aria-label="${esc(tip)}">?</button></h3>
       <div class="state"><span class="big">${fmtDeg(b.el)}</span><span class="chip ${up ? 'ok' : 'no'}">${chip}</span></div>
-      <p class="muted">${where} · ${Math.round(b.az)}° (${compass(b.az)})</p>
-      ${terrLine}${count}`;
+      <p class="muted" title="${compass(b.az)}">${bearing}° az.${skyline}</p>
+      ${count}`;
   }
 
   function monthCard(s) {
@@ -656,7 +648,7 @@
       (rank(a) === 2 ? Math.min(b.overlap, b.slipped) - Math.min(a.overlap, a.slipped) : 0) ||
       (b.overlap ?? -1) - (a.overlap ?? -1));
     const result = ranked[0];
-    const { s, index, selected, delayed, slipTime, searchedThrough } = result;
+    const { s, index, selected, delayed } = result;
     const passes = meetsMission(selected.duration, days);
     const delayPasses = meetsMission(delayed.duration, days);
     const inspectDelay = passes && !delayPasses;
@@ -667,11 +659,9 @@
       ? (delayPasses ? `${scenario}meets the ${days}-day target even after a one-week delay.`
         : `${scenario}meets the ${days}-day target. A one-week delay leaves it ${fmtDur(needed - available)} short.`)
       : `${scenario}falls ${fmtDur(needed - (selected.duration ?? 0))} short of the ${days}-day target.`;
-    const currentText = overlapLabel(selected.duration, s.t, searchedThrough);
-    const delayText = overlapLabel(delayed.duration, slipTime, searchedThrough);
     const limit = event.at === null ? 'No loss of overlap in the search period'
       : `${event.reason} ${event.duration === null ? 'at the start' : 'on ' + fmtFull(event.at)}`;
-    context.textContent = `${siteName(s)} · ${fmtFull(s.t)}. Continuous overlap: ${currentText}, ${delayText.toLowerCase()} one week later. ${limit}.`;
+    context.textContent = `${siteName(s)} · ${fmtUTC(s.t)}. ${limit}.`;
     document.getElementById('explainDecision').disabled = event.at === null;
     missionDecision = { ...result, event, days, inspectDelay };
   }
@@ -759,6 +749,7 @@
   }
 
   function renderAll() {
+    document.body.classList.toggle('exploring-globe', exploringNewSite);
     if (sharedClock && !scenarios.some(showingEvent) && scenarios.some(s => s.anchor !== scenarios[0]?.anchor)) {
       for (const s of scenarios) ensureSamples(s, true);
     }
@@ -834,6 +825,7 @@
 
   // URL: #s=lat,lon,YYYYMMDDTHHMM;...&days=7&view=mission
   function saveHash() {
+    if (exploringNewSite) return;
     const enc = scenarios.map(s => {
       const time = showingEvent(s) ? checkedEvent.time : s.t;
       return `${+s.lat.toFixed(4)},${+s.lon.toFixed(4)},${new Date(time).toISOString().slice(0, 16).replace(/[-:]/g, '')}`;
@@ -950,7 +942,7 @@
 
   function pickSurfaceSite(lat, lon) {
     const active = inspectedScenario;
-    if (scenarios.length === MAX_SCENARIOS) {
+    if (exploringNewSite || scenarios.length === MAX_SCENARIOS) {
       API.setSite(scenarios.indexOf(active), lat, lon);
       return;
     }
@@ -962,6 +954,7 @@
   function loadSiteComparison(points, { shared = false, days } = {}) {
     if (points.length < 2 || points.length > MAX_SCENARIOS) return;
     stopPlayback();
+    exploringNewSite = false;
     scenarios.forEach(s => s.unmount());
     scenarios = [];
     for (const { lat, lon, t } of points) addScenario(lat, lon, t);
@@ -973,6 +966,21 @@
     }
     setPanel('mission');
     sitePanel.querySelector('[data-panel-view="mission"]').focus();
+  }
+
+  function startMissionDemo() {
+    const s = scenarios[0];
+    exploringNewSite = false;
+    inspectedScenario = s;
+    Object.assign(s, missionDemo, { siteId: matchSite(missionDemo.lat, missionDemo.lon) });
+    sunRule = 'centre';
+    sunRuleInput.value = sunRule;
+    missionDaysInput.value = 7;
+    missionDaysInput.dispatchEvent(new Event('change'));
+    ensureSamples(s, true);
+    setTerrain(true);
+    setPanel('mission');
+    $(sitePanel, '[data-panel-view="mission"]').focus();
   }
 
   panelToggle.addEventListener('click', () => setPanel(sitePanel.hidden ? sitePanel.dataset.view : null));
@@ -1129,6 +1137,12 @@
     engine: E, HOUR, DAY, WINDOW_H, SAMPLE_H, SITES,
     scenarios: () => scenarios.slice(),          // each: {lat, lon, t, siteId, anchor, samples[], stats, cur, nextSun, nextEarth, el}
     activeScenario: () => inspectedScenario,
+    exploringNewSite: () => exploringNewSite,
+    openFinder() {
+      setPanel('finder');
+      $(sitePanel, '[data-panel-view="finder"]').focus();
+    },
+    startMissionDemo,
     openSitePanel,
     pickSurfaceSite,
     loadSiteComparison,
@@ -1138,7 +1152,16 @@
     skylineAt,
     sunRule: () => sunRule,
     clearsSkyline,
-    setSite(i, lat, lon) { const s = scenarios[i]; if (!s) return; s.lat = lat; s.lon = lon; s.siteId = matchSite(lat, lon); ensureSamples(s, true); renderAll(); },
+    setSite(i, lat, lon) {
+      const s = scenarios[i];
+      if (!s) return;
+      exploringNewSite = false;
+      s.lat = lat;
+      s.lon = lon;
+      s.siteId = matchSite(lat, lon);
+      ensureSamples(s, true);
+      renderAll();
+    },
     setTime(i, t, { inspect = false, preview = false } = {}) {
       const s = scenarios[i];
       if (!s) return;
@@ -1185,9 +1208,9 @@
   }
 
   if (!loadHash()) {
+    exploringNewSite = true;
     addScenario(missionDemo.lat, missionDemo.lon, missionDemo.t);
     missionDaysInput.value = 7;
-    setPanel('mission');
   }
   sunRuleInput.value = sunRule;
   updateTerrainButton();
